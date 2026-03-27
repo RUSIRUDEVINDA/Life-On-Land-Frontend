@@ -22,12 +22,15 @@ const DashboardLayout = () => {
     const location = useLocation();
 
     const handleLogout = () => {
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
         navigate('/login');
     };
 
     const menuItems = [
         { name: 'Dashboard', path: '/dashboard', icon: <LayoutDashboard size={18} /> },
         { name: 'Map Tracking', path: '/dashboard/maps', icon: <Map size={18} /> },
+        { name: 'Risk Map', path: '/dashboard/risk-map', icon: <Map size={18} /> },
         { name: 'Protected Areas', path: '/dashboard/areas', icon: <MapPin size={18} /> },
         { name: 'Animals', path: '/dashboard/animals', icon: <Cat size={18} /> },
         { name: 'Movements', path: '/dashboard/movements', icon: <Activity size={18} /> },
@@ -54,7 +57,9 @@ const DashboardLayout = () => {
                     <nav className="flex flex-col px-4 pr-3 pb-4 gap-1">
                         <p className="text-[10px] font-semibold text-[#adb5bd] mb-1.5 mt-3 tracking-widest uppercase pl-2">MAIN MENU</p>
                         {menuItems.map(item => {
-                            const isActive = location.pathname === item.path || (item.path === '/dashboard' && location.pathname === '/dashboard');
+                            const isActive = item.path === '/dashboard'
+                                ? location.pathname === '/dashboard'
+                                : location.pathname.startsWith(item.path);
                             return (
                                 <Link
                                     key={item.name}
