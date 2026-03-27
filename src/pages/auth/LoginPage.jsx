@@ -1,15 +1,70 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 
+const DEFAULT_API_URL = 'http://localhost:5001';
+const getApiBaseUrl = () => {
+    if (import.meta.env.DEV) {
+        // In dev, route through Vite proxy to avoid CORS issues.
+        return '';
+    }
+
+    return (import.meta.env.VITE_API_URL || DEFAULT_API_URL).trim().replace(/\/$/, '');
+};
+
+const extractToken = (payload) =>
+    payload?.token ||
+    payload?.accessToken ||
+    payload?.data?.token ||
+    payload?.data?.accessToken ||
+    payload?.user?.token ||
+    '';
+
 const LoginPage = () => {
     const navigate = useNavigate();
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
+    const [submitting, setSubmitting] = useState(false);
+    const [error, setError] = useState('');
 
-    const handleSubmit = (e) => {
+    const handleSubmit = async (e) => {
         e.preventDefault();
-        // Dummy login, navigate straight to dashboard
-        navigate('/dashboard');
+        setError('');
+        setSubmitting(true);
+
+        try {
+            const response = await fetch(`${getApiBaseUrl()}/api/auth/login`, {
+                method: 'POST',
+                credentials: 'include',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    email: email.trim(),
+                    password,
+                }),
+            });
+
+            const payload = await response.json().catch(() => ({}));
+            if (!response.ok) {
+                throw new Error(payload?.message || payload?.error || `Login failed (${response.status})`);
+            }
+
+            const token = extractToken(payload);
+            if (token) {
+                localStorage.setItem('token', token);
+            } else {
+                // Backend may use cookie-only auth; clear stale token so it won't override cookie auth.
+                localStorage.removeItem('token');
+            }
+
+            if (payload?.user || payload?.data?.user) {
+                localStorage.setItem('user', JSON.stringify(payload.user || payload.data.user));
+            }
+
+            navigate('/dashboard');
+        } catch (requestError) {
+            setError(requestError.message || 'Failed to login');
+        } finally {
+            setSubmitting(false);
+        }
     };
 
     return (
@@ -48,9 +103,15 @@ const LoginPage = () => {
                     </div>
 
                     <button type="submit" className="mt-4 p-4 bg-primary text-white rounded-xl text-base font-semibold transition-all duration-200 shadow-[0_4px_12px_rgba(42,90,69,0.2)] hover:bg-primary-dark hover:-translate-y-0.5 hover:shadow-[0_6px_16px_rgba(42,90,69,0.3)] active:translate-y-0">
-                        Sign In
+                        {submitting ? 'Signing In...' : 'Sign In'}
                     </button>
                 </form>
+
+                {error && (
+                    <div className="mt-4 rounded-xl border border-[#E63946]/30 bg-[#fff5f5] px-4 py-3 text-[13px] text-[#a4161a]">
+                        {error}
+                    </div>
+                )}
 
                 <div className="mt-8 text-center text-[15px] text-text-gray">
                     <p>Don't have an account? <Link to="/register" className="text-primary font-semibold transition-colors duration-200 hover:text-primary-medium">Sign up</Link></p>
