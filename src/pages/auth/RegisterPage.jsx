@@ -1,21 +1,71 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 
+const DEFAULT_API_URL = 'http://localhost:5001';
+const getApiBaseUrl = () => {
+    if (import.meta.env.DEV) {
+        // In dev, route through Vite proxy to avoid CORS issues.
+        return '';
+    }
+
+    return (import.meta.env.VITE_API_URL || DEFAULT_API_URL).trim().replace(/\/$/, '');
+};
+
 const RegisterPage = () => {
     const navigate = useNavigate();
     const [name, setName] = useState('');
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
+    const [submitting, setSubmitting] = useState(false);
+    const [error, setError] = useState('');
 
-    const handleSubmit = (e) => {
+    const handleSubmit = async (e) => {
         e.preventDefault();
+        setError('');
+
         if (password !== confirmPassword) {
-            alert("Passwords don't match");
+            setError("Passwords don't match");
             return;
         }
-        // Dummy registration, navigate straight to dashboard
-        navigate('/dashboard');
+
+        setSubmitting(true);
+        try {
+            const response = await fetch(`${getApiBaseUrl()}/api/auth/register`, {
+                method: 'POST',
+                credentials: 'include',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    name: name.trim(),
+                    email: email.trim(),
+                    password,
+                }),
+            });
+
+            const payload = await response.json().catch(() => ({}));
+            if (!response.ok) {
+                throw new Error(payload?.message || payload?.error || `Registration failed (${response.status})`);
+            }
+
+            // Backend register endpoint sets auth cookie; token may not be returned in body.
+            if (payload?._id || payload?.data?._id) {
+                localStorage.setItem(
+                    'user',
+                    JSON.stringify({
+                        _id: payload._id || payload?.data?._id,
+                        name: payload.name || payload?.data?.name || name.trim(),
+                        email: payload.email || payload?.data?.email || email.trim(),
+                        role: payload.role || payload?.data?.role || 'RANGER',
+                    })
+                );
+            }
+
+            navigate('/dashboard');
+        } catch (requestError) {
+            setError(requestError.message || 'Failed to register');
+        } finally {
+            setSubmitting(false);
+        }
     };
 
     return (
@@ -80,9 +130,15 @@ const RegisterPage = () => {
                     </div>
 
                     <button type="submit" className="mt-4 p-4 bg-primary text-white rounded-xl text-base font-semibold transition-all duration-200 shadow-[0_4px_12px_rgba(42,90,69,0.2)] hover:bg-primary-dark hover:-translate-y-0.5 hover:shadow-[0_6px_16px_rgba(42,90,69,0.3)] active:translate-y-0">
-                        Sign Up
+                        {submitting ? 'Creating Account...' : 'Sign Up'}
                     </button>
                 </form>
+
+                {error && (
+                    <div className="mt-4 rounded-xl border border-[#E63946]/30 bg-[#fff5f5] px-4 py-3 text-[13px] text-[#a4161a]">
+                        {error}
+                    </div>
+                )}
 
                 <div className="mt-8 text-center text-[15px] text-text-gray">
                     <p>Already have an account? <Link to="/login" className="text-primary font-semibold transition-colors duration-200 hover:text-primary-medium">Sign in</Link></p>
