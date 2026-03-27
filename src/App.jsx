@@ -8,6 +8,9 @@ import LoginPage from "./pages/auth/LoginPage";
 import RegisterPage from "./pages/auth/RegisterPage";
 import DashboardLayout from "./components/dashboard/DashboardLayout";
 import DashboardPage from "./pages/dashboard/DashboardPage";
+import IncidentsPage from "./pages/dashboard/IncidentsPage";
+import RiskMapPage from "./pages/dashboard/RiskMapPage";
+import ReportIncidentPage from "./pages/dashboard/ReportIncidentPage";
 
 function App() {
   return (
@@ -18,6 +21,9 @@ function App() {
         <Route path="/register" element={<RegisterPage />} />
         <Route path="/dashboard" element={<DashboardLayout />}>
           <Route index element={<DashboardPage />} />
+          <Route path="incidents" element={<IncidentsPage />} />
+          <Route path="incidents/report" element={<ReportIncidentPage />} />
+          <Route path="risk-map" element={<RiskMapPage />} />
         </Route>
       </Routes>
     </Router>
