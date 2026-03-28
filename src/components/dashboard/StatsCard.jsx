@@ -1,6 +1,7 @@
 import React from 'react';
 import { ArrowUpRight } from 'lucide-react';
 
+// eslint-disable-next-line no-unused-vars
 const StatsCard = ({ title, value, unit, icon: Icon, trend, trendColor, isDark = false }) => {
     return (
         <div className={`rounded-2xl p-4 flex flex-col shadow-premium ${isDark ? 'bg-primary-dark text-white' : 'bg-white text-primary-dark border border-border-light'}`}>

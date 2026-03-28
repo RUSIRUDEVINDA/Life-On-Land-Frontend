@@ -1,0 +1,62 @@
+import React, { useState, useEffect } from 'react';
+import { ArrowUpRight, LoaderCircle } from 'lucide-react';
+import { fetchAlerts } from '../../features/alerts/api/alertsApi';
+import AlertsTable from '../../features/alerts/components/AlertsTable';
+
+const AlertsPage = () => {
+    const [alerts, setAlerts] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
+
+    useEffect(() => {
+        const loadAlerts = async () => {
+            try {
+                const data = await fetchAlerts();
+                setAlerts(data);
+            } catch (err) {
+                setError(err.message || 'Failed to load alerts');
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        loadAlerts();
+    }, []);
+
+    return (
+        <div className="flex flex-col gap-6">
+            <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
+                <div>
+                    <h1 className="text-[30px] font-semibold tracking-tight text-primary-dark">Alerts Center</h1>
+                    <p className="mt-1 text-[14px] text-text-gray">
+                        Manage active alerts across protected areas.
+                    </p>
+                </div>
+
+                <div className="flex flex-wrap gap-2">
+                    <button className="inline-flex items-center gap-2 rounded-2xl border border-primary-medium px-4 py-3 text-[13px] font-semibold text-primary-dark transition hover:bg-primary-light/10">
+                        <ArrowUpRight size={15} />
+                        Export
+                    </button>
+                </div>
+            </div>
+
+            <div className="w-full">
+                {loading ? (
+                    <div className="p-12 flex flex-col items-center justify-center text-text-gray bg-white rounded-[24px] border border-border-light shadow-premium">
+                        <LoaderCircle className="animate-spin mb-4" size={32} />
+                        <p>Loading alerts from database...</p>
+                    </div>
+                ) : error ? (
+                    <div className="p-12 text-center text-[#E63946] bg-white rounded-[24px] border border-border-light shadow-premium">
+                        <p>{error}</p>
+                    </div>
+                ) : (
+                    <AlertsTable alerts={alerts} />
+                )}
+            </div>
+        </div>
+    );
+};
+
+export default AlertsPage;
