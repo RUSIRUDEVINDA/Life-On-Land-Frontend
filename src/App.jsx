@@ -11,6 +11,7 @@ import DashboardPage from "./pages/dashboard/DashboardPage";
 import IncidentsPage from "./pages/dashboard/IncidentsPage";
 import RiskMapPage from "./pages/dashboard/RiskMapPage";
 import ReportIncidentPage from "./pages/dashboard/ReportIncidentPage";
+import UsersPage from "./pages/dashboard/UsersPage";
 import AnimalsPage from "./pages/animals/AnimalsPage";
 import MovementsPage from "./pages/movements/MovementsPage";
 import ProtectedRoute from "./components/auth/ProtectedRoute";
@@ -30,6 +31,7 @@ function App() {
             <Route path="risk-map" element={<RiskMapPage />} />
             <Route path="animals" element={<AnimalsPage />} />
             <Route path="movements" element={<MovementsPage />} />
+            <Route path="users" element={<UsersPage />} />
           </Route>
         </Route>
       </Routes>

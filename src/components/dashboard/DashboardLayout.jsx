@@ -9,6 +9,7 @@ import {
     Activity, /* for movements */
     Cat, /* for animals */
     ShieldAlert, /* for alerts */
+    Users,
     Settings,
     LogOut,
     Bell,
@@ -39,7 +40,8 @@ const DashboardLayout = () => {
         { name: 'Movements', path: '/dashboard/movements', icon: <Activity size={18} /> },
         { name: 'Patrols', path: '/dashboard/patrols', icon: <ClipboardList size={18} /> },
         { name: 'Alerts', path: '/dashboard/alerts', icon: <ShieldAlert size={18} /> },
-        { name: 'Incidents', path: '/dashboard/incidents', icon: <AlertTriangle size={18} /> }
+        { name: 'Incidents', path: '/dashboard/incidents', icon: <AlertTriangle size={18} /> },
+        { name: 'Users', path: '/dashboard/users', icon: <Users size={18} /> }
     ];
 
     const generalItems = [
