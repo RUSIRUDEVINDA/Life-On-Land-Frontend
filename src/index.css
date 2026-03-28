@@ -5,6 +5,14 @@
     --color-primary-medium: #2a5a45;
     --color-primary-light: #8fb8a2;
     --color-primary: #2a5a45;
+    --color-secondary-dark: #1f3a5f;
+    --color-secondary-medium: #2f5f8f;
+    --color-secondary-light: #d8e7f6;
+    --color-secondary: #2f5f8f;
+    --color-danger-dark: #9f1239;
+    --color-danger-medium: #be123c;
+    --color-danger-light: #ffe4e6;
+    --color-danger: #be123c;
     --color-bg-soft: #f8faf9;
     --color-border-light: #e9ecef;
     --color-text-gray: #868e96;
@@ -15,4 +23,12 @@
     body {
         @apply bg-bg-soft text-primary-dark;
     }
+}
+
+/* Keep map layers and controls below sticky page headers. */
+.leaflet-pane,
+.leaflet-top,
+.leaflet-bottom,
+.leaflet-control {
+    z-index: 400 !important;
 }
