@@ -1,0 +1,84 @@
+const DEFAULT_API_URL = 'http://localhost:5001';
+
+const getApiBaseUrl = () => {
+    if (import.meta.env.DEV) return '';
+    return (import.meta.env.VITE_API_URL || DEFAULT_API_URL).replace(/\/$/, '');
+};
+
+const getAuthHeaders = () => {
+    const rawToken = localStorage.getItem('token');
+    if (!rawToken) return {};
+    const token = String(rawToken).trim().replace(/^"|"$/g, '');
+    if (!token || token === 'null' || token === 'undefined') {
+        localStorage.removeItem('token');
+        return {};
+    }
+    return { Authorization: `Bearer ${token}` };
+};
+
+const requestJson = async (path, options = {}) => {
+    const url = `${getApiBaseUrl()}${path}`;
+    const token = localStorage.getItem('token');
+
+    const buildOptions = (withAuth) => ({
+        credentials: 'include',
+        ...options,
+        headers: {
+            'Content-Type': 'application/json',
+            ...(withAuth ? getAuthHeaders() : {}),
+            ...(options.headers || {}),
+        },
+    });
+
+    let response = await fetch(url, buildOptions(true));
+    let payload = await response.json().catch(() => ({}));
+
+    if (response.status === 401 && token) {
+        localStorage.removeItem('token');
+        response = await fetch(url, buildOptions(false));
+        payload = await response.json().catch(() => ({}));
+    }
+
+    if (!response.ok) {
+        if (response.status === 401) {
+            throw new Error('Unauthorized. Please login again to continue.');
+        }
+        throw new Error(
+            payload?.message || payload?.error || payload?.details || `Request failed (${response.status})`
+        );
+    }
+
+    return payload;
+};
+
+const normalizeUser = (raw) => ({
+    id: String(raw?._id ?? raw?.id ?? ''),
+    name: raw?.name || 'Unknown',
+    email: raw?.email || '',
+    role: raw?.role || 'RANGER',
+    createdAt: raw?.createdAt || null,
+    updatedAt: raw?.updatedAt || null,
+});
+
+export const fetchAllUsers = async () => {
+    const PAGE_SIZE = 100;
+    const firstPayload = await requestJson(`/api/users?page=1&limit=${PAGE_SIZE}`);
+
+    const firstBatch = Array.isArray(firstPayload?.data) ? firstPayload.data : [];
+    const totalPages = firstPayload?.pagination?.pages ?? 1;
+
+    if (totalPages <= 1) {
+        return firstBatch.map(normalizeUser);
+    }
+
+    const remainingPages = Array.from({ length: totalPages - 1 }, (_, i) => i + 2);
+    const rest = await Promise.all(
+        remainingPages.map((page) =>
+            requestJson(`/api/users?page=${page}&limit=${PAGE_SIZE}`)
+                .then((p) => (Array.isArray(p?.data) ? p.data : []))
+                .catch(() => [])
+        )
+    );
+
+    return [...firstBatch, ...rest.flat()].map(normalizeUser);
+};
