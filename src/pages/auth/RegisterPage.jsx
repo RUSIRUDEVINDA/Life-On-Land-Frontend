@@ -14,6 +14,7 @@ const getApiBaseUrl = () => {
 const RegisterPage = () => {
     const navigate = useNavigate();
     const [name, setName] = useState('');
+    const [phone, setPhone] = useState('');
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
@@ -37,6 +38,7 @@ const RegisterPage = () => {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     name: name.trim(),
+                    phone: phone.trim(),
                     email: email.trim(),
                     password,
                 }),
@@ -55,6 +57,7 @@ const RegisterPage = () => {
                         _id: payload._id || payload?.data?._id,
                         name: payload.name || payload?.data?.name || name.trim(),
                         email: payload.email || payload?.data?.email || email.trim(),
+                        phone: payload.phone || payload?.data?.phone || phone.trim(),
                         role: payload.role || payload?.data?.role || 'RANGER',
                     })
                 );
@@ -86,6 +89,19 @@ const RegisterPage = () => {
                             placeholder="John Doe"
                             value={name}
                             onChange={(e) => setName(e.target.value)}
+                            required
+                        />
+                    </div>
+
+                    <div className="flex flex-col gap-2">
+                        <label htmlFor="phone" className="text-sm font-semibold text-primary">Phone Number</label>
+                        <input
+                            type="tel"
+                            id="phone"
+                            className="px-5 py-4 bg-bg-soft border border-border-light rounded-xl text-[15px] transition-all duration-300 focus:bg-white focus:border-primary-medium focus:ring-4 focus:ring-primary-medium/20 outline-none"
+                            placeholder="0771234567 or +94771234567"
+                            value={phone}
+                            onChange={(e) => setPhone(e.target.value)}
                             required
                         />
                     </div>
