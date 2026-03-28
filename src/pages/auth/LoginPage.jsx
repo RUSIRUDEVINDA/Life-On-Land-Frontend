@@ -11,13 +11,19 @@ const getApiBaseUrl = () => {
     return (import.meta.env.VITE_API_URL || DEFAULT_API_URL).trim().replace(/\/$/, '');
 };
 
-const extractToken = (payload) =>
-    payload?.token ||
-    payload?.accessToken ||
-    payload?.data?.token ||
-    payload?.data?.accessToken ||
-    payload?.user?.token ||
-    '';
+const extractToken = (payload) => {
+    // Look for JWT in common response structures
+    return (
+        payload?.token ||
+        payload?.accessToken ||
+        payload?.data?.token ||
+        payload?.data?.accessToken ||
+        payload?.user?.token ||
+        payload?.metadata?.token ||
+        payload?.body?.token ||
+        ''
+    );
+};
 
 const LoginPage = () => {
     const navigate = useNavigate();
@@ -25,6 +31,15 @@ const LoginPage = () => {
     const [password, setPassword] = useState('');
     const [submitting, setSubmitting] = useState(false);
     const [error, setError] = useState('');
+
+    // Redirect if already logged in
+    React.useEffect(() => {
+        const token = localStorage.getItem('token');
+        const user = localStorage.getItem('user');
+        if (token || user) {
+            navigate('/dashboard', { replace: true });
+        }
+    }, [navigate]);
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -43,33 +58,43 @@ const LoginPage = () => {
             });
 
             const payload = await response.json().catch(() => ({}));
+            console.log('Login API Response payload:', payload); // Debug log
+
             if (!response.ok) {
                 throw new Error(payload?.message || payload?.error || `Login failed (${response.status})`);
             }
 
             const token = extractToken(payload);
-            if (token) {
-                localStorage.setItem('token', token);
+            const userData = payload?.user || payload?.data?.user || (payload?._id ? payload : payload?.data) || null;
+            console.log('Extracted user data:', userData);
+
+            if (token || (userData && (userData._id || userData.id || userData.email))) {
+                if (token) {
+                    localStorage.setItem('token', token);
+                }
+
+                if (userData) {
+                    localStorage.setItem('user', JSON.stringify(userData));
+                }
+
+                navigate('/dashboard');
             } else {
-                // Backend may use cookie-only auth; clear stale token so it won't override cookie auth.
-                localStorage.removeItem('token');
+                console.error('No token or user data found in successful login response.');
+                setError('Login succeeded but session data was missing. Please contact support.');
             }
-
-            if (payload?.user || payload?.data?.user) {
-                localStorage.setItem('user', JSON.stringify(payload.user || payload.data.user));
-            }
-
-            navigate('/dashboard');
         } catch (requestError) {
+            console.error('Login error:', requestError);
             setError(requestError.message || 'Failed to login');
         } finally {
             setSubmitting(false);
         }
     };
 
+
+
     return (
         <div className="relative min-h-screen flex items-center justify-center bg-bg-soft overflow-hidden">
-            <div className="relative z-10 w-full max-w-[460px] p-12 bg-white rounded-[24px] shadow-[0_20px_40px_rgba(23,54,43,0.08)] border border-primary-medium/20">
+            <div className="relative z-10 w-full max-w-115 p-12 bg-white rounded-3xl shadow-[0_20px_40px_rgba(23,54,43,0.08)] border border-primary-medium/20">
                 <div className="text-center mb-9">
                     <h2 className="text-[32px] font-bold text-primary-dark mb-3 tracking-tighter">Welcome Back</h2>
                     <p className="text-text-gray text-[15px]">Sign in to continue to EcoTrack</p>
@@ -119,9 +144,9 @@ const LoginPage = () => {
             </div>
 
             <div className="absolute inset-0 pointer-events-none z-0">
-                <div className="absolute rounded-full w-[400px] h-[400px] bg-primary-medium opacity-25 -top-[150px] -right-[100px] blur-[60px]"></div>
-                <div className="absolute rounded-full w-[500px] h-[500px] bg-primary-light opacity-30 -bottom-[200px] -left-[150px] blur-[80px]"></div>
-                <div className="absolute rounded-full w-[250px] h-[250px] bg-primary-dark opacity-[0.08] bottom-[30%] right-[20%] blur-[40px]"></div>
+                <div className="absolute rounded-full w-100 h-100 bg-primary-medium opacity-25 -top-37.5 -right-25 blur-[60px]"></div>
+                <div className="absolute rounded-full w-125 h-125 bg-primary-light opacity-30 -bottom-50 -left-37.5 blur-[80px]"></div>
+                <div className="absolute rounded-full w-62.5 h-62.5 bg-primary-dark opacity-[0.08] bottom-[30%] right-[20%] blur-2xl"></div>
             </div>
         </div>
     );
