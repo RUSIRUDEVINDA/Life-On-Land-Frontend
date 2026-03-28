@@ -4,11 +4,12 @@ import {
     LayoutDashboard,
     Map,
     MapPin,
+    ClipboardList,
     AlertTriangle,
     FilePlus2,
-    Activity, /* for movements */
-    Cat, /* for animals */
-    ShieldAlert, /* for alerts */
+    Activity,
+    Cat,
+    ShieldAlert,
     Users,
     Settings,
     LogOut,
