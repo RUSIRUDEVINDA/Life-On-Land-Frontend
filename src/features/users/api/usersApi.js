@@ -1,3 +1,5 @@
+import { Phone } from "lucide-react";
+
 const DEFAULT_API_URL = 'http://localhost:5001';
 
 const getApiBaseUrl = () => {
@@ -55,6 +57,7 @@ const normalizeUser = (raw) => ({
     id: String(raw?._id ?? raw?.id ?? ''),
     name: raw?.name || 'Unknown',
     email: raw?.email || '',
+    phone: raw?.phone || '',
     role: raw?.role || 'RANGER',
     createdAt: raw?.createdAt || null,
     updatedAt: raw?.updatedAt || null,
