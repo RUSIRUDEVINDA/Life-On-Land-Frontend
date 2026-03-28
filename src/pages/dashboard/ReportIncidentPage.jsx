@@ -631,17 +631,7 @@ const ReportIncidentPage = () => {
                         {submitting ? 'Submitting...' : 'Submit Incident'}
                     </button>
                 </div>
-                <h2 className="text-xl font-semibold text-primary-dark">Reporting Form Coming Soon</h2>
-                <p className="text-text-gray text-center max-w-md mt-2">
-                    The incident reporting workflow is being finalized to ensure all necessary data is captured for the backend.
-                </p>
-                <button
-                    onClick={() => navigate('/dashboard/incidents')}
-                    className="mt-6 bg-primary-dark text-white px-6 py-3 rounded-2xl text-[14px] font-semibold hover:bg-black transition-colors"
-                >
-                    Back to Incidents
-                </button>
-            </div>
+            </form>
         </div>
     );
 };
