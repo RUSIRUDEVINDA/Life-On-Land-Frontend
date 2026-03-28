@@ -11,6 +11,7 @@ import DashboardPage from "./pages/dashboard/DashboardPage";
 import IncidentsPage from "./pages/dashboard/IncidentsPage";
 import RiskMapPage from "./pages/dashboard/RiskMapPage";
 import ReportIncidentPage from "./pages/dashboard/ReportIncidentPage";
+import UsersPage from "./pages/dashboard/UsersPage";
 
 function App() {
   return (
@@ -24,6 +25,7 @@ function App() {
           <Route path="incidents" element={<IncidentsPage />} />
           <Route path="incidents/report" element={<ReportIncidentPage />} />
           <Route path="risk-map" element={<RiskMapPage />} />
+          <Route path="users" element={<UsersPage />} />
         </Route>
       </Routes>
     </Router>
