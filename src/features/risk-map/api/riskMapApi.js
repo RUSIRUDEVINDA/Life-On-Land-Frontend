@@ -80,11 +80,16 @@ const pickArray = (payload, keys) => {
         if (Array.isArray(payload[key])) return payload[key];
     }
 
-    if (payload.data && typeof payload.data === 'object') {
-        for (const key of keys) {
+    if (Array.isArray(payload.data)) return payload.data;
+
+    if (payload.data && typeof payload.data === 'object' && !Array.isArray(payload.data)) {
+        const innerKeys = [...keys, 'docs', 'zones', 'items'];
+        for (const key of innerKeys) {
             if (Array.isArray(payload.data[key])) return payload.data[key];
         }
     }
+
+    if (Array.isArray(payload.docs)) return payload.docs;
 
     return [];
 };
