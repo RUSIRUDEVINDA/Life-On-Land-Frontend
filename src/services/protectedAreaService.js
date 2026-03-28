@@ -1,0 +1,221 @@
+import apiClient from './apiClient';
+
+const unwrap = (payload) => payload?.data ?? payload ?? null;
+
+const pickArray = (payload, keys) => {
+  if (Array.isArray(payload)) return payload;
+  if (!payload || typeof payload !== 'object') return [];
+
+  for (const key of keys) {
+    if (Array.isArray(payload[key])) return payload[key];
+  }
+
+  if (Array.isArray(payload.data)) return payload.data;
+  if (payload.data && typeof payload.data === 'object') {
+    for (const key of [...keys, 'docs', 'items', 'results']) {
+      if (Array.isArray(payload.data[key])) return payload.data[key];
+    }
+  }
+
+  if (Array.isArray(payload.docs)) return payload.docs;
+
+  return [];
+};
+
+const parseGeometryValue = (value) => {
+  if (!value) return null;
+
+  if (typeof value === 'string') {
+    try {
+      return JSON.parse(value);
+    } catch {
+      return null;
+    }
+  }
+
+  return value;
+};
+
+const normalizeZoneType = (value) => {
+  const normalized = String(value || '').trim().toUpperCase();
+
+  if (normalized.includes('CORE')) return 'CORE';
+  if (normalized.includes('BUFFER')) return 'BUFFER';
+  if (normalized.includes('CORRIDOR')) return 'CORRIDOR';
+  if (normalized.includes('EDGE')) return 'EDGE';
+
+  return 'EDGE';
+};
+
+const toFeatureGeometry = (value) => {
+  const parsedValue = parseGeometryValue(value);
+  if (!parsedValue) return null;
+
+  if (parsedValue?.type === 'Feature') {
+    return parsedValue.geometry || null;
+  }
+
+  if (parsedValue?.type === 'Polygon' || parsedValue?.type === 'MultiPolygon') {
+    return parsedValue;
+  }
+
+  if (parsedValue?.geometry?.type) {
+    return parsedValue.geometry;
+  }
+
+  return null;
+};
+
+const normalizeArea = (item) => ({
+  id: String(item?._id || item?.id || ''),
+  name: item?.name || 'Unnamed Protected Area',
+  areaType: String(item?.areaType || item?.type || '').trim().toUpperCase(),
+  district: item?.district || '',
+  status: String(item?.status || '').trim().toUpperCase() || 'ACTIVE',
+  description: item?.description || '',
+  areaSize: Number(item?.areaSize || item?.size || 0),
+  geometry: toFeatureGeometry(item?.geometry || item?.geoJson || item?.polygon),
+  raw: item,
+});
+
+const normalizeZone = (item) => ({
+  id: String(item?._id || item?.id || ''),
+  protectedAreaId: String(
+    item?.protectedAreaId?._id || item?.protectedAreaId?.id || item?.protectedAreaId || item?.protectedArea || ''
+  ),
+  name: item?.name || 'Unnamed Zone',
+  zoneType: normalizeZoneType(item?.zoneType || item?.type),
+  areaSize: Number(item?.areaSize || item?.size || 0),
+  geometry: toFeatureGeometry(item?.geometry || item?.geoJson || item?.polygon),
+  raw: item,
+});
+
+const apiError = (error, fallbackMessage) => {
+  const status = error?.response?.status;
+  const message =
+    error?.response?.data?.message ||
+    error?.response?.data?.error ||
+    error?.message ||
+    fallbackMessage;
+
+  const result = new Error(message);
+  result.status = status;
+  return result;
+};
+
+export const protectedAreaService = {
+  async getProtectedAreas() {
+    try {
+      const response = await apiClient.get('/api/protected-areas');
+      const payload = unwrap(response.data);
+      const items = pickArray(payload, ['protectedAreas', 'areas', 'results', 'items', 'data']);
+      return items.map(normalizeArea).filter((item) => item.id);
+    } catch (error) {
+      throw apiError(error, 'Failed to load protected areas.');
+    }
+  },
+
+  async getProtectedAreaById(areaId) {
+    try {
+      const response = await apiClient.get(`/api/protected-areas/${areaId}`);
+      const payload = unwrap(response.data);
+      const item = payload?.protectedArea || payload?.area || payload?.data || payload;
+      return normalizeArea(item);
+    } catch (error) {
+      throw apiError(error, 'Failed to load protected area details.');
+    }
+  },
+
+  async createProtectedArea(input) {
+    try {
+      const response = await apiClient.post('/api/protected-areas', input);
+      const payload = unwrap(response.data);
+      const item = payload?.protectedArea || payload?.area || payload?.data || payload;
+      return normalizeArea(item);
+    } catch (error) {
+      throw apiError(error, 'Failed to create protected area.');
+    }
+  },
+
+  async updateProtectedArea(areaId, input) {
+    try {
+      const response = await apiClient.put(`/api/protected-areas/${areaId}`, input);
+      const payload = unwrap(response.data);
+      const item = payload?.protectedArea || payload?.area || payload?.data || payload;
+      return normalizeArea(item);
+    } catch (error) {
+      throw apiError(error, 'Failed to update protected area.');
+    }
+  },
+
+  async deleteProtectedArea(areaId) {
+    try {
+      await apiClient.delete(`/api/protected-areas/${areaId}`);
+      return true;
+    } catch (error) {
+      throw apiError(error, 'Failed to delete protected area.');
+    }
+  },
+
+  async getZonesByProtectedAreaId(areaId) {
+    try {
+      const response = await apiClient.get(`/api/protected-areas/${areaId}/zones`);
+      const payload = unwrap(response.data);
+      const items = pickArray(payload, ['zones', 'results', 'items', 'data']);
+      return items.map(normalizeZone).filter((item) => item.id);
+    } catch (error) {
+      throw apiError(error, 'Failed to load zones.');
+    }
+  },
+
+  async createZone(areaId, input) {
+    try {
+      const response = await apiClient.post(`/api/protected-areas/${areaId}/zones`, input);
+      const payload = unwrap(response.data);
+      const item = payload?.zone || payload?.data || payload;
+      return normalizeZone(item);
+    } catch (error) {
+      throw apiError(error, 'Failed to create zone.');
+    }
+  },
+
+  async updateZone(areaId, zoneId, input) {
+    try {
+      const response = await apiClient.put(`/api/protected-areas/${areaId}/zones/${zoneId}`, input);
+      const payload = unwrap(response.data);
+      const item = payload?.zone || payload?.data || payload;
+      return normalizeZone(item);
+    } catch (error) {
+      if (error?.response?.status === 404) {
+        try {
+          const response = await apiClient.put(`/api/zones/${zoneId}`, input);
+          const payload = unwrap(response.data);
+          const item = payload?.zone || payload?.data || payload;
+          return normalizeZone(item);
+        } catch (fallbackError) {
+          throw apiError(fallbackError, 'Failed to update zone.');
+        }
+      }
+
+      throw apiError(error, 'Failed to update zone.');
+    }
+  },
+
+  async deleteZone(areaId, zoneId) {
+    try {
+      await apiClient.delete(`/api/protected-areas/${areaId}/zones/${zoneId}`);
+      return true;
+    } catch (error) {
+      if (error?.response?.status === 404) {
+        try {
+          await apiClient.delete(`/api/zones/${zoneId}`);
+          return true;
+        } catch (fallbackError) {
+          throw apiError(fallbackError, 'Failed to delete zone.');
+        }
+      }
+
+      throw apiError(error, 'Failed to delete zone.');
+    }
+  },
+};

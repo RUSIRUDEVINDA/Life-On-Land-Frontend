@@ -4,8 +4,8 @@ import {
     LayoutDashboard,
     Map,
     MapPin,
-    ClipboardList,
     AlertTriangle,
+    FilePlus2,
     Activity, /* for movements */
     Cat, /* for animals */
     ShieldAlert, /* for alerts */
@@ -14,7 +14,7 @@ import {
     LogOut,
     Bell,
     Search,
-    MessageCircle
+    MessageCircle,
 } from 'lucide-react';
 
 
@@ -36,6 +36,7 @@ const DashboardLayout = () => {
         { name: 'Map Tracking', path: '/dashboard/maps', icon: <Map size={18} /> },
         { name: 'Risk Map', path: '/dashboard/risk-map', icon: <Map size={18} /> },
         { name: 'Protected Areas', path: '/dashboard/areas', icon: <MapPin size={18} /> },
+        { name: 'Protected Areas', path: '/dashboard/protected-areas', icon: <MapPin size={18} /> },
         { name: 'Animals', path: '/dashboard/animals', icon: <Cat size={18} /> },
         { name: 'Movements', path: '/dashboard/movements', icon: <Activity size={18} /> },
         { name: 'Patrols', path: '/dashboard/patrols', icon: <ClipboardList size={18} /> },
@@ -45,8 +46,7 @@ const DashboardLayout = () => {
     ];
 
     const generalItems = [
-        { name: 'Settings', path: '/dashboard/settings', icon: <Settings size={18} /> },
-        { name: 'Help', path: '/dashboard/help', icon: <MessageCircle size={18} /> },
+        { name: 'Help', path: '/dashboard', icon: <MessageCircle size={18} /> },
     ];
 
     return (
