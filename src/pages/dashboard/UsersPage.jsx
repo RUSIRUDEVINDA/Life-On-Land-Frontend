@@ -91,7 +91,8 @@ const UsersPage = () => {
             const matchSearch =
                 !q ||
                 u.name.toLowerCase().includes(q) ||
-                u.email.toLowerCase().includes(q);
+                u.email.toLowerCase().includes(q) ||
+                u.phone.toLowerCase().includes(q);
             return matchRole && matchSearch;
         });
     }, [users, search, roleFilter]);
@@ -139,7 +140,7 @@ const UsersPage = () => {
                         type="text"
                         value={search}
                         onChange={(e) => setSearch(e.target.value)}
-                        placeholder="Search by name or email..."
+                        placeholder="Search by name, email, or phone..."
                         className="w-full bg-transparent text-[13px] text-primary-dark outline-none placeholder:text-text-gray"
                     />
                 </div>
@@ -194,6 +195,9 @@ const UsersPage = () => {
                                     Email
                                 </th>
                                 <th className="px-5 py-3 text-left text-[11px] font-semibold uppercase tracking-widest text-text-gray">
+                                    Phone
+                                </th>
+                                <th className="px-5 py-3 text-left text-[11px] font-semibold uppercase tracking-widest text-text-gray">
                                     Role
                                 </th>
                                 <th className="px-5 py-3 text-left text-[11px] font-semibold uppercase tracking-widest text-text-gray">
@@ -225,6 +229,9 @@ const UsersPage = () => {
                                         </td>
                                         <td className="px-5 py-3.5 text-[13px] text-text-gray">
                                             {user.email}
+                                        </td>
+                                        <td className="px-5 py-3.5 text-[13px] text-text-gray">
+                                            {user.phone || '—'}
                                         </td>
                                         <td className="px-5 py-3.5">
                                             <span
