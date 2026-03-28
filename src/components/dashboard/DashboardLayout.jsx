@@ -4,16 +4,12 @@ import {
     LayoutDashboard,
     Map,
     MapPin,
-    ClipboardList,
     AlertTriangle,
-    Activity, /* for movements */
-    Cat, /* for animals */
-    ShieldAlert, /* for alerts */
-    Settings,
+    FilePlus2,
     LogOut,
     Bell,
     Search,
-    MessageCircle
+    MessageCircle,
 } from 'lucide-react';
 
 
@@ -31,17 +27,13 @@ const DashboardLayout = () => {
         { name: 'Dashboard', path: '/dashboard', icon: <LayoutDashboard size={18} /> },
         { name: 'Map Tracking', path: '/dashboard/maps', icon: <Map size={18} /> },
         { name: 'Risk Map', path: '/dashboard/risk-map', icon: <Map size={18} /> },
-        { name: 'Protected Areas', path: '/dashboard/areas', icon: <MapPin size={18} /> },
-        { name: 'Animals', path: '/dashboard/animals', icon: <Cat size={18} /> },
-        { name: 'Movements', path: '/dashboard/movements', icon: <Activity size={18} /> },
-        { name: 'Patrols', path: '/dashboard/patrols', icon: <ClipboardList size={18} /> },
-        { name: 'Alerts', path: '/dashboard/alerts', icon: <ShieldAlert size={18} /> },
-        { name: 'Incidents', path: '/dashboard/incidents', icon: <AlertTriangle size={18} /> }
+        { name: 'Protected Areas', path: '/dashboard/protected-areas', icon: <MapPin size={18} /> },
+        { name: 'Incidents', path: '/dashboard/incidents', icon: <AlertTriangle size={18} /> },
+        { name: 'Report Incident', path: '/dashboard/incidents/report', icon: <FilePlus2 size={18} /> },
     ];
 
     const generalItems = [
-        { name: 'Settings', path: '/dashboard/settings', icon: <Settings size={18} /> },
-        { name: 'Help', path: '/dashboard/help', icon: <MessageCircle size={18} /> },
+        { name: 'Help', path: '/dashboard', icon: <MessageCircle size={18} /> },
     ];
 
     return (
