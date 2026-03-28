@@ -40,8 +40,15 @@ const safeArray = (payload, keys) => {
     return [];
 };
 
+const toIdString = (value) => {
+    if (value == null) return '';
+    if (typeof value === 'string') return value;
+    if (typeof value === 'object' && value.$oid) return String(value.$oid);
+    return String(value);
+};
+
 const normalizeEntity = (item) => ({
-    id: item?._id || item?.id || '',
+    id: toIdString(item?._id ?? item?.id),
     name: item?.name || item?.title || 'Unnamed',
 });
 
@@ -165,18 +172,71 @@ const getPaginationMeta = (payload) => {
     };
 };
 
+/** Handles flat arrays, paginated { data: { docs } }, and other backend shapes. */
+const pickProtectedAreasArray = (payload) => {
+    if (Array.isArray(payload)) return payload;
+    if (!payload || typeof payload !== 'object') return [];
+
+    if (Array.isArray(payload.data)) return payload.data;
+
+    if (payload.data && typeof payload.data === 'object' && !Array.isArray(payload.data)) {
+        const inner = payload.data;
+        if (Array.isArray(inner.docs)) return inner.docs;
+        if (Array.isArray(inner.protectedAreas)) return inner.protectedAreas;
+        if (Array.isArray(inner.areas)) return inner.areas;
+        if (Array.isArray(inner.items)) return inner.items;
+        if (Array.isArray(inner.data)) return inner.data;
+    }
+
+    if (Array.isArray(payload.docs)) return payload.docs;
+
+    return safeArray(payload, ['protectedAreas', 'areas', 'results', 'items', 'data', 'docs']);
+};
+
+const getProtectedAreasPaginationMeta = (payload) => {
+    if (!payload || typeof payload !== 'object') return { totalPages: 1, page: 1 };
+
+    const top = payload.pagination || {};
+    const dataObj =
+        payload.data && typeof payload.data === 'object' && !Array.isArray(payload.data) ? payload.data : null;
+    const innerPag = dataObj?.pagination && typeof dataObj.pagination === 'object' ? dataObj.pagination : {};
+
+    const rawTotal =
+        top.totalPages ?? innerPag.totalPages ?? dataObj?.totalPages ?? payload.totalPages ?? 1;
+    const totalPages = Math.max(1, Number(rawTotal) || 1);
+
+    return { totalPages, page: Number(top.page ?? innerPag.page ?? dataObj?.page ?? payload.page ?? 1) };
+};
+
+/** Zones list: { data: Zone[] } or paginated { data: { docs } }. */
+const pickZonesArray = (payload) => {
+    if (Array.isArray(payload)) return payload;
+    if (!payload || typeof payload !== 'object') return [];
+
+    if (Array.isArray(payload.data)) return payload.data;
+
+    if (payload.data && typeof payload.data === 'object' && !Array.isArray(payload.data)) {
+        if (Array.isArray(payload.data.docs)) return payload.data.docs;
+        if (Array.isArray(payload.data.zones)) return payload.data.zones;
+    }
+
+    if (Array.isArray(payload.docs)) return payload.docs;
+
+    return safeArray(payload, ['zones', 'results', 'items', 'data', 'docs']);
+};
+
 export const fetchProtectedAreas = async () => {
     const limitPerPage = 100;
     const firstPayload = await requestJson(`/api/protected-areas?page=1&limit=${limitPerPage}`);
-    const firstPageItems = safeArray(firstPayload, ['protectedAreas', 'areas', 'results', 'items', 'data']);
-    const { totalPages } = getPaginationMeta(firstPayload);
+    const firstPageItems = pickProtectedAreasArray(firstPayload);
+    const { totalPages } = getProtectedAreasPaginationMeta(firstPayload);
 
     const allItems = [...firstPageItems];
 
     if (totalPages > 1) {
         for (let page = 2; page <= totalPages; page += 1) {
             const payload = await requestJson(`/api/protected-areas?page=${page}&limit=${limitPerPage}`);
-            allItems.push(...safeArray(payload, ['protectedAreas', 'areas', 'results', 'items', 'data']));
+            allItems.push(...pickProtectedAreasArray(payload));
         }
     }
 
@@ -195,7 +255,7 @@ export const fetchZonesByProtectedArea = async (protectedAreaId) => {
     if (!protectedAreaId) return [];
 
     const payload = await requestJson(`/api/protected-areas/${protectedAreaId}/zones`);
-    const items = safeArray(payload, ['zones', 'results', 'items']);
+    const items = pickZonesArray(payload);
     return items.map(normalizeEntity).filter((item) => item.id);
 };
 
