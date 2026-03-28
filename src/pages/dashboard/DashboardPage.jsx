@@ -1,5 +1,6 @@
 import React from 'react';
 import { Plus, TreePine, ShieldAlert, Compass, Cat } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import StatsCard from '../../components/dashboard/StatsCard';
 import LiveMap from '../../components/dashboard/LiveMap';
 import AlertCard from '../../components/dashboard/AlertCard';
@@ -30,6 +31,9 @@ const DashboardPage = () => {
                     <p className="text-text-gray text-[12px]">Monitor protected areas, animals, movements, and alerts.</p>
                 </div>
                 <div className="flex gap-2 pb-1">
+                    <Link to="/dashboard/protected-areas" className="bg-primary-medium text-white border-none px-3.5 py-2 rounded-2xl text-[12px] font-medium flex items-center gap-1.5 transition-colors hover:bg-primary-dark">
+                        <span>Protected Areas</span>
+                    </Link>
                     <button className="bg-primary-dark text-white border-none px-3.5 py-2 rounded-2xl text-[12px] font-medium flex items-center gap-1.5 transition-colors hover:bg-black">
                         <Plus size={14} /> <span>Log Incident</span>
                     </button>
