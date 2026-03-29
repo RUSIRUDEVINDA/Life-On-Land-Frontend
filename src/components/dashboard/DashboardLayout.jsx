@@ -68,7 +68,7 @@ const DashboardLayout = () => {
                                 : location.pathname.startsWith(item.path);
                             return (
                                 <Link
-                                    key={item.name}
+                                    key={item.path}
                                     to={item.path}
                                     className={`flex items-center text-[13px] font-medium py-2 transition-all duration-200 relative bg-transparent border-none cursor-pointer text-left w-full hover:text-primary-dark ${isActive ? 'text-primary-dark font-semibold before:content-[""] before:absolute before:-left-4 before:top-1/2 before:-translate-y-1/2 before:w-1 before:h-5 before:bg-primary before:rounded-r-md' : 'text-text-gray'}`}
                                 >
@@ -84,7 +84,7 @@ const DashboardLayout = () => {
                             const isActive = location.pathname === item.path;
                             return (
                                 <Link
-                                    key={item.name}
+                                    key={item.path}
                                     to={item.path}
                                     className={`flex items-center text-[13px] font-medium py-2 transition-all duration-200 relative bg-transparent border-none cursor-pointer text-left w-full hover:text-primary-dark ${isActive ? 'text-primary-dark font-semibold before:content-[""] before:absolute before:-left-4 before:top-1/2 before:-translate-y-1/2 before:w-1 before:h-5 before:bg-primary before:rounded-r-md' : 'text-text-gray'}`}
                                 >
