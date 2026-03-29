@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { LoaderCircle, Search, ShieldCheck, Users } from 'lucide-react';
+import { ChevronLeft, ChevronRight, LoaderCircle, Search, ShieldCheck, Users } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { fetchAllUsers } from '../../features/users/api/usersApi';
 
@@ -44,6 +44,7 @@ const avatarColor = (name = '') => {
     return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length];
 };
 
+// eslint-disable-next-line no-unused-vars
 const StatCard = ({ label, value, icon: Icon, accent }) => (
     <div className="flex items-center gap-4 rounded-[22px] border border-border-light bg-white px-5 py-4 shadow-premium">
         <div className={`flex h-10 w-10 items-center justify-center rounded-xl ${accent}`}>
@@ -63,6 +64,8 @@ const UsersPage = () => {
     const [error, setError] = useState('');
     const [search, setSearch] = useState('');
     const [roleFilter, setRoleFilter] = useState('ALL');
+    const [pageSize, setPageSize] = useState(10);
+    const [currentPage, setCurrentPage] = useState(1);
 
     useEffect(() => {
         const load = async () => {
@@ -96,6 +99,19 @@ const UsersPage = () => {
             return matchRole && matchSearch;
         });
     }, [users, search, roleFilter]);
+
+    // Reset to page 1 whenever filters change
+    useEffect(() => { setCurrentPage(1); }, [search, roleFilter, pageSize]);
+
+    const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+
+    const paginatedUsers = useMemo(() => {
+        const start = (currentPage - 1) * pageSize;
+        return filtered.slice(start, start + pageSize);
+    }, [filtered, currentPage, pageSize]);
+
+    const rangeStart = filtered.length === 0 ? 0 : (currentPage - 1) * pageSize + 1;
+    const rangeEnd = Math.min(currentPage * pageSize, filtered.length);
 
     const totalAdmins = useMemo(() => users.filter((u) => u.role === 'ADMIN').length, [users]);
     const totalRangers = useMemo(() => users.filter((u) => u.role === 'RANGER').length, [users]);
@@ -161,6 +177,20 @@ const UsersPage = () => {
                         </button>
                     ))}
                 </div>
+
+                <div className="flex items-center gap-2 rounded-2xl border border-border-light bg-white px-3 py-2 shadow-premium">
+                    <span className="text-[12px] text-text-gray">Show</span>
+                    <select
+                        value={pageSize}
+                        onChange={(e) => setPageSize(Number(e.target.value))}
+                        className="rounded-xl border border-border-light bg-bg-soft px-2.5 py-1 text-[12px] font-medium text-primary-dark outline-none transition focus:border-primary-medium focus:bg-white"
+                    >
+                        {[10, 20, 30].map((n) => (
+                            <option key={n} value={n}>{n}</option>
+                        ))}
+                    </select>
+                    <span className="text-[12px] text-text-gray">per page</span>
+                </div>
             </div>
 
             {/* Table */}
@@ -206,7 +236,7 @@ const UsersPage = () => {
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-border-light">
-                            {filtered.map((user) => {
+                            {paginatedUsers.map((user) => {
                                 const style = ROLE_STYLES[user.role] ?? ROLE_STYLES.RANGER;
                                 const initials = getInitials(user.name);
                                 const colorClass = avatarColor(user.name);
@@ -252,11 +282,47 @@ const UsersPage = () => {
                 )}
 
                 {!loading && !error && filtered.length > 0 && (
-                    <div className="border-t border-border-light px-5 py-3">
-                        <p className="text-[11px] text-text-gray">
-                            Showing <span className="font-semibold text-primary-dark">{filtered.length}</span> of{' '}
-                            <span className="font-semibold text-primary-dark">{users.length}</span> users
+                    <div className="flex flex-col gap-3 border-t border-border-light px-5 py-3 sm:flex-row sm:items-center sm:justify-between">
+                        <p className="text-[12px] text-text-gray">
+                            Showing{' '}
+                            <span className="font-semibold text-primary-dark">{rangeStart}–{rangeEnd}</span>{' '}
+                            of{' '}
+                            <span className="font-semibold text-primary-dark">{filtered.length}</span> users
                         </p>
+                        {totalPages > 1 && (
+                            <div className="flex items-center gap-1">
+                                <button
+                                    type="button"
+                                    onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                                    disabled={currentPage === 1}
+                                    className="flex h-8 w-8 items-center justify-center rounded-xl border border-border-light bg-white text-primary-dark transition hover:bg-bg-soft disabled:cursor-not-allowed disabled:opacity-40"
+                                >
+                                    <ChevronLeft size={14} />
+                                </button>
+                                {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                                    <button
+                                        key={page}
+                                        type="button"
+                                        onClick={() => setCurrentPage(page)}
+                                        className={`flex h-8 min-w-[32px] items-center justify-center rounded-xl border px-2 text-[12px] font-semibold transition ${
+                                            page === currentPage
+                                                ? 'border-primary-dark bg-primary-dark text-white'
+                                                : 'border-border-light bg-white text-primary-dark hover:bg-bg-soft'
+                                        }`}
+                                    >
+                                        {page}
+                                    </button>
+                                ))}
+                                <button
+                                    type="button"
+                                    onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                                    disabled={currentPage === totalPages}
+                                    className="flex h-8 w-8 items-center justify-center rounded-xl border border-border-light bg-white text-primary-dark transition hover:bg-bg-soft disabled:cursor-not-allowed disabled:opacity-40"
+                                >
+                                    <ChevronRight size={14} />
+                                </button>
+                            </div>
+                        )}
                     </div>
                 )}
             </div>
