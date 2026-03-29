@@ -277,6 +277,38 @@ export const fetchIncidents = async () => {
     return allItems.map(normalizeIncident).filter((item) => item._id);
 };
 
+
+export const fetchIncidentsByReporter = async (reporterId) => {
+    const normalizedReporterId = toIdString(reporterId);
+    if (!normalizedReporterId) return [];
+
+    const incidents = await fetchIncidents();
+    return incidents.filter((incident) => toIdString(incident?.reportedBy?._id) === normalizedReporterId);
+};
+
+export const updateIncident = async (incidentId, input) => {
+    if (!incidentId) {
+        throw new Error('Incident id is required.');
+    }
+
+    const payload = await requestJson(`/api/incidents/${incidentId}`, {
+        method: 'PUT',
+        body: JSON.stringify(input),
+    });
+    return payload;
+};
+
+export const deleteIncident = async (incidentId) => {
+    if (!incidentId) {
+        throw new Error('Incident id is required.');
+    }
+
+    const payload = await requestJson(`/api/incidents/${incidentId}`, {
+        method: 'DELETE',
+    });
+    return payload;
+};
+
 export const createIncident = async (input) => {
     const payload = await requestJson('/api/incidents', {
         method: 'POST',
@@ -284,3 +316,4 @@ export const createIncident = async (input) => {
     });
     return payload;
 };
+
