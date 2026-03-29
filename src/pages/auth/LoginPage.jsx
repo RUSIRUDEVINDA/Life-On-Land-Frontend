@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
+import { getDefaultDashboardPathByRole, getStoredUser } from '../../utils/auth';
 
 const DEFAULT_API_URL = 'http://localhost:5001';
 const getApiBaseUrl = () => {
@@ -35,9 +36,9 @@ const LoginPage = () => {
     // Redirect if already logged in
     React.useEffect(() => {
         const token = localStorage.getItem('token');
-        const user = localStorage.getItem('user');
+        const user = getStoredUser();
         if (token || user) {
-            navigate('/dashboard', { replace: true });
+            navigate(getDefaultDashboardPathByRole(user?.role), { replace: true });
         }
     }, [navigate]);
 
@@ -58,7 +59,6 @@ const LoginPage = () => {
             });
 
             const payload = await response.json().catch(() => ({}));
-            console.log('Login API Response payload:', payload); // Debug log
 
             if (!response.ok) {
                 throw new Error(payload?.message || payload?.error || `Login failed (${response.status})`);
@@ -66,7 +66,6 @@ const LoginPage = () => {
 
             const token = extractToken(payload);
             const userData = payload?.user || payload?.data?.user || (payload?._id ? payload : payload?.data) || null;
-            console.log('Extracted user data:', userData);
 
             if (token || (userData && (userData._id || userData.id || userData.email))) {
                 if (token) {
@@ -77,13 +76,11 @@ const LoginPage = () => {
                     localStorage.setItem('user', JSON.stringify(userData));
                 }
 
-                navigate('/dashboard');
+                navigate(getDefaultDashboardPathByRole(userData?.role));
             } else {
-                console.error('No token or user data found in successful login response.');
                 setError('Login succeeded but session data was missing. Please contact support.');
             }
         } catch (requestError) {
-            console.error('Login error:', requestError);
             setError(requestError.message || 'Failed to login');
         } finally {
             setSubmitting(false);
@@ -153,3 +150,4 @@ const LoginPage = () => {
 };
 
 export default LoginPage;
+
