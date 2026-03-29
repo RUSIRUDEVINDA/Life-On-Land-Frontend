@@ -1,5 +1,3 @@
-import { Phone } from "lucide-react";
-
 const DEFAULT_API_URL = 'http://localhost:5001';
 
 const getApiBaseUrl = () => {
@@ -63,6 +61,25 @@ const normalizeUser = (raw) => ({
     updatedAt: raw?.updatedAt || null,
 });
 
+export const fetchMyProfile = async () => {
+    let parsedUser = null;
+    try {
+        const rawUser = localStorage.getItem('user');
+        parsedUser = rawUser ? JSON.parse(rawUser) : null;
+    } catch {
+        parsedUser = null;
+    }
+
+    const userId = parsedUser?._id || parsedUser?.id;
+
+    if (!userId) {
+        throw new Error('User session is missing. Please login again.');
+    }
+
+    const payload = await requestJson(`/api/users/${userId}`);
+    return normalizeUser(payload?.user || payload?.data || payload);
+};
+
 export const fetchAllUsers = async () => {
     const PAGE_SIZE = 100;
     const firstPayload = await requestJson(`/api/users?page=1&limit=${PAGE_SIZE}`);
@@ -84,4 +101,10 @@ export const fetchAllUsers = async () => {
     );
 
     return [...firstBatch, ...rest.flat()].map(normalizeUser);
+};
+
+export const fetchRangers = async () => {
+    const payload = await requestJson('/api/users?page=1&limit=100&role=RANGER');
+    const users = Array.isArray(payload?.data) ? payload.data : [];
+    return users.map(normalizeUser);
 };

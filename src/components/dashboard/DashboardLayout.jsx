@@ -6,25 +6,59 @@ import {
     MapPin,
     ClipboardList,
     AlertTriangle,
-    FilePlus2,
     Activity,
     Cat,
     ShieldAlert,
+    UserRound,
     Users,
-    Settings,
     LogOut,
     Bell,
     Search,
     MessageCircle,
 } from 'lucide-react';
+import { getUserRole, getStoredUser } from '../../utils/auth';
 
+const adminMenuItems = [
+    { name: 'Dashboard', path: '/dashboard/admin', icon: <LayoutDashboard size={18} /> },
+    { name: 'Map Tracking', path: '/dashboard/map-tracking', icon: <Map size={18} />, badge: 'Live' },
+    { name: 'Risk Map', path: '/dashboard/risk-map', icon: <Map size={18} /> },
+    { name: 'Protected Areas', path: '/dashboard/protected-areas', icon: <MapPin size={18} /> },
+    { name: 'Animals', path: '/dashboard/animals', icon: <Cat size={18} /> },
+    { name: 'Movements', path: '/dashboard/movements', icon: <Activity size={18} /> },
+    { name: 'Patrols', path: '/dashboard/patrols', icon: <ClipboardList size={18} /> },
+    { name: 'Alerts', path: '/dashboard/alerts', icon: <ShieldAlert size={18} /> },
+    { name: 'Incidents', path: '/dashboard/incidents', icon: <AlertTriangle size={18} /> },
+    { name: 'Users', path: '/dashboard/users', icon: <Users size={18} /> },
+];
+
+const rangerMenuItems = [
+    { name: 'Dashboard', path: '/dashboard/ranger', icon: <LayoutDashboard size={18} /> },
+    { name: 'My Incidents', path: '/dashboard/my-incidents', icon: <AlertTriangle size={18} /> },
+    { name: 'Report Incident', path: '/dashboard/incidents/report', icon: <ClipboardList size={18} /> },
+    { name: 'Assigned Patrols', path: '/dashboard/patrols', icon: <MapPin size={18} /> },
+    { name: 'Movements', path: '/dashboard/movements', icon: <Activity size={18} /> },
+];
+
+const generalItems = [
+    { name: 'My Profile', path: '/dashboard/profile', icon: <UserRound size={18} /> },
+];
 
 const DashboardLayout = () => {
     const navigate = useNavigate();
     const location = useLocation();
+    const role = getUserRole();
+    const user = getStoredUser();
 
-    const storedUser = localStorage.getItem('user');
-    const user = storedUser ? JSON.parse(storedUser) : { fullName: 'John Doe', email: 'john.doe@eco.com' };
+    const menuItems = role === 'RANGER' ? rangerMenuItems : adminMenuItems;
+
+    const displayName = user?.fullName || user?.name || user?.username || 'User';
+    const displayEmail = user?.email || '';
+    const initials = displayName
+        .split(' ')
+        .map((part) => part[0] || '')
+        .join('')
+        .slice(0, 2)
+        .toUpperCase();
 
     const handleLogout = () => {
         localStorage.removeItem('token');
@@ -32,28 +66,27 @@ const DashboardLayout = () => {
         navigate('/login');
     };
 
-    const menuItems = [
-        { name: 'Dashboard', path: '/dashboard', icon: <LayoutDashboard size={18} /> },
-        { name: 'Map Tracking', path: '/dashboard/maps', icon: <Map size={18} /> },
-        { name: 'Risk Map', path: '/dashboard/risk-map', icon: <Map size={18} /> },
-        { name: 'Protected Areas', path: '/dashboard/areas', icon: <MapPin size={18} /> },
-        { name: 'Protected Areas', path: '/dashboard/protected-areas', icon: <MapPin size={18} /> },
-        { name: 'Animals', path: '/dashboard/animals', icon: <Cat size={18} /> },
-        { name: 'Movements', path: '/dashboard/movements', icon: <Activity size={18} /> },
-        { name: 'Patrols', path: '/dashboard/patrols', icon: <ClipboardList size={18} /> },
-        { name: 'Alerts', path: '/dashboard/alerts', icon: <ShieldAlert size={18} /> },
-        { name: 'Incidents', path: '/dashboard/incidents', icon: <AlertTriangle size={18} /> },
-        { name: 'Users', path: '/dashboard/users', icon: <Users size={18} /> }
-    ];
+    const isActive = (path) => {
+        if (location.pathname === path) return true;
+        if (path !== '/dashboard/admin' && path !== '/dashboard/ranger') {
+            return location.pathname.startsWith(path);
+        }
+        return false;
+    };
 
-    const generalItems = [
-        { name: 'Help', path: '/dashboard', icon: <MessageCircle size={18} /> },
-    ];
+    const linkClass = (path) =>
+        `flex items-center text-[13px] font-medium py-2 transition-all duration-200 relative bg-transparent border-none cursor-pointer text-left w-full hover:text-primary-dark ${
+            isActive(path)
+                ? 'text-primary-dark font-semibold before:content-[""] before:absolute before:-left-4 before:top-1/2 before:-translate-y-1/2 before:w-1 before:h-[20px] before:bg-primary before:rounded-r-md'
+                : 'text-[#868e96]'
+        }`;
+
+    const iconClass = (path) =>
+        `mr-3 flex items-center text-inherit opacity-80 ${isActive(path) ? 'text-primary opacity-100' : ''}`;
 
     return (
         <div className="flex h-screen w-full overflow-hidden bg-bg-soft">
-            {/* Sidebar navigation */}
-            <aside className="w-55 bg-white border-r border-border-light flex flex-col z-10 transition-all duration-300">
+            <aside className="w-[220px] bg-white border-r border-border-light flex flex-col z-10 transition-all duration-300">
                 <div className="p-5 px-4 flex items-center gap-2">
                     <div className="w-6 h-6 bg-primary-dark rounded-md flex items-center justify-center text-[12px] text-white">🌿</div>
                     <h2 className="text-lg font-bold text-primary-dark m-0 tracking-tight">EcoTrack</h2>
@@ -101,17 +134,20 @@ const DashboardLayout = () => {
                 </div>
 
                 <div className="p-4">
-                    <p className="text-[9px] color-[#adb5bd] text-center">EcoTrack v1.0 BETA</p>
+                    <p className="text-[9px] text-[#adb5bd] text-center">EcoTrack v1.0 BETA</p>
                 </div>
             </aside>
 
-            {/* Main Content Viewport */}
             <div className="flex-1 flex flex-col h-screen overflow-hidden bg-bg-soft">
-                <header className="h-14 bg-transparent flex justify-between items-center px-6 z-5">
-                    <div className="flex items-center bg-white px-3 py-1.5 rounded-2xl w-70 shadow-[0_1px_4px_rgba(0,0,0,0.02)]">
+                <header className="h-14 bg-transparent flex justify-between items-center px-6 z-[5]">
+                    <div className="flex items-center bg-white px-3 py-1.5 rounded-2xl w-[280px] shadow-[0_1px_4px_rgba(0,0,0,0.02)]">
                         <Search size={14} className="text-[#adb5bd] mr-2" />
-                        <input type="text" placeholder="Search areas, animals, incidents..." className="border-none bg-transparent w-full text-[12px] text-primary-dark focus:outline-none" />
-                        <div className="bg-bg-soft border border-border-light text-text-gray text-[9px] px-1.5 py-0.5 rounded-md font-semibold">⌘F</div>
+                        <input
+                            type="text"
+                            placeholder="Search areas, animals, incidents..."
+                            className="border-none bg-transparent w-full text-[12px] text-primary-dark focus:outline-none"
+                        />
+                        <div className="bg-bg-soft border border-border-light text-[#868e96] text-[9px] px-1.5 py-0.5 rounded-md font-semibold">⌘F</div>
                     </div>
 
                     <div className="flex items-center gap-3">
@@ -124,11 +160,11 @@ const DashboardLayout = () => {
                         </button>
                         <div className="flex items-center gap-2.5 ml-2">
                             <div className="flex flex-col items-end">
-                                <span className="text-[12px] font-semibold text-primary-dark">{user.fullName || user.name || 'User'}</span>
-                                <span className="text-[10px] text-text-gray">{user.email || ''}</span>
+                                <span className="text-[12px] font-semibold text-primary-dark">{displayName}</span>
+                                <span className="text-[10px] text-[#868e96]">{displayEmail}</span>
                             </div>
                             <div className="w-8 h-8 bg-primary-light text-primary-dark rounded-full flex justify-center items-center text-[11px] font-bold border-2 border-white">
-                                {(user.fullName || user.name || 'U').charAt(0).toUpperCase()}
+                                {initials || <UserRound size={14} />}
                             </div>
                         </div>
                     </div>
@@ -140,7 +176,6 @@ const DashboardLayout = () => {
             </div>
         </div>
     );
-
 };
 
 export default DashboardLayout;

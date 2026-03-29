@@ -1,9 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { ArrowUpRight, LoaderCircle } from 'lucide-react';
-import { fetchPatrols } from '../../features/patrols/api/patrolsApi';
+import { fetchAssignedPatrols, fetchPatrols } from '../../features/patrols/api/patrolsApi';
 import PatrolsTable from '../../features/patrols/components/PatrolsTable';
+import { getUserRole } from '../../utils/auth';
 
 const PatrolsPage = () => {
+    const role = getUserRole();
+    const isRanger = role === 'RANGER';
     const [patrols, setPatrols] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
@@ -11,7 +14,7 @@ const PatrolsPage = () => {
     useEffect(() => {
         const loadPatrols = async () => {
             try {
-                const data = await fetchPatrols();
+                const data = isRanger ? await fetchAssignedPatrols() : await fetchPatrols();
                 setPatrols(data);
             } catch (err) {
                 setError(err.message || 'Failed to load patrols');
@@ -21,15 +24,19 @@ const PatrolsPage = () => {
         };
 
         loadPatrols();
-    }, []);
+    }, [isRanger]);
 
     return (
         <div className="flex flex-col gap-6">
             <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
                 <div>
-                    <h1 className="text-[30px] font-semibold tracking-tight text-primary-dark">Patrols Center</h1>
+                    <h1 className="text-[30px] font-semibold tracking-tight text-primary-dark">
+                        {isRanger ? 'Assigned Patrols' : 'Patrols Center'}
+                    </h1>
                     <p className="mt-1 text-[14px] text-text-gray">
-                        Manage ranger patrols, deployments, and scheduled routes.
+                        {isRanger
+                            ? 'View patrol missions assigned to your account.'
+                            : 'Manage ranger patrols, deployments, and scheduled routes.'}
                     </p>
                 </div>
 
