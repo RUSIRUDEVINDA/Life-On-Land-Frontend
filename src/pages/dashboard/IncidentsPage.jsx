@@ -27,6 +27,13 @@ const IncidentsPage = () => {
     const [status, setStatus] = useState('ALL');
     const [severity, setSeverity] = useState('ALL');
     const [selectedIncidentId, setSelectedIncidentId] = useState(null);
+    const [pageSize, setPageSize] = useState(10);
+    const [currentPage, setCurrentPage] = useState(1);
+
+    // Reset to page 1 whenever any filter changes
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [searchTerm, type, status, severity]);
 
     useEffect(() => {
         const loadIncidents = async () => {
@@ -67,6 +74,13 @@ const IncidentsPage = () => {
             return matchesType && matchesStatus && matchesSeverity && matchesSearch;
         });
     }, [incidents, searchTerm, type, status, severity]);
+
+    const totalPages = Math.max(1, Math.ceil(filteredIncidents.length / pageSize));
+
+    const paginatedIncidents = useMemo(() => {
+        const start = (currentPage - 1) * pageSize;
+        return filteredIncidents.slice(start, start + pageSize);
+    }, [filteredIncidents, currentPage, pageSize]);
 
     const selectedIncident =
         filteredIncidents.find((incident) => incident._id === selectedIncidentId) ??
@@ -151,6 +165,12 @@ const IncidentsPage = () => {
                 typeOptions={incidentTypes}
                 statusOptions={incidentStatuses}
                 severityOptions={incidentSeverities}
+                pageSize={pageSize}
+                onPageSizeChange={(size) => { setPageSize(size); setCurrentPage(1); }}
+                currentPage={currentPage}
+                totalPages={totalPages}
+                totalCount={filteredIncidents.length}
+                onPageChange={setCurrentPage}
             />
 
             <div className="grid gap-5 2xl:grid-cols-[minmax(0,1.65fr)_minmax(340px,0.85fr)]">
@@ -169,7 +189,7 @@ const IncidentsPage = () => {
                         </div>
                     )}
                     <IncidentList
-                        incidents={filteredIncidents}
+                        incidents={paginatedIncidents}
                         selectedIncidentId={selectedIncident?._id}
                         onSelect={(incident) => setSelectedIncidentId(incident._id)}
                     />

@@ -83,6 +83,30 @@ export const fetchPatrols = async () => {
     }
 };
 
+export const fetchAssignedPatrols = async () => {
+    const rawUser = localStorage.getItem('user');
+    const user = rawUser ? JSON.parse(rawUser) : null;
+    const userId = user?._id || user?.id;
+
+    if (!userId) {
+        throw new Error('User session is missing. Please login again.');
+    }
+
+    try {
+        const payload = await requestJson(`/api/patrols?page=1&limit=50&rangerId=${encodeURIComponent(userId)}`);
+        if (Array.isArray(payload)) return payload;
+        if (payload?.docs) return payload.docs;
+        if (payload?.data) return payload.data;
+        if (payload?.patrols) return payload.patrols;
+        return [];
+    } catch (err) {
+        if (err.message.includes('(403)')) {
+            throw new Error('You do not have permission to view patrols.');
+        }
+        throw err;
+    }
+};
+
 export const createPatrol = async (input) => {
     const payload = await requestJson('/api/patrols', {
         method: 'POST',
