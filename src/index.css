@@ -34,3 +34,4 @@
 .leaflet-control {
     z-index: 400 !important;
 }
+.animal-popup .mapboxgl-popup-content { background: transparent; border: none; box-shadow: none; padding: 0; }

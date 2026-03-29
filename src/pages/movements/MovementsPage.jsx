@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Calendar, Zap } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { getMovements, getMovementSummary } from '../../features/movements/api/movementsApi';
 import MovementStats from '../../features/movements/components/MovementStats';
 import MovementFilters from '../../features/movements/components/MovementFilters';
@@ -53,9 +54,9 @@ const MovementsPage = () => {
                     <button className="bg-white border border-border-light px-4 py-2.5 rounded-xl text-[13px] font-bold text-primary-dark flex items-center gap-2 shadow-sm hover:bg-bg-soft hover:-translate-y-0.5 transition-all duration-300">
                         <Calendar size={16} className="text-primary-medium" /> Last 24 Hours
                     </button>
-                    <button className="bg-primary-dark text-white px-4 py-2.5 rounded-xl text-[13px] font-bold flex items-center gap-2 shadow-elevated hover:bg-black hover:-translate-y-0.5 transition-all duration-300">
+                    <Link to="/dashboard/maps" className="bg-primary-dark text-white px-4 py-2.5 rounded-xl text-[13px] font-bold flex items-center gap-2 shadow-elevated hover:bg-black hover:-translate-y-0.5 transition-all duration-300">
                         <Zap size={16} className="text-primary-medium animate-pulse" /> Live Tracking
-                    </button>
+                    </Link>
                 </div>
             </div>
 
