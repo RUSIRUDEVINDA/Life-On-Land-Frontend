@@ -1,4 +1,4 @@
-﻿import React from 'react';
+import React from 'react';
 import { Outlet, Link, useNavigate, useLocation } from 'react-router-dom';
 import {
     LayoutDashboard,
@@ -60,10 +60,11 @@ const DashboardLayout = () => {
         .slice(0, 2)
         .toUpperCase();
 
-  const storedUser = localStorage.getItem("user");
-  const user = storedUser
-    ? JSON.parse(storedUser)
-    : { fullName: "John Doe", email: "john.doe@eco.com" };
+    const handleLogout = () => {
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        navigate('/login');
+    };
 
     const isActive = (path) => {
         if (location.pathname === path) return true;
@@ -163,26 +164,9 @@ const DashboardLayout = () => {
                     </div>
                 </header>
 
-          <div className="flex items-center gap-3">
-            <button className="bg-white border-none w-8 h-8 rounded-full flex justify-center items-center text-primary-dark relative shadow-[0_1px_4px_rgba(0,0,0,0.02)] hover:text-primary">
-              <MessageCircle size={16} />
-            </button>
-            <button className="bg-white border-none w-8 h-8 rounded-full flex justify-center items-center text-primary-dark relative shadow-[0_1px_4px_rgba(0,0,0,0.02)] hover:text-primary">
-              <Bell size={16} />
-              <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 bg-[#ff6b6b] rounded-full"></span>
-            </button>
-            <div className="flex items-center gap-2.5 ml-2">
-              <div className="flex flex-col items-end">
-                <span className="text-[12px] font-semibold text-primary-dark">
-                  {user.fullName || user.name || "User"}
-                </span>
-                <span className="text-[10px] text-text-gray">
-                  {user.email || ""}
-                </span>
-              </div>
-              <div className="w-8 h-8 bg-primary-light text-primary-dark rounded-full flex justify-center items-center text-[11px] font-bold border-2 border-white">
-                {(user.fullName || user.name || "U").charAt(0).toUpperCase()}
-              </div>
+                <main className="flex-1 px-6 pb-6 overflow-y-auto">
+                    <Outlet />
+                </main>
             </div>
         </div>
     );
