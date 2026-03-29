@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
+import { getDefaultDashboardPathByRole } from '../../utils/auth';
 
 const DEFAULT_API_URL = 'http://localhost:5001';
 const getApiBaseUrl = () => {
@@ -63,7 +64,7 @@ const RegisterPage = () => {
                 );
             }
 
-            navigate('/dashboard');
+            navigate(getDefaultDashboardPathByRole(payload?.role || payload?.data?.role || 'RANGER'));
         } catch (requestError) {
             setError(requestError.message || 'Failed to register');
         } finally {
