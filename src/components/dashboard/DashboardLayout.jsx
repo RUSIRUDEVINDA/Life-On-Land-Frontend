@@ -33,6 +33,7 @@ const adminMenuItems = [
 
 const rangerMenuItems = [
     { name: 'Dashboard', path: '/dashboard/ranger', icon: <LayoutDashboard size={18} /> },
+    { name: 'Risk map', path: '/dashboard/ranger-risk-map', icon: <Map size={18} /> },
     { name: 'My Incidents', path: '/dashboard/my-incidents', icon: <AlertTriangle size={18} /> },
     { name: 'Report Incident', path: '/dashboard/incidents/report', icon: <ClipboardList size={18} /> },
     { name: 'Assigned Patrols', path: '/dashboard/patrols', icon: <MapPin size={18} /> },

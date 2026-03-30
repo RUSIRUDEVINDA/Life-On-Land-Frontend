@@ -72,6 +72,7 @@ function App() {
                         {/* ── Ranger-only routes ── */}
                         <Route element={<RoleRoute allowedRoles={['RANGER']} />}>
                             <Route path="ranger" element={<RangerDashboardPage />} />
+                            <Route path="ranger-risk-map" element={<RiskMapPage rangerView />} />
                             <Route path="my-incidents" element={<RangerMyIncidentsPage />} />
                         </Route>
 

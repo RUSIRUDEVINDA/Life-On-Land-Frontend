@@ -62,7 +62,7 @@ const ReportIncidentPage = () => {
         protectedAreaId: '',
         zoneId: '',
         incidentDate: toDateTimeLocal(new Date().toISOString()),
-        severity: 'MEDIUM',
+        severity: '',
         notes: '',
     });
     const [evidenceImages, setEvidenceImages] = useState([]);
@@ -326,6 +326,7 @@ const ReportIncidentPage = () => {
                             onChange={handleChange('type')}
                             className="rounded-2xl border border-border-light bg-bg-soft px-4 py-3 text-[14px] text-primary-dark outline-none transition focus:border-primary-medium focus:bg-white"
                         >
+                            <option value="">Type</option>
                             {incidentTypes.map((option) => (
                                 <option key={option} value={option}>
                                     {option.replaceAll('_', ' ')}
@@ -341,6 +342,7 @@ const ReportIncidentPage = () => {
                             onChange={handleChange('severity')}
                             className="rounded-2xl border border-border-light bg-bg-soft px-4 py-3 text-[14px] text-primary-dark outline-none transition focus:border-primary-medium focus:bg-white"
                         >
+                            <option value="">Severity</option>
                             {severityLevels.map((option) => (
                                 <option key={option} value={option}>
                                     {option}
