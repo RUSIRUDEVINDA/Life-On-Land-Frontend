@@ -1,3 +1,5 @@
+import { fetchAllUsers } from '../../users/api/usersApi';
+
 const DEFAULT_API_URL = 'http://localhost:5001';
 
 const getApiBaseUrl = () => {
@@ -134,13 +136,114 @@ const normalizeIncidentReference = (value, fallbackLabel) => {
     };
 };
 
+const ANONYMOUS_REPORTER_LABEL = 'Anonymous Reporter';
+
+/** Resolves Mongo-style ids, including nested `{ $oid }` on `_id`. */
+const extractReferenceId = (value) => {
+    if (value == null) return '';
+    if (typeof value === 'string' || typeof value === 'number') return toIdString(value);
+    if (typeof value !== 'object') return '';
+    if (value.$oid) return String(value.$oid);
+    const nested = value._id ?? value.id;
+    if (nested != null) return toIdString(nested);
+    return '';
+};
+
+const derivePersonDisplayName = (value) => {
+    if (!value || typeof value !== 'object') return '';
+    const first = typeof value.firstName === 'string' ? value.firstName.trim() : '';
+    const last = typeof value.lastName === 'string' ? value.lastName.trim() : '';
+    const fromParts = [first, last].filter(Boolean).join(' ').trim();
+    return (
+        (typeof value.name === 'string' && value.name.trim()) ||
+        (typeof value.fullName === 'string' && value.fullName.trim()) ||
+        (typeof value.displayName === 'string' && value.displayName.trim()) ||
+        fromParts ||
+        (typeof value.username === 'string' && value.username.trim()) ||
+        ''
+    );
+};
+
+const readStoredSessionUser = () => {
+    try {
+        const raw = localStorage.getItem('user');
+        if (!raw) return null;
+        const u = JSON.parse(raw);
+        const id = u?._id ?? u?.id;
+        if (id == null) return null;
+        const name = typeof u?.name === 'string' ? u.name.trim() : '';
+        return { id: toIdString(id), name };
+    } catch {
+        return null;
+    }
+};
+
+const normalizeReportedBy = (rawReportedBy) => {
+    const reporterId = extractReferenceId(rawReportedBy);
+    let displayName =
+        typeof rawReportedBy === 'object' && rawReportedBy ? derivePersonDisplayName(rawReportedBy) : '';
+
+    if (!displayName && reporterId) {
+        const session = readStoredSessionUser();
+        if (session?.name && toIdString(session.id) === toIdString(reporterId)) {
+            displayName = session.name;
+        }
+    }
+
+    const usernameFromApi =
+        typeof rawReportedBy === 'object' && rawReportedBy && typeof rawReportedBy.username === 'string'
+            ? rawReportedBy.username.trim()
+            : '';
+
+    const fallback = displayName || ANONYMOUS_REPORTER_LABEL;
+
+    return {
+        _id: reporterId,
+        fullName: displayName || ANONYMOUS_REPORTER_LABEL,
+        username: usernameFromApi || fallback,
+    };
+};
+
+const mergeReporterNamesFromUserDirectory = async (incidents) => {
+    const idsToResolve = new Set();
+    for (const inc of incidents) {
+        const id = toIdString(inc?.reportedBy?._id);
+        if (id && inc.reportedBy?.fullName === ANONYMOUS_REPORTER_LABEL) {
+            idsToResolve.add(id);
+        }
+    }
+    if (idsToResolve.size === 0) return incidents;
+
+    try {
+        const users = await fetchAllUsers();
+        const idToName = new Map(users.map((u) => [u.id, u.name]).filter(([id]) => Boolean(id)));
+
+        return incidents.map((inc) => {
+            const id = toIdString(inc?.reportedBy?._id);
+            if (!id || inc.reportedBy?.fullName !== ANONYMOUS_REPORTER_LABEL) return inc;
+            const resolved = idToName.get(id);
+            if (!resolved) return inc;
+            return {
+                ...inc,
+                reportedBy: {
+                    ...inc.reportedBy,
+                    fullName: resolved,
+                    username: inc.reportedBy?.username || resolved,
+                },
+            };
+        });
+    } catch {
+        return incidents;
+    }
+};
+
 const normalizeIncident = (item) => {
     const zone = normalizeIncidentReference(item.zoneId || item.zone, 'Unknown Zone');
     const protectedArea = normalizeIncidentReference(
         item.protectedAreaId || item.protectedArea,
         'Unknown Protected Area'
     );
-    const reportedBy = normalizeIncidentReference(item.reportedBy, 'Anonymous Reporter');
+    const reportedBy = normalizeReportedBy(item?.reportedBy);
 
     return {
         _id: item?._id || item?.id || '',
@@ -150,11 +253,7 @@ const normalizeIncident = (item) => {
         protectedArea,
         severity: item?.severity || 'LOW',
         status: item?.status || 'UNVERIFIED',
-        reportedBy: {
-            _id: reportedBy.id,
-            fullName: reportedBy.name,
-            username: item?.reportedBy?.username || reportedBy.name,
-        },
+        reportedBy,
         incidentDate: item?.incidentDate || item?.createdAt || new Date().toISOString(),
         evidence: Array.isArray(item?.evidence) ? item.evidence : [],
         notes: item?.notes || '',
@@ -274,7 +373,8 @@ export const fetchIncidents = async () => {
         }
     }
 
-    return allItems.map(normalizeIncident).filter((item) => item._id);
+    const normalized = allItems.map(normalizeIncident).filter((item) => item._id);
+    return mergeReporterNamesFromUserDirectory(normalized);
 };
 
 
