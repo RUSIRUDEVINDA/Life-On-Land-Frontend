@@ -105,7 +105,7 @@ const RangerDashboardPage = () => {
 
     const hotspotZone = useMemo(() => {
         const first = Array.isArray(movementSummary?.data) ? movementSummary.data[0] : null;
-        return first?.zoneDetails?.name || first?._id || 'No hotspot detected';
+        return first?.zoneDetails?.name || first?._id || 'Hotspot detected';
     }, [movementSummary]);
 
     const patrolsByStatus = useMemo(
@@ -165,7 +165,7 @@ const RangerDashboardPage = () => {
                 </div>
             ) : (
                 <>
-                    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+                    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
                         <StatCard
                             label="Assigned Patrols"
                             value={assignedPatrols.length}
@@ -179,19 +179,19 @@ const RangerDashboardPage = () => {
                             icon={Binoculars}
                             tone="active"
                         />
-                        <StatCard
-                            label="Movement Logs"
-                            value={movementLogCount}
-                            hint="Latest telemetry records"
-                            icon={Activity}
-                        />
-                        <StatCard
-                            label="Hotspot Zone"
-                            value={hotspotZone}
-                            hint="Most recent movement concentration"
-                            icon={AlertTriangle}
-                            tone="alert"
-                        />
+                        <Link
+                            to="/dashboard/ranger-risk-map"
+                            className="block rounded-[22px] border border-[#E63946]/30 bg-[#fff5f5] px-5 py-4 text-[#a4161a] shadow-premium transition hover:-translate-y-0.5 hover:shadow-elevated focus-visible:outline focus-visible:ring-2 focus-visible:ring-[#E63946]/35"
+                        >
+                            <div className="mb-2 flex items-center justify-between gap-2">
+                                <p className="text-[11px] font-semibold uppercase tracking-widest opacity-90">Hotspot Zone</p>
+                                <span className="rounded-lg bg-[#ffe3e3] p-1.5 text-[#a4161a]">
+                                    <AlertTriangle size={14} />
+                                </span>
+                            </div>
+                            <p className="text-[24px] font-bold leading-none">{hotspotZone}</p>
+                            <p className="mt-1 text-[11px] opacity-75">Open wildlife risk map</p>
+                        </Link>
                         <Link
                             to="/dashboard/my-incidents"
                             className="rounded-[22px] border border-border-light bg-white px-5 py-4 shadow-premium transition hover:-translate-y-0.5 hover:shadow-elevated"
