@@ -5,7 +5,9 @@ import 'maplibre-gl/dist/maplibre-gl.css';
 import { Activity, MapPinned, Info, AlertTriangle } from 'lucide-react';
 import { fetchProtectedAreas, fetchZonesByProtectedArea, fetchRiskMapByProtectedArea } from '../../risk-map/api/riskMapApi';
 import { getLiveMovements } from '../api/movementsApi';
-import { MAP_STYLE } from '../../map/mapConfig';
+
+const MAPTILER_KEY = 'vJhZing971Ammszt9jVW';
+const MAP_STYLE = `https://api.maptiler.com/maps/streets-v2/style.json?key=${MAPTILER_KEY}`;
 
 const zoneTypeColorMap = {
   CORE: '#c92a2a',
@@ -85,6 +87,7 @@ const TelemetryMap = ({ selectedAreaId }) => {
   const loadMovements = useCallback(async () => {
     try {
       const data = await getLiveMovements({ protectedAreaId: selectedAreaId });
+      console.log(`[MAP-DEBUG] Received ${data?.length || 0} movements for area: ${selectedAreaId}`, data);
       setMovements(data || []);
     } catch (err) {
       console.error('Failed to load live movements:', err);

@@ -94,34 +94,40 @@ const DashboardLayout = () => {
 
                 <div className="flex-1 overflow-y-auto">
                     <nav className="flex flex-col px-4 pr-3 pb-4 gap-1">
-                        <p className="text-[10px] font-semibold text-[#adb5bd] mb-1.5 mt-3 tracking-widest uppercase pl-2">Main Menu</p>
-                        {menuItems.map((item) => (
-                            <Link key={item.name} to={item.path} className={linkClass(item.path)}>
-                                <span className={iconClass(item.path)}>{item.icon}</span>
-                                <span className="flex-1">{item.name}</span>
-                                {item.badge && (
-                                    <span className="ml-auto bg-primary-dark text-white text-[9px] font-bold px-1.5 py-0.5 rounded-md">
-                                        {item.badge}
-                                    </span>
-                                )}
-                            </Link>
-                        ))}
+                        <p className="text-[10px] font-semibold text-[#adb5bd] mb-1.5 mt-3 tracking-widest uppercase pl-2">MAIN MENU</p>
+                        {menuItems.map(item => {
+                            const isActive = item.path === '/dashboard'
+                                ? location.pathname === '/dashboard'
+                                : location.pathname.startsWith(item.path);
+                            return (
+                                <Link
+                                    key={item.path}
+                                    to={item.path}
+                                    className={`flex items-center text-[13px] font-medium py-2 transition-all duration-200 relative bg-transparent border-none cursor-pointer text-left w-full hover:text-primary-dark ${isActive ? 'text-primary-dark font-semibold before:content-[""] before:absolute before:-left-4 before:top-1/2 before:-translate-y-1/2 before:w-1 before:h-5 before:bg-primary before:rounded-r-md' : 'text-text-gray'}`}
+                                >
+                                    <span className={`mr-3 flex items-center text-inherit opacity-80 ${isActive ? 'text-primary opacity-100' : ''}`}>{item.icon}</span>
+                                    <span className="flex-1">{item.name}</span>
+                                    {item.name === 'Map Tracking' && <span className="ml-auto bg-primary-dark text-white text-[9px] font-bold px-1.5 py-0.5 rounded-md">Live</span>}
+                                </Link>
+                            );
+                        })}
 
-                        <p className="text-[10px] font-semibold text-[#adb5bd] mb-1.5 mt-3 tracking-widest uppercase pl-2">General</p>
-                        {generalItems.map((item) => (
-                            <Link key={item.name} to={item.path} className={linkClass(item.path)}>
-                                <span className={iconClass(item.path)}>{item.icon}</span>
-                                <span className="flex-1">{item.name}</span>
-                            </Link>
-                        ))}
-
-                        <button
-                            className="flex items-center text-[13px] font-medium py-2 transition-all duration-200 relative bg-transparent border-none cursor-pointer text-left w-full hover:text-primary-dark text-[#868e96]"
-                            onClick={handleLogout}
-                        >
-                            <span className="mr-3 flex items-center text-inherit opacity-80">
-                                <LogOut size={18} />
-                            </span>
+                        <p className="text-[10px] font-semibold text-[#adb5bd] mb-1.5 mt-3 tracking-widest uppercase pl-2">GENERAL</p>
+                        {generalItems.map(item => {
+                            const isActive = location.pathname === item.path;
+                            return (
+                                <Link
+                                    key={item.path}
+                                    to={item.path}
+                                    className={`flex items-center text-[13px] font-medium py-2 transition-all duration-200 relative bg-transparent border-none cursor-pointer text-left w-full hover:text-primary-dark ${isActive ? 'text-primary-dark font-semibold before:content-[""] before:absolute before:-left-4 before:top-1/2 before:-translate-y-1/2 before:w-1 before:h-5 before:bg-primary before:rounded-r-md' : 'text-text-gray'}`}
+                                >
+                                    <span className={`mr-3 flex items-center text-inherit opacity-80 ${isActive ? 'text-primary opacity-100' : ''}`}>{item.icon}</span>
+                                    <span className="flex-1">{item.name}</span>
+                                </Link>
+                            );
+                        })}
+                        <button className="flex items-center text-[13px] font-medium py-2 transition-all duration-200 relative bg-transparent border-none cursor-pointer text-left w-full hover:text-primary-dark text-text-gray" onClick={handleLogout}>
+                            <span className="mr-3 flex items-center text-inherit opacity-80"><LogOut size={18} /></span>
                             <span className="flex-1">Logout</span>
                         </button>
                     </nav>
