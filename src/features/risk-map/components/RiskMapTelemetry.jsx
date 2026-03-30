@@ -23,7 +23,17 @@ const riskLevelStyles = {
  * MapLibre + MapTiler map aligned with Map Tracking (`TelemetryMap`):
  * zone polygons tinted by risk level, markers at zone centers, hover + popup.
  */
-const RiskMapTelemetry = ({ zones, riskPoints, loading, selectedZoneId, onSelectZone }) => {
+const defaultWrapperClass =
+    'h-[65vh] w-full rounded-[28px] overflow-hidden border border-border-light shadow-premium relative bg-bg-soft group';
+
+const RiskMapTelemetry = ({
+    zones,
+    riskPoints,
+    loading,
+    selectedZoneId,
+    onSelectZone,
+    wrapperClassName,
+}) => {
     const mapRef = useRef(null);
     const [viewState, setViewState] = useState({
         longitude: 80.72,
@@ -103,7 +113,7 @@ const RiskMapTelemetry = ({ zones, riskPoints, loading, selectedZoneId, onSelect
     );
 
     return (
-        <div className="h-[65vh] w-full rounded-[28px] overflow-hidden border border-border-light shadow-premium relative bg-bg-soft group">
+        <div className={wrapperClassName || defaultWrapperClass}>
             {loading && (
                 <div className="absolute inset-0 z-[1000] flex items-center justify-center bg-white/40 backdrop-blur-sm">
                     <div className="flex animate-enter items-center gap-4 rounded-3xl bg-white px-8 py-5 shadow-[0_12px_44px_rgba(0,0,0,0.1)] transition-all">
