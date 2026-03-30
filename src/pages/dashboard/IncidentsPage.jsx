@@ -1,5 +1,14 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { ArrowUpRight, CalendarClock, FilePlus2, LoaderCircle, ShieldAlert } from 'lucide-react';
+import {
+    ArrowUpRight,
+    CalendarClock,
+    ChevronLeft,
+    ChevronRight,
+    FilePlus2,
+    LoaderCircle,
+    ShieldAlert,
+    Trash2,
+} from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import IncidentMetricCard from '../../features/incidents/components/IncidentMetricCard';
 import IncidentFilters from '../../features/incidents/components/IncidentFilters';
@@ -9,13 +18,25 @@ import {
     incidentStatuses,
     incidentTypes,
 } from '../../features/incidents/data/incidents';
-import { fetchIncidents } from '../../features/incidents/api/incidentsApi';
+import { deleteIncident, fetchIncidents } from '../../features/incidents/api/incidentsApi';
+import ConfirmDialog from '../../components/common/ConfirmDialog';
 
 const formatDate = (value) =>
     new Intl.DateTimeFormat('en-GB', {
         dateStyle: 'medium',
         timeStyle: 'short',
     }).format(new Date(value));
+
+const buildPaginationItems = (totalPages, activePage) => {
+    if (totalPages <= 1) return [1];
+    return Array.from({ length: totalPages }, (_, i) => i + 1)
+        .filter((p) => p === 1 || p === totalPages || Math.abs(p - activePage) <= 1)
+        .reduce((acc, p, idx, arr) => {
+            if (idx > 0 && p - arr[idx - 1] > 1) acc.push('…');
+            acc.push(p);
+            return acc;
+        }, []);
+};
 
 const IncidentsPage = () => {
     const navigate = useNavigate();
@@ -29,6 +50,8 @@ const IncidentsPage = () => {
     const [selectedIncidentId, setSelectedIncidentId] = useState(null);
     const [pageSize, setPageSize] = useState(10);
     const [currentPage, setCurrentPage] = useState(1);
+    const [deletingId, setDeletingId] = useState('');
+    const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
 
     // Reset to page 1 whenever any filter changes
     useEffect(() => {
@@ -76,16 +99,75 @@ const IncidentsPage = () => {
     }, [incidents, searchTerm, type, status, severity]);
 
     const totalPages = Math.max(1, Math.ceil(filteredIncidents.length / pageSize));
+    const effectivePage = Math.min(currentPage, totalPages);
+
+    useEffect(() => {
+        if (currentPage > totalPages) {
+            setCurrentPage(Math.max(1, totalPages));
+        }
+    }, [currentPage, totalPages]);
 
     const paginatedIncidents = useMemo(() => {
-        const start = (currentPage - 1) * pageSize;
+        const page = Math.min(currentPage, totalPages);
+        const start = (page - 1) * pageSize;
         return filteredIncidents.slice(start, start + pageSize);
-    }, [filteredIncidents, currentPage, pageSize]);
+    }, [filteredIncidents, currentPage, pageSize, totalPages]);
+
+    const paginationItems = useMemo(
+        () => buildPaginationItems(totalPages, effectivePage),
+        [totalPages, effectivePage]
+    );
+
+    const totalFiltered = filteredIncidents.length;
+    const rangeStart = totalFiltered === 0 ? 0 : (effectivePage - 1) * pageSize + 1;
+    const rangeEnd = Math.min(effectivePage * pageSize, totalFiltered);
 
     const selectedIncident =
         filteredIncidents.find((incident) => incident._id === selectedIncidentId) ??
         filteredIncidents[0] ??
         null;
+
+    const confirmDeleteIncident = async () => {
+        if (!selectedIncident?._id) {
+            setDeleteConfirmOpen(false);
+            return;
+        }
+
+        const idToRemove = selectedIncident._id;
+        const remainingAfterDelete = filteredIncidents.filter((i) => i._id !== idToRemove);
+
+        setDeletingId(idToRemove);
+        setError('');
+        try {
+            await deleteIncident(idToRemove);
+            setIncidents((prev) => prev.filter((incident) => incident._id !== idToRemove));
+            setSelectedIncidentId(remainingAfterDelete[0]?._id ?? null);
+            setDeleteConfirmOpen(false);
+        } catch (requestError) {
+            setError(requestError.message || 'Failed to delete incident.');
+        } finally {
+            setDeletingId('');
+        }
+    };
+
+    const handleExportQueue = async () => {
+        try {
+            const { exportIncidentsQueueToPdf } = await import(
+                '../../features/incidents/utils/exportIncidentsQueuePdf'
+            );
+            const result = exportIncidentsQueueToPdf(filteredIncidents, {
+                type,
+                status,
+                severity,
+                searchTerm,
+            });
+            if (!result.ok) {
+                window.alert(result.message);
+            }
+        } catch {
+            window.alert('Could not generate the PDF. Please try again.');
+        }
+    };
 
     const metricCards = [
         {
@@ -134,7 +216,12 @@ const IncidentsPage = () => {
                         <FilePlus2 size={15} />
                         Report Incident
                     </button>
-                    <button className="inline-flex items-center gap-2 rounded-2xl border border-primary-medium px-4 py-3 text-[13px] font-semibold text-primary-dark transition hover:bg-primary-light/10">
+                    <button
+                        type="button"
+                        onClick={handleExportQueue}
+                        disabled={loading || incidents.length === 0}
+                        className="inline-flex items-center gap-2 rounded-2xl border border-primary-medium px-4 py-3 text-[13px] font-semibold text-primary-dark transition hover:bg-primary-light/10 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
                         <ArrowUpRight size={15} />
                         Export Queue
                     </button>
@@ -166,11 +253,10 @@ const IncidentsPage = () => {
                 statusOptions={incidentStatuses}
                 severityOptions={incidentSeverities}
                 pageSize={pageSize}
-                onPageSizeChange={(size) => { setPageSize(size); setCurrentPage(1); }}
-                currentPage={currentPage}
-                totalPages={totalPages}
-                totalCount={filteredIncidents.length}
-                onPageChange={setCurrentPage}
+                onPageSizeChange={(size) => {
+                    setPageSize(size);
+                    setCurrentPage(1);
+                }}
             />
 
             <div className="grid gap-5 2xl:grid-cols-[minmax(0,1.65fr)_minmax(340px,0.85fr)]">
@@ -250,6 +336,18 @@ const IncidentsPage = () => {
                                         Reported by <span className="font-semibold text-white">{selectedIncident.reportedBy.fullName}</span> ({selectedIncident.reportedBy.username})
                                     </p>
                                 </div>
+
+                                <div className="border-t border-white/15 pt-4">
+                                    <button
+                                        type="button"
+                                        onClick={() => setDeleteConfirmOpen(true)}
+                                        disabled={Boolean(deletingId)}
+                                        className="inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-[#ff8787]/50 bg-[#c92a2a]/35 px-4 py-3 text-[13px] font-semibold text-white transition hover:bg-[#c92a2a]/55 disabled:cursor-not-allowed disabled:opacity-60"
+                                    >
+                                        <Trash2 size={16} />
+                                        {deletingId === selectedIncident._id ? 'Deleting…' : 'Delete incident'}
+                                    </button>
+                                </div>
                             </div>
                         ) : (
                             <p className="mt-6 text-[14px] text-white/75">
@@ -257,29 +355,85 @@ const IncidentsPage = () => {
                             </p>
                         )}
                     </div>
-
-                    <div className="rounded-[28px] border border-border-light bg-white p-6 shadow-premium">
-                        <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-text-gray">
-                            Backend Request Shape
-                        </p>
-                        <h3 className="mt-2 text-[20px] font-semibold tracking-tight text-primary-dark">
-                            `POST /api/incidents`
-                        </h3>
-                        <div className="mt-4 rounded-2xl bg-bg-soft p-4 font-mono text-[12px] leading-6 text-primary-dark">
-                            <p>{'{'}</p>
-                            <p className="pl-4">&quot;type&quot;: &quot;POACHING&quot;,</p>
-                            <p className="pl-4">&quot;description&quot;: &quot;Gunshots heard near river boundary.&quot;,</p>
-                            <p className="pl-4">&quot;zoneId&quot;: &quot;69976248d112d1320744ef41&quot;,</p>
-                            <p className="pl-4">&quot;protectedAreaId&quot;: &quot;69975c61d112d1320744ef20&quot;,</p>
-                            <p className="pl-4">&quot;incidentDate&quot;: &quot;2026-02-27T17:30:00.000Z&quot;,</p>
-                            <p className="pl-4">&quot;severity&quot;: &quot;CRITICAL&quot;,</p>
-                            <p className="pl-4">&quot;evidence&quot;: [&quot;https://...&quot;],</p>
-                            <p className="pl-4">&quot;notes&quot;: &quot;Ranger unit dispatched.&quot;</p>
-                            <p>{'}'}</p>
-                        </div>
-                    </div>
                 </aside>
             </div>
+
+            {!loading && !error && totalFiltered > 0 && (
+                <div className="rounded-[28px] border border-border-light bg-white px-5 py-4 shadow-premium">
+                    <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                        <div className="flex flex-wrap items-center gap-x-3 gap-y-2 text-[13px] text-text-gray">
+                            <p>
+                                Showing{' '}
+                                <span className="font-semibold text-primary-dark">
+                                    {rangeStart}–{rangeEnd}
+                                </span>{' '}
+                                of{' '}
+                                <span className="font-semibold text-primary-dark">{totalFiltered}</span> incidents
+                            </p>
+                        </div>
+
+                        <div className="flex flex-wrap items-center justify-center gap-2 sm:justify-end">
+                            <button
+                                type="button"
+                                aria-label="Previous page"
+                                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                                disabled={effectivePage <= 1}
+                                className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-border-light bg-white text-primary-dark shadow-sm transition hover:bg-bg-soft disabled:cursor-not-allowed disabled:opacity-40"
+                            >
+                                <ChevronLeft size={18} strokeWidth={2} />
+                            </button>
+
+                            {paginationItems.map((item, idx) =>
+                                item === '…' ? (
+                                    <span
+                                        key={`ellipsis-${idx}`}
+                                        className="inline-flex h-10 min-w-10 items-center justify-center px-1 text-[13px] font-medium text-text-gray"
+                                    >
+                                        …
+                                    </span>
+                                ) : (
+                                    <button
+                                        key={item}
+                                        type="button"
+                                        onClick={() => setCurrentPage(item)}
+                                        className={`inline-flex h-10 min-w-10 shrink-0 items-center justify-center rounded-2xl border px-3 text-[13px] font-semibold shadow-sm transition ${
+                                            effectivePage === item
+                                                ? 'border-primary-dark bg-primary-dark text-white'
+                                                : 'border-border-light bg-white text-primary-dark hover:bg-bg-soft'
+                                        }`}
+                                    >
+                                        {item}
+                                    </button>
+                                )
+                            )}
+
+                            <button
+                                type="button"
+                                aria-label="Next page"
+                                onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                                disabled={effectivePage >= totalPages}
+                                className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-border-light bg-white text-primary-dark shadow-sm transition hover:bg-bg-soft disabled:cursor-not-allowed disabled:opacity-40"
+                            >
+                                <ChevronRight size={18} strokeWidth={2} />
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            <ConfirmDialog
+                open={deleteConfirmOpen}
+                title="Delete incident report?"
+                message="Are you sure you want to delete the incident report? This action cannot be undone."
+                confirmText="Delete"
+                cancelText="Cancel"
+                tone="danger"
+                loading={Boolean(deletingId)}
+                onConfirm={confirmDeleteIncident}
+                onCancel={() => {
+                    if (!deletingId) setDeleteConfirmOpen(false);
+                }}
+            />
         </div>
     );
 };
