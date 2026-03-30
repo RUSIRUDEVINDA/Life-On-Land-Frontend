@@ -1,5 +1,13 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { AlertTriangle, MapPinned, RefreshCw, Map as MapIcon, Layers, Activity } from 'lucide-react';
+import {
+    AlertTriangle,
+    MapPinned,
+    RefreshCw,
+    Map as MapIcon,
+    Layers,
+    Activity,
+    ChevronLeft,
+} from 'lucide-react';
 import IncidentMetricCard from '../../features/incidents/components/IncidentMetricCard';
 import RiskMapTelemetry from '../../features/risk-map/components/RiskMapTelemetry';
 import {
@@ -7,7 +15,7 @@ import {
     fetchRiskMapByProtectedArea,
     fetchZonesByProtectedArea,
 } from '../../features/risk-map/api/riskMapApi';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 
 const computePolygonCenter = (geometry) => {
     const coordinates = geometry?.coordinates;
@@ -80,7 +88,10 @@ const riskLevelStyles = {
     },
 };
 
-const RiskMapPage = () => {
+const RANGER_MAP_WRAPPER_CLASS =
+    'min-h-[420px] h-[min(78vh,calc(100dvh-200px))] w-full rounded-[28px] overflow-hidden border border-border-light shadow-premium relative bg-bg-soft group';
+
+const RiskMapPage = ({ rangerView = false }) => {
     const navigate = useNavigate();
     const [protectedAreas, setProtectedAreas] = useState([]);
     const [selectedAreaId, setSelectedAreaId] = useState('');
@@ -242,17 +253,33 @@ const RiskMapPage = () => {
     return (
         <div className="flex animate-enter flex-col gap-6 pb-6">
             <header className="flex flex-wrap items-center justify-between gap-4 px-2">
-                <div className="flex items-center gap-4">
-                    <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary-dark shadow-elevated">
-                        <MapIcon size={24} className="text-primary-light" />
-                    </div>
+                <div className="flex flex-wrap items-center gap-4">
+                    {rangerView ? (
+                        <Link
+                            to="/dashboard/ranger"
+                            className="inline-flex items-center gap-2 rounded-2xl border border-border-light bg-white px-4 py-2.5 text-[13px] font-semibold text-primary-dark shadow-premium transition hover:border-primary-medium hover:bg-bg-soft"
+                        >
+                            <ChevronLeft size={18} />
+                            Dashboard
+                        </Link>
+                    ) : (
+                        <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary-dark shadow-elevated">
+                            <MapIcon size={24} className="text-primary-light" />
+                        </div>
+                    )}
                     <div>
                         <h1 className="text-[24px] font-bold leading-none tracking-tight text-primary-dark">Risk Map</h1>
-                        <p className="mt-1 inline-flex items-center gap-2 text-[13px] font-medium text-text-gray">
-                            <span className="h-2 w-2 animate-pulse rounded-full bg-amber-500" />
-                            Zone risk from <span className="font-semibold text-primary-dark">GET /api/risk-map</span> on
-                            MapLibre
-                        </p>
+                        {rangerView ? (
+                            <p className="mt-1 text-[13px] font-medium text-text-gray">
+                                Zone risk overlay for patrol planning. Select a protected area to load the map.
+                            </p>
+                        ) : (
+                            <p className="mt-1 inline-flex items-center gap-2 text-[13px] font-medium text-text-gray">
+                                <span className="h-2 w-2 animate-pulse rounded-full bg-amber-500" />
+                                Zone risk from <span className="font-semibold text-primary-dark">GET /api/risk-map</span> on
+                                MapLibre
+                            </p>
+                        )}
                     </div>
                 </div>
 
@@ -298,22 +325,37 @@ const RiskMapPage = () => {
                 </div>
             </header>
 
-            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-                {metricCards.map((card) => (
-                    <IncidentMetricCard
-                        key={card.label}
-                        label={card.label}
-                        value={card.value}
-                        helper={card.helper}
-                        tone={card.tone}
-                    />
-                ))}
-            </div>
+            {!rangerView && (
+                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                    {metricCards.map((card) => (
+                        <IncidentMetricCard
+                            key={card.label}
+                            label={card.label}
+                            value={card.value}
+                            helper={card.helper}
+                            tone={card.tone}
+                        />
+                    ))}
+                </div>
+            )}
 
-            <main className="grid grid-cols-1 gap-6 lg:grid-cols-4">
-                <section className="space-y-4 lg:col-span-3">
+            {rangerView && error && (
+                <div className="rounded-[24px] border border-[#E63946]/30 bg-[#fff5f5] p-4 text-[13px] text-[#a4161a]">
+                    <p className="font-semibold">Failed to load risk map</p>
+                    <p className="mt-1">{error}</p>
+                </div>
+            )}
+
+            <main className={rangerView ? 'flex flex-col gap-4' : 'grid grid-cols-1 gap-6 lg:grid-cols-4'}>
+                <section className={rangerView ? 'w-full' : 'space-y-4 lg:col-span-3'}>
                     {showMapEmpty ? (
-                        <div className="flex h-[65vh] flex-col items-center justify-center rounded-[28px] border border-dashed border-border-light bg-bg-soft p-8 text-center shadow-premium">
+                        <div
+                            className={`flex flex-col items-center justify-center rounded-[28px] border border-dashed border-border-light bg-bg-soft p-8 text-center shadow-premium ${
+                                rangerView
+                                    ? 'min-h-[420px] h-[min(78vh,calc(100dvh-200px))]'
+                                    : 'h-[65vh]'
+                            }`}
+                        >
                             <AlertTriangle className="mb-3 h-10 w-10 text-primary-medium" />
                             <p className="text-[16px] font-semibold text-primary-dark">No zone boundaries</p>
                             <p className="mt-2 max-w-md text-[13px] text-text-gray">
@@ -329,71 +371,79 @@ const RiskMapPage = () => {
                                 loading={loading}
                                 selectedZoneId={activePointId}
                                 onSelectZone={setActivePointId}
+                                wrapperClassName={rangerView ? RANGER_MAP_WRAPPER_CLASS : undefined}
                             />
-                            <div className="rounded-[28px] border border-border-light bg-bg-soft p-4 shadow-premium">
-                                {activePoint ? (
-                                    <div className="space-y-3">
-                                        <div className="flex flex-wrap items-center justify-between gap-2">
-                                            <h3 className="text-[14px] font-semibold text-primary-dark">{activePoint.name}</h3>
-                                            <span
-                                                className={`rounded-full px-2.5 py-1 text-[10px] font-semibold ${
-                                                    (riskLevelStyles[String(activePoint.riskLevel).toUpperCase()] ||
-                                                        riskLevelStyles.LOW
-                                                    ).badge
-                                                }`}
-                                            >
-                                                {activePoint.riskLevel}
-                                            </span>
-                                        </div>
-                                        <div className="grid gap-2 text-[12px] text-text-gray md:grid-cols-2">
-                                            <p>
-                                                Incidents:{' '}
-                                                <span className="font-semibold text-primary-dark">{activePoint.incidentCount}</span>
-                                            </p>
-                                            <p>
-                                                Avg Severity:{' '}
-                                                <span className="font-semibold text-primary-dark">
-                                                    {activePoint.averageSeverity}
+                            {!rangerView && (
+                                <div className="rounded-[28px] border border-border-light bg-bg-soft p-4 shadow-premium">
+                                    {activePoint ? (
+                                        <div className="space-y-3">
+                                            <div className="flex flex-wrap items-center justify-between gap-2">
+                                                <h3 className="text-[14px] font-semibold text-primary-dark">
+                                                    {activePoint.name}
+                                                </h3>
+                                                <span
+                                                    className={`rounded-full px-2.5 py-1 text-[10px] font-semibold ${
+                                                        (riskLevelStyles[String(activePoint.riskLevel).toUpperCase()] ||
+                                                            riskLevelStyles.LOW
+                                                        ).badge
+                                                    }`}
+                                                >
+                                                    {activePoint.riskLevel}
                                                 </span>
-                                            </p>
-                                            <p>
-                                                Weather:{' '}
-                                                <span className="font-semibold text-primary-dark">
-                                                    {activePoint.weatherCondition}
-                                                </span>
-                                            </p>
-                                            <p>
-                                                Weather Multiplier:{' '}
-                                                <span className="font-semibold text-primary-dark">
-                                                    {activePoint.weatherMultiplier}
-                                                </span>
-                                            </p>
+                                            </div>
+                                            <div className="grid gap-2 text-[12px] text-text-gray md:grid-cols-2">
+                                                <p>
+                                                    Incidents:{' '}
+                                                    <span className="font-semibold text-primary-dark">
+                                                        {activePoint.incidentCount}
+                                                    </span>
+                                                </p>
+                                                <p>
+                                                    Avg Severity:{' '}
+                                                    <span className="font-semibold text-primary-dark">
+                                                        {activePoint.averageSeverity}
+                                                    </span>
+                                                </p>
+                                                <p>
+                                                    Weather:{' '}
+                                                    <span className="font-semibold text-primary-dark">
+                                                        {activePoint.weatherCondition}
+                                                    </span>
+                                                </p>
+                                                <p>
+                                                    Weather Multiplier:{' '}
+                                                    <span className="font-semibold text-primary-dark">
+                                                        {activePoint.weatherMultiplier}
+                                                    </span>
+                                                </p>
+                                            </div>
+                                            <div className="grid grid-cols-4 gap-2 text-[11px]">
+                                                <div className="rounded-xl bg-white px-2 py-1.5 text-center text-[#c92a2a]">
+                                                    C: {activePoint.severityBreakdown.critical || 0}
+                                                </div>
+                                                <div className="rounded-xl bg-white px-2 py-1.5 text-center text-[#d9480f]">
+                                                    H: {activePoint.severityBreakdown.high || 0}
+                                                </div>
+                                                <div className="rounded-xl bg-white px-2 py-1.5 text-center text-[#a07900]">
+                                                    M: {activePoint.severityBreakdown.medium || 0}
+                                                </div>
+                                                <div className="rounded-xl bg-white px-2 py-1.5 text-center text-[#2b8a3e]">
+                                                    L: {activePoint.severityBreakdown.low || 0}
+                                                </div>
+                                            </div>
                                         </div>
-                                        <div className="grid grid-cols-4 gap-2 text-[11px]">
-                                            <div className="rounded-xl bg-white px-2 py-1.5 text-center text-[#c92a2a]">
-                                                C: {activePoint.severityBreakdown.critical || 0}
-                                            </div>
-                                            <div className="rounded-xl bg-white px-2 py-1.5 text-center text-[#d9480f]">
-                                                H: {activePoint.severityBreakdown.high || 0}
-                                            </div>
-                                            <div className="rounded-xl bg-white px-2 py-1.5 text-center text-[#a07900]">
-                                                M: {activePoint.severityBreakdown.medium || 0}
-                                            </div>
-                                            <div className="rounded-xl bg-white px-2 py-1.5 text-center text-[#2b8a3e]">
-                                                L: {activePoint.severityBreakdown.low || 0}
-                                            </div>
-                                        </div>
-                                    </div>
-                                ) : (
-                                    <p className="text-[12px] text-text-gray">
-                                        Select a zone on the map or from the list to view risk details.
-                                    </p>
-                                )}
-                            </div>
+                                    ) : (
+                                        <p className="text-[12px] text-text-gray">
+                                            Select a zone on the map or from the list to view risk details.
+                                        </p>
+                                    )}
+                                </div>
+                            )}
                         </>
                     )}
                 </section>
 
+                {!rangerView && (
                 <aside className="flex flex-col gap-6">
                     <div className="group relative overflow-hidden rounded-[28px] bg-primary-dark p-6 text-white shadow-premium">
                         <div className="absolute -right-4 -top-4 h-24 w-24 rounded-full bg-primary-medium/20 blur-2xl transition-all duration-700 group-hover:bg-primary-medium/30" />
@@ -466,6 +516,7 @@ const RiskMapPage = () => {
                         </div>
                     )}
                 </aside>
+                )}
             </main>
         </div>
     );
