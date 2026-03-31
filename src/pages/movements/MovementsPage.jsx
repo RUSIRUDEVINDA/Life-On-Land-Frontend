@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { Calendar, Zap } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { getMovements, getMovementSummary } from '../../features/movements/api/movementsApi';
@@ -6,6 +6,7 @@ import MovementStats from '../../features/movements/components/MovementStats';
 import MovementFilters from '../../features/movements/components/MovementFilters';
 import MovementTable from '../../features/movements/components/MovementTable';
 import ZoneDensity from '../../features/movements/components/ZoneDensity';
+import { fetchProtectedAreas, fetchZonesByProtectedArea } from '../../features/incidents/api/incidentsApi';
 
 const MovementsPage = () => {
     const [movements, setMovements] = useState([]);
@@ -13,6 +14,15 @@ const MovementsPage = () => {
     const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState('');
     const [pagination, setPagination] = useState({ page: 1, limit: 15, total: 0 });
+    const [areaLookup, setAreaLookup] = useState({});
+    const [zoneLookup, setZoneLookup] = useState({});
+
+    const toIdString = (value) => {
+        if (value == null) return '';
+        if (typeof value === 'string') return value;
+        if (typeof value === 'object') return value._id || value.id || '';
+        return String(value);
+    };
 
     const fetchData = async () => {
         setLoading(true);
@@ -43,6 +53,54 @@ const MovementsPage = () => {
         fetchData();
     }, [pagination.page, search]);
 
+    useEffect(() => {
+        const loadLookups = async () => {
+            try {
+                const protectedAreas = await fetchProtectedAreas();
+                const areaMap = {};
+                protectedAreas.forEach((area) => {
+                    if (area?.id) areaMap[area.id] = area.name || 'Unknown Area';
+                });
+                setAreaLookup(areaMap);
+
+                const zoneLists = await Promise.all(
+                    protectedAreas.map((area) => fetchZonesByProtectedArea(area.id).catch(() => []))
+                );
+                const zoneMap = {};
+                zoneLists.flat().forEach((zone) => {
+                    const id = toIdString(zone?._id || zone?.id);
+                    if (!id) return;
+                    zoneMap[id] = zone?.name || zone?.title || 'Unknown Zone';
+                });
+                setZoneLookup(zoneMap);
+            } catch (err) {
+                console.error('Failed to load area/zone lookups:', err);
+            }
+        };
+
+        loadLookups();
+    }, []);
+
+    const displayMovements = useMemo(() => {
+        return movements.map((move) => {
+            const protectedAreaId = toIdString(move?.protectedAreaId || move?.protectedArea);
+            const zoneId = toIdString(move?.zoneId || move?.zone);
+            return {
+                ...move,
+                protectedAreaName:
+                    move?.protectedAreaName ||
+                    move?.protectedArea?.name ||
+                    areaLookup[protectedAreaId] ||
+                    'Unknown Protected Area',
+                zoneName:
+                    move?.zoneName ||
+                    move?.zone?.name ||
+                    zoneLookup[zoneId] ||
+                    'Unknown Zone',
+            };
+        });
+    }, [movements, areaLookup, zoneLookup]);
+
     return (
         <div className="flex flex-col gap-8 animate-enter">
             <div className="flex justify-between items-center px-1">
@@ -68,7 +126,7 @@ const MovementsPage = () => {
                         search={search}
                         onSearchChange={setSearch}
                     />
-                    <MovementTable movements={movements} loading={loading} />
+                    <MovementTable movements={displayMovements} loading={loading} />
                 </div>
 
                 <div className="flex flex-col gap-6">
