@@ -16,7 +16,7 @@ const MapTrackingPage = () => {
                 if (data && data.length > 0) {
                     setSelectedAreaId(data[0].id);
                 }
-                
+
             } catch (err) {
                 console.error('Failed to load areas for mapping:', err);
             } finally {
