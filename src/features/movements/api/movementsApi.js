@@ -1,5 +1,15 @@
 import api from '../../../utils/api';
 
+const toQueryString = (params = {}) => {
+    const entries = Object.entries(params).filter(([, value]) => {
+        if (value === null || value === undefined) return false;
+        if (typeof value === 'string') return value.trim() !== '';
+        return true;
+    });
+
+    return new URLSearchParams(entries).toString();
+};
+
 const normalizeMovements = (payload) => {
     if (Array.isArray(payload)) return payload;
     if (!payload || typeof payload !== 'object') return [];
@@ -48,7 +58,7 @@ const normalizeMovementItem = (item) => {
 export const getMovements = async (params = {}) => {
     const { tagId, ...rest } = params || {};
     const cleanTagId = typeof tagId === 'string' ? tagId.trim() : '';
-    const query = new URLSearchParams(rest).toString();
+    const query = toQueryString(rest);
     const endpoint = cleanTagId
         ? `/movements/${encodeURIComponent(cleanTagId)}${query ? `?${query}` : ''}`
         : `/movements${query ? `?${query}` : ''}`;
@@ -71,8 +81,8 @@ export const getMovementSummary = async () => {
 };
 
 export const getLiveMovements = async (params = {}) => {
-    const query = new URLSearchParams(params).toString();
-    const payload = await api(`/movements/live?${query}`);
+    const query = toQueryString(params);
+    const payload = await api(`/movements/live${query ? `?${query}` : ''}`);
     if (Array.isArray(payload)) return payload;
     if (Array.isArray(payload?.data)) return payload.data;
     if (Array.isArray(payload?.movements)) return payload.movements;
