@@ -1,9 +1,14 @@
 import api from '../../../utils/api';
 
 export const getAnimals = async (params = {}) => {
-    const query = new URLSearchParams(params).toString();
-    return api(`/animals?${query}`);
+    // Strip empty/undefined values so they don't pollute the query string
+    const cleanParams = Object.fromEntries(
+        Object.entries(params).filter(([, v]) => v !== '' && v !== undefined && v !== null)
+    );
+    const query = new URLSearchParams(cleanParams).toString();
+    return api(`/animals${query ? `?${query}` : ''}`);
 };
+
 
 export const getAnimalById = async (tagId) => {
     return api(`/animals/${tagId}`);
