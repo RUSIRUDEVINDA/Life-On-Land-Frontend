@@ -11,11 +11,23 @@ const AnimalsPage = () => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [search, setSearch] = useState('');
+    const [debouncedSearch, setDebouncedSearch] = useState('');
     const [filters, setFilters] = useState({ status: '', species: '' });
     const [pagination, setPagination] = useState({ page: 1, limit: 10, total: 0, pages: 1 });
 
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [selectedTagId, setSelectedTagId] = useState(null);
+
+    // Debounce search input by 400ms
+    useEffect(() => {
+        const timer = setTimeout(() => setDebouncedSearch(search), 400);
+        return () => clearTimeout(timer);
+    }, [search]);
+
+    // Reset to page 1 when search or filters change
+    useEffect(() => {
+        setPagination(prev => ({ ...prev, page: 1 }));
+    }, [debouncedSearch, filters]);
 
     const fetchAnimals = useCallback(async () => {
         setLoading(true);
@@ -23,7 +35,7 @@ const AnimalsPage = () => {
             const data = await getAnimals({
                 page: pagination.page,
                 limit: pagination.limit,
-                search: search,
+                search: debouncedSearch,
                 status: filters.status,
                 species: filters.species
             });
@@ -34,7 +46,7 @@ const AnimalsPage = () => {
         } finally {
             setLoading(false);
         }
-    }, [pagination.page, pagination.limit, filters, search]);
+    }, [pagination.page, pagination.limit, filters, debouncedSearch]);
 
     useEffect(() => {
         fetchAnimals();
