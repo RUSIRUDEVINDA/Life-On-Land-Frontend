@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { ChevronLeft, ChevronRight, LoaderCircle, Search, ShieldCheck, Users } from 'lucide-react';
+import { ChevronLeft, ChevronRight, LoaderCircle, Search, ShieldCheck, Users, Trash2, Edit2, X, AlertTriangle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { fetchAllUsers } from '../../features/users/api/usersApi';
+import { fetchAllUsers, updateUser, deleteUser } from '../../features/users/api/usersApi';
 
 const ROLES = ['ALL', 'ADMIN', 'RANGER'];
 
@@ -67,6 +67,13 @@ const UsersPage = () => {
     const [pageSize, setPageSize] = useState(10);
     const [currentPage, setCurrentPage] = useState(1);
 
+    const [editingUser, setEditingUser] = useState(null);
+    const [editFormData, setEditFormData] = useState({ name: '', email: '', phone: '', role: 'RANGER' });
+    const [isSaving, setIsSaving] = useState(false);
+
+    const [deletingUser, setDeletingUser] = useState(null);
+    const [isDeleting, setIsDeleting] = useState(false);
+
     useEffect(() => {
         const load = async () => {
             setLoading(true);
@@ -86,6 +93,49 @@ const UsersPage = () => {
         };
         load();
     }, [navigate]);
+
+    const handleEditClick = (user) => {
+        setEditingUser(user);
+        setEditFormData({
+            name: user.name,
+            email: user.email,
+            phone: user.phone || '',
+            role: user.role
+        });
+    };
+
+    const handleSaveEdit = async (e) => {
+        e.preventDefault();
+        if (!editingUser) return;
+        setIsSaving(true);
+        try {
+            const updated = await updateUser(editingUser.id, editFormData);
+            setUsers(prev => prev.map(u => u.id === editingUser.id ? { ...u, ...updated } : u));
+            setEditingUser(null);
+        } catch (err) {
+            alert(err.message || 'Failed to update user.');
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
+    const handleDeleteClick = (user) => {
+        setDeletingUser(user);
+    };
+
+    const handleConfirmDelete = async () => {
+        if (!deletingUser) return;
+        setIsDeleting(true);
+        try {
+            await deleteUser(deletingUser.id);
+            setUsers(prev => prev.filter(u => u.id !== deletingUser.id));
+            setDeletingUser(null);
+        } catch (err) {
+            alert(err.message || 'Failed to delete user.');
+        } finally {
+            setIsDeleting(false);
+        }
+    };
 
     const filtered = useMemo(() => {
         const q = search.trim().toLowerCase();
@@ -167,11 +217,10 @@ const UsersPage = () => {
                             key={r}
                             type="button"
                             onClick={() => setRoleFilter(r)}
-                            className={`rounded-xl px-3.5 py-1.5 text-[12px] font-semibold transition ${
-                                roleFilter === r
+                            className={`rounded-xl px-3.5 py-1.5 text-[12px] font-semibold transition ${roleFilter === r
                                     ? 'bg-primary-dark text-white'
                                     : 'text-text-gray hover:text-primary-dark'
-                            }`}
+                                }`}
                         >
                             {r === 'ALL' ? 'All Roles' : r}
                         </button>
@@ -233,6 +282,9 @@ const UsersPage = () => {
                                 <th className="px-5 py-3 text-left text-[11px] font-semibold uppercase tracking-widest text-text-gray">
                                     Date Joined
                                 </th>
+                                <th className="px-5 py-3 text-right text-[11px] font-semibold uppercase tracking-widest text-text-gray">
+                                    Actions
+                                </th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-border-light">
@@ -274,6 +326,24 @@ const UsersPage = () => {
                                         <td className="px-5 py-3.5 text-[13px] text-text-gray">
                                             {formatDate(user.createdAt)}
                                         </td>
+                                        <td className="px-5 py-3.5 text-right">
+                                            <div className="flex items-center justify-end gap-2">
+                                                <button
+                                                    onClick={() => handleEditClick(user)}
+                                                    className="flex h-8 w-8 items-center justify-center rounded-xl border border-border-light bg-white text-text-gray transition hover:bg-bg-soft hover:text-primary-medium"
+                                                    title="Edit User"
+                                                >
+                                                    <Edit2 size={14} />
+                                                </button>
+                                                <button
+                                                    onClick={() => handleDeleteClick(user)}
+                                                    className="flex h-8 w-8 items-center justify-center rounded-xl border border-border-light bg-white text-text-gray transition hover:bg-[#ffebea] hover:text-[#d32f2f]"
+                                                    title="Delete User"
+                                                >
+                                                    <Trash2 size={14} />
+                                                </button>
+                                            </div>
+                                        </td>
                                     </tr>
                                 );
                             })}
@@ -304,11 +374,10 @@ const UsersPage = () => {
                                         key={page}
                                         type="button"
                                         onClick={() => setCurrentPage(page)}
-                                        className={`flex h-8 min-w-[32px] items-center justify-center rounded-xl border px-2 text-[12px] font-semibold transition ${
-                                            page === currentPage
+                                        className={`flex h-8 min-w-[32px] items-center justify-center rounded-xl border px-2 text-[12px] font-semibold transition ${page === currentPage
                                                 ? 'border-primary-dark bg-primary-dark text-white'
                                                 : 'border-border-light bg-white text-primary-dark hover:bg-bg-soft'
-                                        }`}
+                                            }`}
                                     >
                                         {page}
                                     </button>
@@ -326,6 +395,114 @@ const UsersPage = () => {
                     </div>
                 )}
             </div>
+
+            {/* Edit User Modal */}
+            {editingUser && (
+                <div className="fixed inset-0 z-50 justify-center items-center flex bg-black/40 backdrop-blur-sm p-4">
+                    <div className="w-full max-w-md rounded-[26px] bg-white p-6 shadow-premium relative">
+                        <button
+                            onClick={() => setEditingUser(null)}
+                            className="absolute right-6 top-6 text-text-gray hover:text-primary-dark transition"
+                        >
+                            <X size={20} />
+                        </button>
+                        <h2 className="text-[20px] font-bold text-primary-dark mb-4">Edit User</h2>
+                        <form onSubmit={handleSaveEdit} className="flex flex-col gap-4">
+                            <div>
+                                <label className="block text-[11px] font-semibold uppercase tracking-widest text-text-gray mb-1.5">Full Name</label>
+                                <input
+                                    type="text"
+                                    required
+                                    className="w-full rounded-2xl border border-border-light bg-bg-soft px-4 py-2.5 text-[13px] text-primary-dark outline-none transition focus:border-primary-medium focus:bg-white"
+                                    value={editFormData.name}
+                                    onChange={e => setEditFormData({ ...editFormData, name: e.target.value })}
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-[11px] font-semibold uppercase tracking-widest text-text-gray mb-1.5">Email</label>
+                                <input
+                                    type="email"
+                                    required
+                                    className="w-full rounded-2xl border border-border-light bg-bg-soft px-4 py-2.5 text-[13px] text-primary-dark outline-none transition focus:border-primary-medium focus:bg-white"
+                                    value={editFormData.email}
+                                    onChange={e => setEditFormData({ ...editFormData, email: e.target.value })}
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-[11px] font-semibold uppercase tracking-widest text-text-gray mb-1.5">Phone (Optional)</label>
+                                <input
+                                    type="text"
+                                    className="w-full rounded-2xl border border-border-light bg-bg-soft px-4 py-2.5 text-[13px] text-primary-dark outline-none transition focus:border-primary-medium focus:bg-white"
+                                    value={editFormData.phone}
+                                    onChange={e => setEditFormData({ ...editFormData, phone: e.target.value })}
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-[11px] font-semibold uppercase tracking-widest text-text-gray mb-1.5">Role</label>
+                                <select
+                                    required
+                                    className="w-full rounded-2xl border border-border-light bg-bg-soft px-4 py-2.5 text-[13px] text-primary-dark outline-none transition focus:border-primary-medium focus:bg-white"
+                                    value={editFormData.role}
+                                    onChange={e => setEditFormData({ ...editFormData, role: e.target.value })}
+                                >
+                                    <option value="ADMIN">ADMIN</option>
+                                    <option value="RANGER">RANGER</option>
+                                </select>
+                            </div>
+                            <div className="flex justify-end gap-3 mt-4">
+                                <button
+                                    type="button"
+                                    onClick={() => setEditingUser(null)}
+                                    className="rounded-xl px-5 py-2.5 text-[13px] font-semibold text-text-gray hover:text-primary-dark transition"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    type="submit"
+                                    disabled={isSaving}
+                                    className="flex items-center gap-2 rounded-xl bg-primary-dark px-6 py-2.5 text-[13px] font-semibold text-white transition hover:bg-primary-medium disabled:opacity-50"
+                                >
+                                    {isSaving ? <LoaderCircle size={16} className="animate-spin" /> : null}
+                                    {isSaving ? 'Saving...' : 'Save Changes'}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+
+            {/* Delete Confirmation Modal */}
+            {deletingUser && (
+                <div className="fixed inset-0 z-50 justify-center items-center flex bg-black/40 backdrop-blur-sm p-4">
+                    <div className="w-full max-w-sm rounded-[26px] bg-white p-6 shadow-premium relative text-center">
+                        <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-[#ffebea] text-[#d32f2f] mb-4">
+                            <AlertTriangle size={24} />
+                        </div>
+                        <h2 className="text-[20px] font-bold text-primary-dark mb-2">Delete User?</h2>
+                        <p className="text-[13px] text-text-gray mb-6">
+                            Are you sure you want to delete <strong>{deletingUser.name}</strong>? This action cannot be undone.
+                        </p>
+                        <div className="flex gap-3 w-full">
+                            <button
+                                type="button"
+                                onClick={() => setDeletingUser(null)}
+                                className="flex-1 rounded-xl px-5 py-3 text-[13px] font-semibold text-text-gray border border-border-light hover:bg-bg-soft transition"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                type="button"
+                                onClick={handleConfirmDelete}
+                                disabled={isDeleting}
+                                className="flex-1 flex justify-center items-center gap-2 rounded-xl bg-[#d32f2f] px-5 py-3 text-[13px] font-semibold text-white transition hover:bg-[#b71c1c] disabled:opacity-50"
+                            >
+                                {isDeleting ? <LoaderCircle size={16} className="animate-spin" /> : null}
+                                {isDeleting ? 'Deleting...' : 'Delete'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };
