@@ -114,3 +114,30 @@ export const createPatrol = async (input) => {
     });
     return payload;
 };
+export const fetchPatrolById = async (id) => {
+    const payload = await requestJson(`/api/patrols/${id}`);
+    return payload?.patrol || payload;
+};
+
+export const addCheckIn = async (patrolId, checkInData) => {
+    const payload = await requestJson(`/api/patrols/${patrolId}/check-ins`, {
+        method: 'POST',
+        body: JSON.stringify(checkInData),
+    });
+    return payload;
+};
+
+export const updatePatrol = async (id, data) => {
+    const payload = await requestJson(`/api/patrols/${id}`, {
+        method: 'PATCH',
+        body: JSON.stringify(data),
+    });
+    return payload;
+};
+
+export const deleteCheckIn = async (patrolId, checkInId) => {
+    const payload = await requestJson(`/api/patrols/${patrolId}/check-ins/${checkInId}`, {
+        method: 'DELETE'
+    });
+    return payload;
+};

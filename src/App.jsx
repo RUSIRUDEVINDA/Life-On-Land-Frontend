@@ -17,6 +17,7 @@ import AnimalsPage from './pages/animals/AnimalsPage';
 import AlertsPage from './pages/alerts/AlertsPage';
 import ProtectedAreasSectionPage from './pages/protected-areas/ProtectedAreasSectionPage';
 import CreatePatrolPage from './pages/patrols/CreatePatrolPage';
+import PatrolDetailsPage from './pages/patrols/PatrolDetailsPage';
 
 // Ranger pages
 import RangerDashboardPage from './pages/dashboard/RangerDashboardPage';
@@ -83,6 +84,7 @@ function App() {
                             <Route path="incidents/report" element={<ReportIncidentPage />} />
                             <Route path="movements" element={<MovementsPage />} />
                             <Route path="patrols" element={<PatrolsPage />} />
+                            <Route path="patrols/:id" element={<PatrolDetailsPage />} />
                             <Route path="profile" element={<ProfilePage />} />
                         </Route>
 
