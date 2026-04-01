@@ -30,15 +30,15 @@ const StatCard = ({ label, value, hint, icon: Icon, tone = 'default' }) => {
     const palette =
         tone === 'alert'
             ? {
-                  card: 'bg-[#fff5f5] border-[#E63946]/30 text-[#a4161a]',
-                  chip: 'bg-[#ffe3e3] text-[#a4161a]',
-              }
+                card: 'bg-[#fff5f5] border-[#E63946]/30 text-[#a4161a]',
+                chip: 'bg-[#ffe3e3] text-[#a4161a]',
+            }
             : tone === 'active'
-              ? {
+                ? {
                     card: 'bg-[#ecfdf3] border-[#2b8a3e]/25 text-[#1f6d31]',
                     chip: 'bg-[#d3f9d8] text-[#1f6d31]',
                 }
-              : {
+                : {
                     card: 'bg-white border-border-light text-primary-dark',
                     chip: 'bg-bg-soft text-primary-dark',
                 };
@@ -141,10 +141,10 @@ const RangerDashboardPage = () => {
         <div className="mx-auto w-full max-w-6xl py-2">
             <div className="mb-5 flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
                 <div>
-                <h1 className="text-[30px] font-semibold tracking-tight text-primary-dark">Ranger Dashboard</h1>
-                <p className="mt-1 text-[14px] text-text-gray">
+                    <h1 className="text-[30px] font-semibold tracking-tight text-primary-dark">Ranger Dashboard</h1>
+                    <p className="mt-1 text-[14px] text-text-gray">
                         Wildlife field operations, patrol readiness, and movement activity in one place.
-                </p>
+                    </p>
                 </div>
                 <div className="inline-flex items-center gap-2 rounded-2xl border border-[#2b8a3e]/30 bg-[#ecfdf3] px-4 py-2 text-[12px] font-semibold text-[#1f6d31]">
                     <ShieldCheck size={14} />
@@ -236,13 +236,14 @@ const RangerDashboardPage = () => {
                                             'Protected Area';
 
                                         return (
-                                            <div
+                                            <Link
                                                 key={patrolId}
-                                                className="rounded-2xl border border-border-light bg-bg-soft px-4 py-3"
+                                                to={`/dashboard/patrols/${patrolId}`}
+                                                className="block rounded-2xl border border-border-light bg-bg-soft px-4 py-3 transition-all hover:bg-white hover:shadow-premium group"
                                             >
                                                 <div className="flex items-start justify-between gap-3">
                                                     <div>
-                                                        <p className="text-[14px] font-semibold text-primary-dark">
+                                                        <p className="text-[14px] font-semibold text-primary-dark group-hover:text-primary transition-colors">
                                                             {patrol?.title || 'Patrol Mission'}
                                                         </p>
                                                         <p className="mt-1 inline-flex items-center gap-1.5 text-[12px] text-text-gray">
@@ -258,7 +259,7 @@ const RangerDashboardPage = () => {
                                                     <CalendarClock size={12} />
                                                     {formatDateTime(patrol?.plannedStart)}
                                                 </div>
-                                            </div>
+                                            </Link>
                                         );
                                     })}
                                 </div>
@@ -293,26 +294,26 @@ const RangerDashboardPage = () => {
                             <div className="rounded-[24px] border border-border-light bg-white p-5 shadow-premium">
                                 <h2 className="text-[16px] font-semibold text-primary-dark">Quick Actions</h2>
                                 <div className="mt-3 grid gap-2 text-[13px] font-semibold">
-                                <Link
-                                    to="/dashboard/incidents/report"
-                                    className="rounded-xl border border-border-light bg-bg-soft px-4 py-3 text-primary-dark transition hover:bg-white"
-                                >
-                                    Report New Incident
-                                </Link>
-                                <Link
-                                    to="/dashboard/patrols"
-                                    className="rounded-xl border border-border-light bg-bg-soft px-4 py-3 text-primary-dark transition hover:bg-white"
-                                >
-                                    View Assigned Patrols
-                                </Link>
-                                <Link
-                                    to="/dashboard/movements"
-                                    className="rounded-xl border border-border-light bg-bg-soft px-4 py-3 text-primary-dark transition hover:bg-white"
-                                >
-                                    Open Animal Movements
-                                </Link>
+                                    <Link
+                                        to="/dashboard/incidents/report"
+                                        className="rounded-xl border border-border-light bg-bg-soft px-4 py-3 text-primary-dark transition hover:bg-white"
+                                    >
+                                        Report New Incident
+                                    </Link>
+                                    <Link
+                                        to="/dashboard/patrols"
+                                        className="rounded-xl border border-border-light bg-bg-soft px-4 py-3 text-primary-dark transition hover:bg-white"
+                                    >
+                                        View Assigned Patrols
+                                    </Link>
+                                    <Link
+                                        to="/dashboard/movements"
+                                        className="rounded-xl border border-border-light bg-bg-soft px-4 py-3 text-primary-dark transition hover:bg-white"
+                                    >
+                                        Open Animal Movements
+                                    </Link>
                                     <div className="mt-2 inline-flex items-center gap-2 text-[12px] text-[#2b8a3e]">
-                                    <Leaf size={14} />
+                                        <Leaf size={14} />
                                         Keep disturbance low and maintain silent patrol zones near wildlife hotspots.
                                     </div>
                                 </div>
