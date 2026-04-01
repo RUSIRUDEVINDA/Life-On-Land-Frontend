@@ -47,8 +47,26 @@ const generalItems = [
 const DashboardLayout = () => {
     const navigate = useNavigate();
     const location = useLocation();
-    const role = getUserRole();
-    const user = getStoredUser();
+    const [user, setUser] = React.useState(getStoredUser());
+    const role = String(user?.role || getUserRole()).trim().toUpperCase();
+
+    React.useEffect(() => {
+        const syncUser = () => {
+            setUser(getStoredUser());
+        };
+
+        const handleUserUpdated = (event) => {
+            setUser(event.detail || getStoredUser());
+        };
+
+        window.addEventListener('storage', syncUser);
+        window.addEventListener('user-updated', handleUserUpdated);
+
+        return () => {
+            window.removeEventListener('storage', syncUser);
+            window.removeEventListener('user-updated', handleUserUpdated);
+        };
+    }, []);
 
     const menuItems = role === 'RANGER' ? rangerMenuItems : adminMenuItems;
 
@@ -64,26 +82,9 @@ const DashboardLayout = () => {
     const handleLogout = () => {
         localStorage.removeItem('token');
         localStorage.removeItem('user');
+        setUser(null);
         navigate('/login');
     };
-
-    const isActive = (path) => {
-        if (location.pathname === path) return true;
-        if (path !== '/dashboard/admin' && path !== '/dashboard/ranger') {
-            return location.pathname.startsWith(path);
-        }
-        return false;
-    };
-
-    const linkClass = (path) =>
-        `flex items-center text-[13px] font-medium py-2 transition-all duration-200 relative bg-transparent border-none cursor-pointer text-left w-full hover:text-primary-dark ${
-            isActive(path)
-                ? 'text-primary-dark font-semibold before:content-[""] before:absolute before:-left-4 before:top-1/2 before:-translate-y-1/2 before:w-1 before:h-[20px] before:bg-primary before:rounded-r-md'
-                : 'text-[#868e96]'
-        }`;
-
-    const iconClass = (path) =>
-        `mr-3 flex items-center text-inherit opacity-80 ${isActive(path) ? 'text-primary opacity-100' : ''}`;
 
     return (
         <div className="flex h-screen w-full overflow-hidden bg-bg-soft">
