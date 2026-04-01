@@ -61,6 +61,34 @@ const normalizeUser = (raw) => ({
     updatedAt: raw?.updatedAt || null,
 });
 
+const syncStoredUser = (user) => {
+    let current = null;
+    try {
+        const rawUser = localStorage.getItem('user');
+        current = rawUser ? JSON.parse(rawUser) : null;
+    } catch {
+        current = null;
+    }
+
+    const merged = {
+        ...(current || {}),
+        ...user,
+        id: user.id || current?.id || '',
+        _id: current?._id || user.id || '',
+        name: user.name || current?.name || 'Unknown',
+        fullName: user.name || current?.fullName || current?.name || 'Unknown',
+        email: user.email || current?.email || '',
+        phone: user.phone || current?.phone || '',
+        role: user.role || current?.role || 'RANGER',
+    };
+
+    localStorage.setItem('user', JSON.stringify(merged));
+
+    if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('user-updated', { detail: merged }));
+    }
+};
+
 export const fetchMyProfile = async () => {
     let parsedUser = null;
     try {
@@ -78,6 +106,31 @@ export const fetchMyProfile = async () => {
 
     const payload = await requestJson(`/api/users/${userId}`);
     return normalizeUser(payload?.user || payload?.data || payload);
+};
+
+export const updateMyProfile = async (updates) => {
+    let parsedUser = null;
+    try {
+        const rawUser = localStorage.getItem('user');
+        parsedUser = rawUser ? JSON.parse(rawUser) : null;
+    } catch {
+        parsedUser = null;
+    }
+
+    const userId = parsedUser?._id || parsedUser?.id;
+
+    if (!userId) {
+        throw new Error('User session is missing. Please login again.');
+    }
+
+    const payload = await requestJson(`/api/users/${userId}`, {
+        method: 'PATCH',
+        body: JSON.stringify(updates),
+    });
+
+    const user = normalizeUser(payload?.user || payload?.data || payload);
+    syncStoredUser(user);
+    return user;
 };
 
 export const fetchAllUsers = async () => {
