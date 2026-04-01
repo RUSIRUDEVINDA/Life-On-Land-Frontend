@@ -108,3 +108,17 @@ export const fetchRangers = async () => {
     const users = Array.isArray(payload?.data) ? payload.data : [];
     return users.map(normalizeUser);
 };
+
+export const updateUser = async (userId, data) => {
+    const payload = await requestJson(`/api/users/${userId}`, {
+        method: 'PUT',
+        body: JSON.stringify(data),
+    });
+    return normalizeUser(payload?.user || payload?.data || payload);
+};
+
+export const deleteUser = async (userId) => {
+    return await requestJson(`/api/users/${userId}`, {
+        method: 'DELETE',
+    });
+};
