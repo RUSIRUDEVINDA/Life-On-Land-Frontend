@@ -306,10 +306,10 @@ const RangerDashboardPage = () => {
                                     View Assigned Patrols
                                 </Link>
                                 <Link
-                                    to="/dashboard/movements"
+                                    to="/dashboard/map-tracking"
                                     className="rounded-xl border border-border-light bg-bg-soft px-4 py-3 text-primary-dark transition hover:bg-white"
                                 >
-                                    Open Animal Movements
+                                    Open Live Map Tracking
                                 </Link>
                                     <div className="mt-2 inline-flex items-center gap-2 text-[12px] text-[#2b8a3e]">
                                     <Leaf size={14} />
