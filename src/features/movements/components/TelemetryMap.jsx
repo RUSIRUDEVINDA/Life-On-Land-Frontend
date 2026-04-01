@@ -3,24 +3,82 @@ import Map, { Source, Layer, Marker, Popup, NavigationControl, FullscreenControl
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { Activity, MapPinned, Info, AlertTriangle } from 'lucide-react';
-import { fetchProtectedAreas, fetchZonesByProtectedArea, fetchRiskMapByProtectedArea } from '../../risk-map/api/riskMapApi';
+import { fetchZonesByProtectedArea, fetchRiskMapByProtectedArea } from '../../risk-map/api/riskMapApi';
 import { getLiveMovements } from '../api/movementsApi';
-
-const MAPTILER_KEY = 'vJhZing971Ammszt9jVW';
-const MAP_STYLE = `https://api.maptiler.com/maps/streets-v2/style.json?key=${MAPTILER_KEY}`;
-
-const zoneTypeColorMap = {
-  CORE: '#c92a2a',
-  BUFFER: '#e67700',
-  EDGE: '#f08c00',
-  CORRIDOR: '#2b8a3e',
-};
+import { MAP_STYLE } from '../../map/mapConfig';
 
 const riskLevelStyles = {
   CRITICAL: { color: '#E63946', pulse: 'rgba(230,57,70,0.5)', label: 'Critical Risk' },
   HIGH: { color: '#f76707', pulse: 'rgba(247,103,7,0.4)', label: 'High Risk' },
   MEDIUM: { color: '#fab005', pulse: 'rgba(250,176,5,0.4)', label: 'Medium Risk' },
   LOW: { color: '#2b8a3e', pulse: 'rgba(43,138,62,0.3)', label: 'Low Risk' },
+};
+
+const normalizeId = (value) => {
+  if (value && typeof value === 'object') {
+    return String(value._id || value.id || '');
+  }
+  return String(value || '');
+};
+
+const normalizeRiskLevel = (value) => {
+  const normalized = String(value || 'LOW').toUpperCase();
+  return riskLevelStyles[normalized] ? normalized : 'LOW';
+};
+
+const getMovementCoordinates = (movement) => {
+  const lng = Number(movement?.lng ?? movement?.longitude);
+  const lat = Number(movement?.lat ?? movement?.latitude);
+
+  if (!Number.isFinite(lng) || !Number.isFinite(lat)) return null;
+
+  return { lng, lat };
+};
+
+const isPointInRing = (point, ring = []) => {
+  let inside = false;
+
+  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+    const current = ring[i];
+    const previous = ring[j];
+    if (!Array.isArray(current) || !Array.isArray(previous)) continue;
+
+    const xi = Number(current[0]);
+    const yi = Number(current[1]);
+    const xj = Number(previous[0]);
+    const yj = Number(previous[1]);
+
+    const intersects =
+      yi > point.lat !== yj > point.lat &&
+      point.lng < ((xj - xi) * (point.lat - yi)) / ((yj - yi) || Number.EPSILON) + xi;
+
+    if (intersects) inside = !inside;
+  }
+
+  return inside;
+};
+
+const isPointInPolygon = (point, polygon = []) => {
+  if (!Array.isArray(polygon) || polygon.length === 0) return false;
+
+  const [outerRing, ...holes] = polygon;
+  if (!isPointInRing(point, outerRing)) return false;
+
+  return !holes.some((ring) => isPointInRing(point, ring));
+};
+
+const isPointInsideGeometry = (point, geometry) => {
+  if (!geometry?.type || !Array.isArray(geometry.coordinates)) return false;
+
+  if (geometry.type === 'Polygon') {
+    return isPointInPolygon(point, geometry.coordinates);
+  }
+
+  if (geometry.type === 'MultiPolygon') {
+    return geometry.coordinates.some((polygon) => isPointInPolygon(point, polygon));
+  }
+
+  return false;
 };
 
 // Map species to emoji/icon
@@ -38,7 +96,6 @@ const speciesIcons = {
 
 const TelemetryMap = ({ selectedAreaId }) => {
   const mapRef = useRef(null);
-  const [areas, setAreas] = useState([]);
   const [zones, setZones] = useState([]);
   const [riskData, setRiskData] = useState({});
   const [movements, setMovements] = useState([]);
@@ -50,15 +107,6 @@ const TelemetryMap = ({ selectedAreaId }) => {
     latitude: 6.51,
     zoom: 11
   });
-
-  const loadBaseData = useCallback(async () => {
-    try {
-      const allAreas = await fetchProtectedAreas();
-      setAreas(allAreas);
-    } catch (err) {
-      console.error('Failed to load areas:', err);
-    }
-  }, []);
 
   const loadAreaData = useCallback(async (areaId) => {
     if (!areaId) return;
@@ -73,7 +121,13 @@ const TelemetryMap = ({ selectedAreaId }) => {
       const riskMapLookup = {};
       if (riskMap.zones) {
         riskMap.zones.forEach(z => {
-          riskMapLookup[z.zoneId] = z;
+          const zoneId = normalizeId(z?.zoneId);
+          if (!zoneId) return;
+          riskMapLookup[zoneId] = {
+            ...z,
+            zoneId,
+            riskLevel: normalizeRiskLevel(z?.riskLevel),
+          };
         });
       }
       setRiskData(riskMapLookup);
@@ -93,10 +147,6 @@ const TelemetryMap = ({ selectedAreaId }) => {
       console.error('Failed to load live movements:', err);
     }
   }, [selectedAreaId]);
-
-  useEffect(() => {
-    loadBaseData();
-  }, [loadBaseData]);
 
   useEffect(() => {
     loadAreaData(selectedAreaId);
@@ -132,21 +182,58 @@ const TelemetryMap = ({ selectedAreaId }) => {
     }
   }, [zones]);
 
+  const zonesById = useMemo(() => (
+    zones.reduce((lookup, zone) => {
+      const zoneId = normalizeId(zone?._id || zone?.id);
+      if (zoneId) {
+        lookup[zoneId] = zone;
+      }
+      return lookup;
+    }, {})
+  ), [zones]);
+
+  const enrichedMovements = useMemo(() => (
+    movements
+      .map((movement) => {
+        const coordinates = getMovementCoordinates(movement);
+        if (!coordinates) return null;
+
+        const movementZoneId = normalizeId(movement?.zoneId || movement?.zone);
+        const containingZone = zones.find((zone) => isPointInsideGeometry(coordinates, zone?.geometry));
+        const resolvedZone = containingZone || zonesById[movementZoneId] || null;
+        const resolvedZoneId = normalizeId(resolvedZone?._id || resolvedZone?.id || movementZoneId);
+        const riskInfo = riskData[resolvedZoneId] || riskData[movementZoneId] || null;
+        const resolvedRiskLevel = normalizeRiskLevel(riskInfo?.riskLevel);
+
+        return {
+          ...movement,
+          lng: coordinates.lng,
+          lat: coordinates.lat,
+          resolvedZoneId,
+          resolvedZoneName: riskInfo?.zoneName || resolvedZone?.name || 'N/A',
+          resolvedZoneType: resolvedZone?.zoneType || '',
+          resolvedRiskLevel,
+        };
+      })
+      .filter(Boolean)
+  ), [movements, zones, zonesById, riskData]);
+
   const zoneFeatures = useMemo(() => ({
     type: 'FeatureCollection',
     features: zones.map(zone => {
-      const riskInfo = riskData[zone._id || zone.id];
-      const riskLevel = riskInfo?.riskLevel || 'LOW';
+      const zoneId = normalizeId(zone._id || zone.id);
+      const riskInfo = riskData[zoneId];
+      const riskLevel = normalizeRiskLevel(riskInfo?.riskLevel);
       return {
         type: 'Feature',
         id: zone.id || zone._id,
         geometry: zone.geometry,
         properties: {
           id: zone.id || zone._id,
-          name: zone.name,
+          name: riskInfo?.zoneName || zone.name,
           type: zone.zoneType,
           riskLevel: riskLevel,
-          color: zoneTypeColorMap[zone.zoneType] || '#2A5A45'
+          color: riskLevelStyles[riskLevel].color
         }
       };
     })
@@ -200,10 +287,8 @@ const TelemetryMap = ({ selectedAreaId }) => {
           />
         </Source>
 
-        {movements.map((mv) => {
-          const riskInfo = riskData[mv.zoneId];
-          const riskLevel = riskInfo?.riskLevel || 'LOW';
-          const style = riskLevelStyles[riskLevel];
+        {enrichedMovements.map((mv) => {
+          const style = riskLevelStyles[mv.resolvedRiskLevel] || riskLevelStyles.LOW;
           const animal = mv.animalDetails || {};
           const species = (animal.species || 'default').toLowerCase();
           const icon = speciesIcons[species] || speciesIcons.default;
@@ -259,7 +344,7 @@ const TelemetryMap = ({ selectedAreaId }) => {
               <div className="flex items-center gap-4 border-b border-border-light pb-4 mb-4">
                 <div 
                   className="w-12 h-12 rounded-2xl flex items-center justify-center text-3xl shadow-premium border border-border-light"
-                  style={{ backgroundColor: riskLevelStyles[riskData[selectedAnimal.zoneId]?.riskLevel || 'LOW'].color + '15' }}
+                  style={{ backgroundColor: (riskLevelStyles[selectedAnimal.resolvedRiskLevel] || riskLevelStyles.LOW).color + '15' }}
                 >
                   {speciesIcons[selectedAnimal.animalDetails?.species?.toLowerCase()] || speciesIcons.default}
                 </div>
@@ -269,14 +354,14 @@ const TelemetryMap = ({ selectedAreaId }) => {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4 mb-4">
+              <div className="grid grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)] gap-4 mb-4">
                 <div className="bg-bg-soft p-2.5 rounded-xl border border-border-light/40">
                   <p className="text-[10px] text-text-gray font-bold uppercase tracking-tighter opacity-70">Sector</p>
-                  <p className="font-bold text-primary-dark truncate mt-0.5 text-[12px]">{riskData[selectedAnimal.zoneId]?.zoneName || 'N/A'}</p>
+                  <p className="font-bold text-primary-dark mt-0.5 text-[12px] leading-snug break-words">{selectedAnimal.resolvedZoneName || 'N/A'}</p>
                 </div>
                 <div className="bg-bg-soft p-2.5 rounded-xl border border-border-light/40">
                   <p className="text-[10px] text-text-gray font-bold uppercase tracking-tighter opacity-70">Threat</p>
-                  <p className="font-bold text-primary-medium mt-0.5 text-[12px]">{riskData[selectedAnimal.zoneId]?.riskLevel || 'IDLE'}</p>
+                  <p className="font-bold text-primary-medium mt-0.5 text-[12px]">{selectedAnimal.resolvedRiskLevel || 'LOW'}</p>
                 </div>
               </div>
 
