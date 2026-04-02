@@ -12,9 +12,6 @@ import {
     UserRound,
     Users,
     LogOut,
-    Bell,
-    Search,
-    MessageCircle,
 } from 'lucide-react';
 import { getUserRole, getStoredUser } from '../../utils/auth';
 
@@ -143,22 +140,19 @@ const DashboardLayout = () => {
             <div className="flex-1 flex flex-col h-screen overflow-hidden bg-bg-soft">
                 <header className="h-14 bg-transparent flex justify-end items-center px-6 z-[5]">
                     <div className="flex items-center gap-3">
-                        <button className="bg-white border-none w-8 h-8 rounded-full flex justify-center items-center text-primary-dark relative shadow-[0_1px_4px_rgba(0,0,0,0.02)] hover:text-primary">
-                            <MessageCircle size={16} />
-                        </button>
-                        <button className="bg-white border-none w-8 h-8 rounded-full flex justify-center items-center text-primary-dark relative shadow-[0_1px_4px_rgba(0,0,0,0.02)] hover:text-primary">
-                            <Bell size={16} />
-                            <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 bg-[#ff6b6b] rounded-full"></span>
-                        </button>
-                        <div className="flex items-center gap-2.5 ml-2">
+                        <Link
+                            to="/dashboard/profile"
+                            className="group flex items-center gap-2.5 rounded-xl py-1.5 pl-2 pr-1.5 text-left no-underline transition hover:bg-white/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-medium/35"
+                            aria-label="Open your profile"
+                        >
                             <div className="flex flex-col items-end">
                                 <span className="text-[12px] font-semibold text-primary-dark">{displayName}</span>
                                 <span className="text-[10px] text-[#868e96]">{displayEmail}</span>
                             </div>
-                            <div className="w-8 h-8 bg-primary-light text-primary-dark rounded-full flex justify-center items-center text-[11px] font-bold border-2 border-white">
+                            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border-2 border-white bg-primary-light text-[11px] font-bold text-primary-dark shadow-[0_1px_4px_rgba(0,0,0,0.04)] transition group-hover:ring-2 group-hover:ring-primary-medium/25">
                                 {initials || <UserRound size={14} />}
                             </div>
-                        </div>
+                        </Link>
                     </div>
                 </header>
 
