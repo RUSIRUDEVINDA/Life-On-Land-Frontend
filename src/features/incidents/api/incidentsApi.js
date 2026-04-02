@@ -358,6 +358,23 @@ export const fetchZonesByProtectedArea = async (protectedAreaId) => {
     return items.map(normalizeEntity).filter((item) => item.id);
 };
 
+/**
+ * First page only, sorted newest-first (by createdAt). For dashboards and previews.
+ * Caps limit to avoid backends that reject large page sizes.
+ */
+export const fetchRecentIncidents = async (limit = 15) => {
+    const cap = Math.min(Math.max(1, Number(limit) || 15), 50);
+    const payload = await requestJson(`/api/incidents?page=1&limit=${cap}`);
+    const items = pickIncidentArray(payload);
+    const normalized = items.map(normalizeIncident).filter((item) => item._id);
+    const merged = await mergeReporterNamesFromUserDirectory(normalized);
+    return merged.sort((a, b) => {
+        const ta = new Date(b.createdAt).getTime();
+        const tb = new Date(a.createdAt).getTime();
+        return ta - tb;
+    });
+};
+
 export const fetchIncidents = async () => {
     const limitPerPage = 100;
     const firstPayload = await requestJson(`/api/incidents?page=1&limit=${limitPerPage}`);
