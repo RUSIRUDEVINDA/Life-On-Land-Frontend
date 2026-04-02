@@ -408,13 +408,13 @@ const RangerMyIncidentsPage = () => {
 
                                             {isEditing ? (
                                                 <div className="mt-4 rounded-[24px] border border-border-light bg-white p-6 shadow-premium">
-                                                    <p className="mb-4 text-[11px] font-semibold uppercase tracking-[0.14em] text-text-gray">
+                                                    <p className="mb-4 text-[11px] font-semibold uppercase tracking-[0.14em] text-text-black">
                                                         Edit Incident
                                                     </p>
 
                                                     <div className="grid gap-5 md:grid-cols-2">
                                                         <label className="flex flex-col gap-2">
-                                                            <span className="text-[12px] font-semibold uppercase tracking-[0.14em] text-text-gray">Type</span>
+                                                            <span className="text-[12px] font-semibold uppercase tracking-[0.14em] text-text-black">Type</span>
                                                             <select
                                                                 value={editForm.type}
                                                                 onChange={(e) =>
@@ -431,7 +431,7 @@ const RangerMyIncidentsPage = () => {
                                                         </label>
 
                                                         <label className="flex flex-col gap-2">
-                                                            <span className="text-[12px] font-semibold uppercase tracking-[0.14em] text-text-gray">Severity</span>
+                                                            <span className="text-[12px] font-semibold uppercase tracking-[0.14em] text-text-black">Severity</span>
                                                             <select
                                                                 value={editForm.severity}
                                                                 onChange={(e) =>
@@ -448,7 +448,7 @@ const RangerMyIncidentsPage = () => {
                                                         </label>
 
                                                         <label className="flex flex-col gap-2">
-                                                            <span className="text-[12px] font-semibold uppercase tracking-[0.14em] text-text-gray">Protected Area</span>
+                                                            <span className="text-[12px] font-semibold uppercase tracking-[0.14em] text-text-black">Protected Area</span>
                                                             <select
                                                                 value={editForm.protectedAreaId}
                                                                 onChange={async (e) => {
@@ -471,7 +471,7 @@ const RangerMyIncidentsPage = () => {
                                                         </label>
 
                                                         <label className="flex flex-col gap-2">
-                                                            <span className="text-[12px] font-semibold uppercase tracking-[0.14em] text-text-gray">Zone</span>
+                                                            <span className="text-[12px] font-semibold uppercase tracking-[0.14em] text-text-black">Zone</span>
                                                             <select
                                                                 value={editForm.zoneId}
                                                                 onChange={(e) =>
@@ -496,7 +496,7 @@ const RangerMyIncidentsPage = () => {
                                                         </label>
 
                                                         <label className="flex flex-col gap-2 md:col-span-2">
-                                                            <span className="text-[12px] font-semibold uppercase tracking-[0.14em] text-text-gray">Incident Date &amp; Time</span>
+                                                            <span className="text-[12px] font-semibold uppercase tracking-[0.14em] text-text-black">Incident Date &amp; Time</span>
                                                             <input
                                                                 type="datetime-local"
                                                                 value={editForm.incidentDate}
@@ -508,7 +508,7 @@ const RangerMyIncidentsPage = () => {
                                                         </label>
 
                                                         <label className="flex flex-col gap-2 md:col-span-2">
-                                                            <span className="text-[12px] font-semibold uppercase tracking-[0.14em] text-text-gray">Description</span>
+                                                            <span className="text-[12px] font-semibold uppercase tracking-[0.14em] text-text-black">Description</span>
                                                             <textarea
                                                                 rows={3}
                                                                 value={editForm.description}
@@ -522,7 +522,7 @@ const RangerMyIncidentsPage = () => {
 
                                                         <div className="flex flex-col gap-3 md:col-span-2">
                                                             <div className="flex items-center justify-between">
-                                                                <span className="text-[12px] font-semibold uppercase tracking-[0.14em] text-text-gray">
+                                                                <span className="text-[12px] font-semibold uppercase tracking-[0.14em] text-text-black">
                                                                     Evidence Images (optional)
                                                                 </span>
                                                                 <span
@@ -584,13 +584,13 @@ const RangerMyIncidentsPage = () => {
                                                                 </button>
                                                             )}
 
-                                                            <span className="text-[11px] text-text-gray">
+                                                            <span className="text-[11px] text-text-black">
                                                                 Up to {MAX_IMAGES} images (JPG, PNG, WebP, GIF).
                                                             </span>
                                                         </div>
 
                                                         <label className="flex flex-col gap-2 md:col-span-2">
-                                                            <span className="text-[12px] font-semibold uppercase tracking-[0.14em] text-text-gray">Notes <span className="normal-case font-normal">(optional)</span></span>
+                                                            <span className="text-[12px] font-semibold uppercase tracking-[0.14em] text-text-black">Notes <span className="normal-case font-normal">(optional)</span></span>
                                                             <textarea
                                                                 rows={2}
                                                                 value={editForm.notes}
