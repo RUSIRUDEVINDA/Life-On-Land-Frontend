@@ -205,7 +205,8 @@ const IncidentsPage = () => {
         },
         {
             label: 'Resolved',
-            value: incidents.filter((incident) => incident.status === 'RESOLVED').length,
+            value: incidents.filter((incident) => String(incident.status || '').toUpperCase() === 'RESOLVED')
+                .length,
             helper: 'Closed safely',
             tone: 'subtle',
         },
