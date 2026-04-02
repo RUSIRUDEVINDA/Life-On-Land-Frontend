@@ -1,5 +1,16 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { AlertTriangle, CalendarClock, ChevronLeft, ChevronRight, LoaderCircle, MapPin, Pencil, Search, Trash2 } from 'lucide-react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import {
+    AlertTriangle,
+    CalendarClock,
+    ChevronLeft,
+    ChevronRight,
+    ImagePlus,
+    LoaderCircle,
+    MapPin,
+    Pencil,
+    Search,
+    X,
+} from 'lucide-react';
 import { Link } from 'react-router-dom';
 import {
     deleteIncident,
@@ -9,6 +20,14 @@ import {
     fetchZonesByProtectedArea,
 } from '../../features/incidents/api/incidentsApi';
 import { getUserId } from '../../utils/auth';
+import {
+    ACCEPTED_TYPES,
+    MAX_FILE_SIZE_BYTES,
+    MAX_FILE_SIZE_MB,
+    MAX_IMAGES,
+    compressImage,
+    evidenceStringsToImageItems,
+} from '../../features/incidents/utils/incidentEvidenceImages';
 
 const STATUS_STYLES = {
     REPORTED: 'bg-[#e7f5ff] text-[#1864ab] border-[#74c0fc]/40',
@@ -47,6 +66,8 @@ const RangerMyIncidentsPage = () => {
     const [editZones, setEditZones] = useState([]);
     const [loadingEditAreas, setLoadingEditAreas] = useState(false);
     const [loadingEditZones, setLoadingEditZones] = useState(false);
+    const editFileInputRef = useRef(null);
+    const [editEvidenceImages, setEditEvidenceImages] = useState([]);
     const [editForm, setEditForm] = useState({
         type: 'OTHER',
         description: '',
@@ -55,7 +76,6 @@ const RangerMyIncidentsPage = () => {
         incidentDate: '',
         protectedAreaId: '',
         zoneId: '',
-        evidenceUrls: '',
     });
 
     const loadMyIncidents = async () => {
@@ -150,8 +170,8 @@ const RangerMyIncidentsPage = () => {
             incidentDate: toDateTimeLocal(incident.incidentDate),
             protectedAreaId,
             zoneId,
-            evidenceUrls: Array.isArray(incident.evidence) ? incident.evidence.join(', ') : '',
         });
+        setEditEvidenceImages(evidenceStringsToImageItems(incident.evidence, incident._id));
 
         setLoadingEditAreas(true);
         try {
@@ -178,8 +198,62 @@ const RangerMyIncidentsPage = () => {
             incidentDate: '',
             protectedAreaId: '',
             zoneId: '',
-            evidenceUrls: '',
         });
+        setEditEvidenceImages([]);
+    };
+
+    const handleEditImageSelect = async (event) => {
+        setError('');
+        const files = Array.from(event.target.files || []);
+        if (!files.length) return;
+
+        const invalidType = files.find((file) => !ACCEPTED_TYPES.includes(file.type));
+        if (invalidType) {
+            setError(`"${invalidType.name}" is not a supported image type. Use JPG, PNG, WebP, or GIF.`);
+            event.target.value = '';
+            return;
+        }
+
+        const oversized = files.find((file) => file.size > MAX_FILE_SIZE_BYTES);
+        if (oversized) {
+            const sizeMb = (oversized.size / (1024 * 1024)).toFixed(1);
+            setError(
+                `"${oversized.name}" is too large (${sizeMb} MB). Maximum allowed size is ${MAX_FILE_SIZE_MB} MB per image.`
+            );
+            event.target.value = '';
+            return;
+        }
+
+        const remaining = MAX_IMAGES - editEvidenceImages.length;
+        if (remaining <= 0) {
+            setError(`Maximum ${MAX_IMAGES} images allowed.`);
+            event.target.value = '';
+            return;
+        }
+
+        const toProcess = files.slice(0, remaining);
+        if (files.length > remaining) {
+            setError(`Only ${remaining} more image(s) can be added (maximum ${MAX_IMAGES}).`);
+        }
+
+        try {
+            const dataUrls = await Promise.all(toProcess.map(compressImage));
+            const newImages = toProcess.map((file, index) => ({
+                id: `${Date.now()}-${index}`,
+                name: file.name,
+                dataUrl: dataUrls[index],
+            }));
+            setEditEvidenceImages((previous) => [...previous, ...newImages]);
+        } catch {
+            setError('Failed to process one or more image files. Please try different images.');
+        }
+
+        event.target.value = '';
+    };
+
+    const removeEditImage = (id) => {
+        setError('');
+        setEditEvidenceImages((previous) => previous.filter((image) => image.id !== id));
     };
 
     const saveEdit = async (incident) => {
@@ -205,10 +279,7 @@ const RangerMyIncidentsPage = () => {
                     ? new Date(editForm.incidentDate).toISOString()
                     : incident.incidentDate,
                 severity: editForm.severity,
-                evidence: editForm.evidenceUrls
-                    .split(',')
-                    .map((value) => value.trim())
-                    .filter(Boolean),
+                evidence: editEvidenceImages.map((image) => image.dataUrl),
                 notes: editForm.notes.trim() || undefined,
             });
 
@@ -449,18 +520,74 @@ const RangerMyIncidentsPage = () => {
                                                             />
                                                         </label>
 
-                                                        <label className="flex flex-col gap-2 md:col-span-2">
-                                                            <span className="text-[12px] font-semibold uppercase tracking-[0.14em] text-text-gray">Evidence URLs</span>
+                                                        <div className="flex flex-col gap-3 md:col-span-2">
+                                                            <div className="flex items-center justify-between">
+                                                                <span className="text-[12px] font-semibold uppercase tracking-[0.14em] text-text-gray">
+                                                                    Evidence Images (optional)
+                                                                </span>
+                                                                <span
+                                                                    className={`text-[11px] font-semibold ${editEvidenceImages.length >= MAX_IMAGES ? 'text-[#E63946]' : 'text-text-gray'}`}
+                                                                >
+                                                                    {editEvidenceImages.length} / {MAX_IMAGES}
+                                                                </span>
+                                                            </div>
+
                                                             <input
-                                                                type="text"
-                                                                value={editForm.evidenceUrls}
-                                                                onChange={(e) =>
-                                                                    setEditForm((prev) => ({ ...prev, evidenceUrls: e.target.value }))
-                                                                }
-                                                                placeholder="Comma-separated URLs to evidence files"
-                                                                className="rounded-2xl border border-border-light bg-bg-soft px-4 py-3 text-[14px] text-primary-dark outline-none transition focus:border-primary-medium focus:bg-white"
+                                                                ref={editFileInputRef}
+                                                                type="file"
+                                                                accept="image/jpeg,image/jpg,image/png,image/webp,image/gif"
+                                                                multiple
+                                                                className="hidden"
+                                                                onChange={handleEditImageSelect}
                                                             />
-                                                        </label>
+
+                                                            {editEvidenceImages.length > 0 && (
+                                                                <div className="grid grid-cols-2 gap-3">
+                                                                    {editEvidenceImages.map((image) => (
+                                                                        <div
+                                                                            key={image.id}
+                                                                            className="group relative overflow-hidden rounded-2xl border border-border-light bg-bg-soft"
+                                                                        >
+                                                                            <img
+                                                                                src={image.dataUrl}
+                                                                                alt={image.name}
+                                                                                className="h-[160px] w-full object-cover"
+                                                                            />
+                                                                            <div className="absolute inset-0 flex flex-col justify-between bg-gradient-to-t from-black/50 to-transparent p-3 opacity-0 transition-opacity group-hover:opacity-100">
+                                                                                <button
+                                                                                    type="button"
+                                                                                    onClick={() => removeEditImage(image.id)}
+                                                                                    className="ml-auto flex h-7 w-7 items-center justify-center rounded-full bg-white/90 text-[#E63946] transition hover:bg-white"
+                                                                                    title="Remove image"
+                                                                                >
+                                                                                    <X size={14} />
+                                                                                </button>
+                                                                                <p className="truncate text-[11px] font-medium text-white">
+                                                                                    {image.name}
+                                                                                </p>
+                                                                            </div>
+                                                                        </div>
+                                                                    ))}
+                                                                </div>
+                                                            )}
+
+                                                            {editEvidenceImages.length < MAX_IMAGES && (
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => editFileInputRef.current?.click()}
+                                                                    className="flex w-full items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-primary-light bg-bg-soft py-5 text-[13px] font-semibold text-primary-dark transition hover:border-primary-medium hover:bg-white"
+                                                                >
+                                                                    <ImagePlus size={16} className="text-primary" />
+                                                                    {editEvidenceImages.length === 0
+                                                                        ? 'Upload Evidence Images'
+                                                                        : 'Add Another Image'}
+                                                                </button>
+                                                            )}
+
+                                                            <span className="text-[11px] text-text-gray">
+                                                                Up to {MAX_IMAGES} images (JPG, PNG, WebP, GIF).
+                                                            </span>
+                                                        </div>
 
                                                         <label className="flex flex-col gap-2 md:col-span-2">
                                                             <span className="text-[12px] font-semibold uppercase tracking-[0.14em] text-text-gray">Notes <span className="normal-case font-normal">(optional)</span></span>
@@ -524,15 +651,7 @@ const RangerMyIncidentsPage = () => {
                                                     <Pencil size={13} />
                                                     Update
                                                 </button>
-                                                <button
-                                                    type="button"
-                                                    onClick={() => handleDelete(incident._id)}
-                                                    disabled={deletingId === incident._id}
-                                                    className="inline-flex items-center gap-1 rounded-xl border border-[#ffa8a8] bg-[#fff5f5] px-3 py-2 text-[12px] font-semibold text-[#a4161a] transition hover:bg-[#ffe3e3] disabled:opacity-60"
-                                                >
-                                                    <Trash2 size={13} />
-                                                    {deletingId === incident._id ? 'Deleting...' : 'Delete'}
-                                                </button>
+                                               
                                             </div>
                                         )}
                                     </div>
