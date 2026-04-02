@@ -134,6 +134,7 @@ const DashboardPage = () => {
     const [riskBuckets, setRiskBuckets] = useState({ safe: 0, elevated: 0, unassigned: 0 });
     const [recentMovements, setRecentMovements] = useState([]);
     const [recentIncident, setRecentIncident] = useState(null);
+    const [liveMapMovements, setLiveMapMovements] = useState([]);
 
     useEffect(() => {
         let cancelled = false;
@@ -244,15 +245,16 @@ const DashboardPage = () => {
                 setRiskBuckets({ safe: 0, elevated: 0, unassigned: 0 });
             }
 
+            let sortedMovementsRaw = [];
             if (!cancelled) {
                 if (movementsResult.status === 'fulfilled') {
                     const raw = movementsResult.value?.data || [];
-                    const sorted = [...raw].sort((a, b) => {
+                    sortedMovementsRaw = [...raw].sort((a, b) => {
                         const ta = new Date(b?.timestamp || b?.createdAt || 0).getTime();
                         const tb = new Date(a?.timestamp || a?.createdAt || 0).getTime();
                         return ta - tb;
                     });
-                    setRecentMovements(sorted.slice(0, 3).map(mapMovementForRecentList));
+                    setRecentMovements(sortedMovementsRaw.slice(0, 3).map(mapMovementForRecentList));
                 } else {
                     setRecentMovements([]);
                 }
@@ -263,6 +265,15 @@ const DashboardPage = () => {
                 } else {
                     setRecentIncident(null);
                 }
+
+                setLiveMapMovements(
+                    sortedMovementsRaw.slice(0, 10).map((m, i) => ({
+                        id: String(m.id || m._id || m.tagId || `m-${i}`),
+                        tagId: m.tagId != null ? String(m.tagId) : '—',
+                        lat: Number(m.lat ?? m.latitude),
+                        lng: Number(m.lng ?? m.longitude),
+                    }))
+                );
             }
 
             const overviewRequests = [
@@ -392,7 +403,7 @@ const DashboardPage = () => {
             )}
 
             <div className="grid grid-cols-3 gap-3">
-                <LiveMap />
+                <LiveMap movements={liveMapMovements} loading={statsLoading} />
                 <div className="flex flex-col gap-3 col-span-1">
                     <AlertCard
                         title="Critical Alert"
