@@ -9,7 +9,7 @@ import {
     ShieldAlert,
     Trash2,
 } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import IncidentMetricCard from '../../features/incidents/components/IncidentMetricCard';
 import IncidentFilters from '../../features/incidents/components/IncidentFilters';
 import IncidentList from '../../features/incidents/components/IncidentList';
@@ -40,6 +40,7 @@ const buildPaginationItems = (totalPages, activePage) => {
 
 const IncidentsPage = () => {
     const navigate = useNavigate();
+    const [searchParams] = useSearchParams();
     const [incidents, setIncidents] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
@@ -76,6 +77,13 @@ const IncidentsPage = () => {
 
         loadIncidents();
     }, []);
+
+    useEffect(() => {
+        const idFromUrl = searchParams.get('id');
+        if (!idFromUrl || incidents.length === 0) return;
+        const match = incidents.find((i) => String(i._id) === String(idFromUrl));
+        if (match) setSelectedIncidentId(match._id);
+    }, [searchParams, incidents]);
 
     const filteredIncidents = useMemo(() => {
         const normalizedSearch = searchTerm.trim().toLowerCase();
@@ -202,10 +210,8 @@ const IncidentsPage = () => {
         <div className="flex flex-col gap-6 pb-2">
             <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
                 <div>
-                    <h1 className="text-[30px] font-semibold tracking-tight text-primary-dark">Incident Center</h1>
-                    <p className="mt-1 text-[14px] text-text-gray">
-                        Frontend structure aligned to the backend incident module: report creation, review, filtering, and status tracking.
-                    </p>
+                    <h1 className="text-[35px] font-bold tracking-tight text-primary-dark">Incident Center</h1>
+                    
                 </div>
 
                 <div className="flex flex-wrap gap-2">
@@ -333,7 +339,7 @@ const IncidentsPage = () => {
                                         <span>{formatDate(selectedIncident.incidentDate)}</span>
                                     </div>
                                     <p className="mt-3 text-[13px] text-white/80">
-                                        Reported by <span className="font-semibold text-white">{selectedIncident.reportedBy.fullName}</span> ({selectedIncident.reportedBy.username})
+                                        Reported by <span className="font-semibold text-white">{selectedIncident.reportedBy.fullName}</span>
                                     </p>
                                 </div>
 

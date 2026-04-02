@@ -67,9 +67,17 @@ const requestJson = async (path, options = {}) => {
     return payload;
 };
 
-export const fetchPatrols = async () => {
+/** Backend validators often cap page size (e.g. max 50); higher values return 400. */
+const clampPatrolPageLimit = (value) => {
+    const n = Number(value);
+    const raw = Number.isFinite(n) && n > 0 ? Math.floor(n) : 50;
+    return Math.min(50, Math.max(1, raw));
+};
+
+export const fetchPatrols = async (options = {}) => {
+    const limit = clampPatrolPageLimit(options.limit);
     try {
-        const payload = await requestJson(`/api/patrols?page=1&limit=50&_t=${Date.now()}`);
+        const payload = await requestJson(`/api/patrols?page=1&limit=${limit}`);
         if (Array.isArray(payload)) return payload;
         if (payload?.docs) return payload.docs;
         if (payload?.data) return payload.data;
