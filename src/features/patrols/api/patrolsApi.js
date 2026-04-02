@@ -69,7 +69,7 @@ const requestJson = async (path, options = {}) => {
 
 export const fetchPatrols = async () => {
     try {
-        const payload = await requestJson('/api/patrols?page=1&limit=50');
+        const payload = await requestJson(`/api/patrols?page=1&limit=50&_t=${Date.now()}`);
         if (Array.isArray(payload)) return payload;
         if (payload?.docs) return payload.docs;
         if (payload?.data) return payload.data;
@@ -93,7 +93,7 @@ export const fetchAssignedPatrols = async () => {
     }
 
     try {
-        const payload = await requestJson(`/api/patrols?page=1&limit=50&rangerId=${encodeURIComponent(userId)}`);
+        const payload = await requestJson(`/api/patrols?page=1&limit=50&rangerId=${encodeURIComponent(userId)}&_t=${Date.now()}`);
         if (Array.isArray(payload)) return payload;
         if (payload?.docs) return payload.docs;
         if (payload?.data) return payload.data;
