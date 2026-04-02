@@ -274,10 +274,7 @@ const RiskMapPage = ({ rangerView = false }) => {
                                 Zone risk overlay for patrol planning. Select a protected area to load the map.
                             </p>
                         ) : (
-                            <p className="mt-1 inline-flex items-center gap-2 text-[13px] font-medium text-text-gray">
-                                <span className="h-2 w-2 animate-pulse rounded-full bg-amber-500" />
-                                Zone risk from <span className="font-semibold text-primary-dark">GET /api/risk-map</span> on
-                                MapLibre
+                            <p className="mt-1 inline-flex items-center gap-2 text-[13px] font-medium text-text-gray"> 
                             </p>
                         )}
                     </div>
@@ -410,25 +407,20 @@ const RiskMapPage = ({ rangerView = false }) => {
                                                         {activePoint.weatherCondition}
                                                     </span>
                                                 </p>
-                                                <p>
-                                                    Weather Multiplier:{' '}
-                                                    <span className="font-semibold text-primary-dark">
-                                                        {activePoint.weatherMultiplier}
-                                                    </span>
-                                                </p>
+                                              
                                             </div>
                                             <div className="grid grid-cols-4 gap-2 text-[11px]">
                                                 <div className="rounded-xl bg-white px-2 py-1.5 text-center text-[#c92a2a]">
-                                                    C: {activePoint.severityBreakdown.critical || 0}
+                                                    CRITICAL: {activePoint.severityBreakdown.critical || 0}
                                                 </div>
                                                 <div className="rounded-xl bg-white px-2 py-1.5 text-center text-[#d9480f]">
-                                                    H: {activePoint.severityBreakdown.high || 0}
+                                                    HIGH: {activePoint.severityBreakdown.high || 0}
                                                 </div>
                                                 <div className="rounded-xl bg-white px-2 py-1.5 text-center text-[#a07900]">
-                                                    M: {activePoint.severityBreakdown.medium || 0}
+                                                    MEDIUM: {activePoint.severityBreakdown.medium || 0}
                                                 </div>
                                                 <div className="rounded-xl bg-white px-2 py-1.5 text-center text-[#2b8a3e]">
-                                                    L: {activePoint.severityBreakdown.low || 0}
+                                                    LOW: {activePoint.severityBreakdown.low || 0}
                                                 </div>
                                             </div>
                                         </div>
