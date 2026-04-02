@@ -141,17 +141,7 @@ const DashboardLayout = () => {
             </aside>
 
             <div className="flex-1 flex flex-col h-screen overflow-hidden bg-bg-soft">
-                <header className="h-14 bg-transparent flex justify-between items-center px-6 z-[5]">
-                    <div className="flex items-center bg-white px-3 py-1.5 rounded-2xl w-[280px] shadow-[0_1px_4px_rgba(0,0,0,0.02)]">
-                        <Search size={14} className="text-[#adb5bd] mr-2" />
-                        <input
-                            type="text"
-                            placeholder="Search areas, animals, incidents..."
-                            className="border-none bg-transparent w-full text-[12px] text-primary-dark focus:outline-none"
-                        />
-                        <div className="bg-bg-soft border border-border-light text-[#868e96] text-[9px] px-1.5 py-0.5 rounded-md font-semibold">⌘F</div>
-                    </div>
-
+                <header className="h-14 bg-transparent flex justify-end items-center px-6 z-[5]">
                     <div className="flex items-center gap-3">
                         <button className="bg-white border-none w-8 h-8 rounded-full flex justify-center items-center text-primary-dark relative shadow-[0_1px_4px_rgba(0,0,0,0.02)] hover:text-primary">
                             <MessageCircle size={16} />
