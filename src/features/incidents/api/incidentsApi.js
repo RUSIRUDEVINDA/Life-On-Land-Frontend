@@ -237,6 +237,16 @@ const mergeReporterNamesFromUserDirectory = async (incidents) => {
     }
 };
 
+/** Uppercase status for UI/filters; map common backend aliases to RESOLVED. */
+const normalizeIncidentStatus = (raw) => {
+    const u = String(raw ?? 'UNVERIFIED')
+        .trim()
+        .toUpperCase()
+        .replace(/\s+/g, '_');
+    if (u === 'COMPLETED' || u === 'CLOSED') return 'RESOLVED';
+    return u || 'UNVERIFIED';
+};
+
 const normalizeIncident = (item) => {
     const zone = normalizeIncidentReference(item.zoneId || item.zone, 'Unknown Zone');
     const protectedArea = normalizeIncidentReference(
@@ -251,8 +261,8 @@ const normalizeIncident = (item) => {
         description: item?.description || '',
         zone,
         protectedArea,
-        severity: item?.severity || 'LOW',
-        status: item?.status || 'UNVERIFIED',
+        severity: String(item?.severity || 'LOW').trim().toUpperCase() || 'LOW',
+        status: normalizeIncidentStatus(item?.status),
         reportedBy,
         incidentDate: item?.incidentDate || item?.createdAt || new Date().toISOString(),
         evidence: Array.isArray(item?.evidence) ? item.evidence : [],
