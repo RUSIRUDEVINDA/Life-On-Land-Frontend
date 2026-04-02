@@ -172,8 +172,13 @@ const IncidentsPage = () => {
             if (!result.ok) {
                 window.alert(result.message);
             }
-        } catch {
-            window.alert('Could not generate the PDF. Please try again.');
+        } catch (err) {
+            console.error('PDF export failed:', err);
+            const hint =
+                err?.message && /Failed to fetch dynamically imported module|Loading chunk/i.test(err.message)
+                    ? ' If you just cloned the repo, run npm install and reload the page.'
+                    : '';
+            window.alert(`Could not generate the PDF. Please try again.${hint}`);
         }
     };
 
