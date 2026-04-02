@@ -234,27 +234,24 @@ const RiskMapTelemetry = ({
                                     Weather:{' '}
                                     <span className="font-semibold text-primary-dark">{selectedPoint.weatherCondition}</span>
                                 </p>
-                                <p>
-                                    Weather multiplier:{' '}
-                                    <span className="font-semibold text-primary-dark">{selectedPoint.weatherMultiplier}</span>
-                                </p>
+                               
                                 <p className="flex items-center gap-1">
                                     <MapPinned size={12} className="shrink-0" />
                                     {selectedPoint.lat.toFixed(4)}, {selectedPoint.lng.toFixed(4)}
                                 </p>
                             </div>
-                            <div className="mt-3 grid grid-cols-4 gap-1.5 text-[10px] font-semibold">
+                            <div className="mt-3 grid grid-cols-2 gap-1.5 text-[10px] font-semibold">
                                 <div className="rounded-lg bg-[#fff5f5] px-1 py-1 text-center text-[#c92a2a]">
-                                    C:{selectedPoint.severityBreakdown?.critical ?? 0}
+                                    CRITICAL:{selectedPoint.severityBreakdown?.critical ?? 0}
                                 </div>
                                 <div className="rounded-lg bg-[#fff4e6] px-1 py-1 text-center text-[#d9480f]">
-                                    H:{selectedPoint.severityBreakdown?.high ?? 0}
-                                </div>
+                                    HIGH:{selectedPoint.severityBreakdown?.high ?? 0}
+                                </div> 
                                 <div className="rounded-lg bg-[#fff9db] px-1 py-1 text-center text-[#a07900]">
-                                    M:{selectedPoint.severityBreakdown?.medium ?? 0}
+                                    MEDIUM:{selectedPoint.severityBreakdown?.medium ?? 0}
                                 </div>
                                 <div className="rounded-lg bg-[#ebfbee] px-1 py-1 text-center text-[#2b8a3e]">
-                                    L:{selectedPoint.severityBreakdown?.low ?? 0}
+                                    LOW:{selectedPoint.severityBreakdown?.low ?? 0}
                                 </div>
                             </div>
                         </div>
