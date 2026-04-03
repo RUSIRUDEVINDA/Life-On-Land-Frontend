@@ -118,7 +118,7 @@ const MovementsPage = () => {
                 </div>
             </div>
 
-            <MovementStats />
+            <MovementStats movements={displayMovements} summary={summary} />
 
             <div className="grid grid-cols-3 gap-6">
                 <div className="col-span-2 bg-white rounded-[24px] border border-border-light shadow-premium overflow-hidden flex flex-col transition-all duration-500">
@@ -130,7 +130,7 @@ const MovementsPage = () => {
                 </div>
 
                 <div className="flex flex-col gap-6">
-                    <ZoneDensity summary={summary} />
+                    <ZoneDensity summary={summary} zoneLookup={zoneLookup} totalZones={Object.keys(zoneLookup).length} />
                 </div>
             </div>
         </div>

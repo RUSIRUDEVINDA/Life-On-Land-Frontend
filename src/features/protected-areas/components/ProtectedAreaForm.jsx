@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import GeometryDrawEditor from './GeometryDrawEditor';
-import { geometryAreaKm2, parseGeometryInput } from '../utils/geometryMetrics';
+import { geometryAreaKm2, parseGeometryInput, toFeature } from '../utils/geometryMetrics';
 
 const areaTypes = [
   { value: 'NATIONAL_PARK', label: 'National Park' },
@@ -103,12 +103,19 @@ const ProtectedAreaForm = ({
       return;
     }
 
-    try {
-      geometry = JSON.parse(geometryText);
-    } catch {
+    const parsedGeometry = parseGeometryInput(geometryText);
+    if (!parsedGeometry) {
       setError('Polygon coordinates must be valid JSON GeoJSON.');
       return;
     }
+
+    const geometryFeature = toFeature(parsedGeometry);
+    if (!geometryFeature?.geometry) {
+      setError('Geometry must include a valid GeoJSON Polygon or MultiPolygon.');
+      return;
+    }
+
+    geometry = geometryFeature.geometry;
 
     if (geometry?.type === 'Feature') {
       geometry = geometry.geometry || null;
@@ -127,7 +134,6 @@ const ProtectedAreaForm = ({
     onSubmit({
       name: name.trim(),
       areaType: normalizeAreaType(areaType),
-      areaType: normalizeTypeValue(areaType),
       district: district.trim(),
       description: description.trim(),
       status: status.trim(),

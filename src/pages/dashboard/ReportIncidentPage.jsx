@@ -1,21 +1,61 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ChevronLeft, ImagePlus, LoaderCircle, LocateFixed, MapPin, Send, X } from 'lucide-react';
+import {
+    AlertTriangle,
+    ChevronLeft,
+    ClipboardList,
+    ImagePlus,
+    LoaderCircle,
+    LocateFixed,
+    MapPin,
+    Send,
+    ShieldCheck,
+    X,
+} from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
     createIncident,
     fetchProtectedAreas,
     fetchZonesByProtectedArea,
 } from '../../features/incidents/api/incidentsApi';
+import {
+    ACCEPTED_TYPES,
+    MAX_FILE_SIZE_BYTES,
+    MAX_FILE_SIZE_MB,
+    MAX_IMAGES,
+    compressImage,
+} from '../../features/incidents/utils/incidentEvidenceImages';
+import { getUserRole } from '../../utils/auth';
 
 const incidentTypes = ['POACHING', 'ILLEGAL_LOGGING', 'WILDLIFE_TRADE', 'HABITAT_DESTRUCTION', 'OTHER'];
 const severityLevels = ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW'];
 
-const MAX_IMAGES = 2;
-const MAX_FILE_SIZE_MB = 10;
-const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
-const ACCEPTED_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/gif'];
-const MAX_DIMENSION = 1024;
-const JPEG_QUALITY = 0.78;
+const formatTypeLabel = (t) =>
+    String(t || '')
+        .split('_')
+        .map((w) => (w ? w.charAt(0) + w.slice(1).toLowerCase() : ''))
+        .join(' ');
+
+const FieldLabel = ({ children, required: isRequired }) => (
+    <span className="flex items-baseline gap-1.5 text-[12px] font-semibold uppercase tracking-[0.12em] text-primary-dark/80">
+        {children}
+        {isRequired ? <span className="text-[#E63946]">*</span> : null}
+    </span>
+);
+
+const FormSection = ({ step, title, description, children }) => (
+    <section className="rounded-[28px] border border-border-light bg-white p-6 shadow-[0_4px_24px_rgba(23,54,43,0.06)] sm:p-8">
+        <div className="mb-6 flex flex-col gap-1 border-b border-border-light/80 pb-5 sm:flex-row sm:items-start sm:gap-4">
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-primary-dark text-[15px] font-bold text-white shadow-sm">
+                {step}
+            </span>
+            <div className="min-w-0 flex-1">
+                <h2 className="text-[17px] font-semibold tracking-tight text-primary-dark">{title}</h2>
+                {description ? <p className="mt-1 text-[13px] leading-relaxed text-text-gray">{description}</p> : null}
+            </div>
+        </div>
+        {children}
+    </section>
+);
 
 const toDateTimeLocal = (value) => {
     const date = new Date(value);
@@ -23,35 +63,7 @@ const toDateTimeLocal = (value) => {
     return new Date(date.getTime() - tzOffset).toISOString().slice(0, 16);
 };
 
-const compressImage = (file) =>
-    new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onerror = () => reject(new Error(`Failed to read ${file.name}`));
-        reader.onload = (event) => {
-            const img = new Image();
-            img.onerror = () => reject(new Error(`Failed to decode ${file.name}`));
-            img.onload = () => {
-                let { width, height } = img;
-                if (width > MAX_DIMENSION || height > MAX_DIMENSION) {
-                    if (width >= height) {
-                        height = Math.round((height * MAX_DIMENSION) / width);
-                        width = MAX_DIMENSION;
-                    } else {
-                        width = Math.round((width * MAX_DIMENSION) / height);
-                        height = MAX_DIMENSION;
-                    }
-                }
-                const canvas = document.createElement('canvas');
-                canvas.width = width;
-                canvas.height = height;
-                const ctx = canvas.getContext('2d');
-                ctx.drawImage(img, 0, 0, width, height);
-                resolve(canvas.toDataURL('image/jpeg', JPEG_QUALITY));
-            };
-            img.src = event.target.result;
-        };
-        reader.readAsDataURL(file);
-    });
+const incidentsHubPath = () => (getUserRole() === 'RANGER' ? '/dashboard/my-incidents' : '/dashboard/incidents');
 
 const ReportIncidentPage = () => {
     const navigate = useNavigate();
@@ -291,7 +303,7 @@ const ReportIncidentPage = () => {
             });
 
             setSuccess('Incident submitted and saved successfully.');
-            setTimeout(() => navigate('/dashboard/incidents'), 900);
+            setTimeout(() => navigate(incidentsHubPath()), 900);
         } catch (requestError) {
             if (handleUnauthorized(requestError.message)) return;
             setError(requestError.message || 'Failed to submit incident');
@@ -300,109 +312,180 @@ const ReportIncidentPage = () => {
         }
     };
 
+    const inputClass =
+        'rounded-2xl border border-border-light bg-bg-soft px-4 py-3.5 text-[14px] text-primary-dark outline-none transition focus:border-primary-medium focus:bg-white focus:ring-2 focus:ring-primary-medium/20';
+
+    const incidentsHub = incidentsHubPath();
+    const incidentsHubLabel = getUserRole() === 'RANGER' ? 'My incidents' : 'Incident center';
+
     return (
-        <div className="flex flex-col gap-6">
-            <div className="flex items-center gap-4">
-                <button
-                    onClick={() => navigate(-1)}
-                    className="w-10 h-10 rounded-full border border-border-light flex items-center justify-center text-primary-dark hover:bg-white transition-colors"
-                >
-                    <ChevronLeft size={20} />
-                </button>
-                <div>
-                    <h1 className="text-[30px] font-semibold tracking-tight text-primary-dark">Report Incident</h1>
-                    <p className="mt-1 text-[14px] text-text-gray">
-                        Log a new incident or suspicious activity for investigation.
-                    </p>
+        <div className="mx-auto flex w-full max-w-3xl flex-col">
+            <div className="relative mb-8 overflow-hidden rounded-[28px] bg-primary-dark px-6 pb-12 pt-8 text-white shadow-[0_12px_40px_rgba(23,54,43,0.35)] sm:rounded-[32px] sm:px-8 sm:pb-12 sm:pt-10">
+                <div
+                    className="pointer-events-none absolute inset-0 opacity-[0.07]"
+                    style={{
+                        backgroundImage: 'radial-gradient(circle at 1px 1px, white 1px, transparent 0)',
+                        backgroundSize: '20px 20px',
+                    }}
+                />
+                <div className="absolute -right-16 -top-24 h-64 w-64 rounded-full bg-primary-medium/25 blur-3xl" />
+                <div className="absolute -bottom-20 left-1/4 h-48 w-48 rounded-full bg-white/5 blur-2xl" />
+
+                <div className="relative">
+                    <div className="flex flex-col gap-6 sm:flex-row sm:items-start sm:justify-between">
+                        <div className="flex items-start gap-4">
+                            <button
+                                type="button"
+                                onClick={() => navigate(-1)}
+                                className="mt-0.5 flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-white/20 bg-white/10 text-white transition hover:bg-white/20"
+                                aria-label="Go back"
+                            >
+                                <ChevronLeft size={22} />
+                            </button>
+                            <div className="min-w-0">
+                                <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-wider text-white/90">
+                                    <ClipboardList size={12} className="opacity-90" />
+                                    Official incident report
+                                </div>
+                                <div className="flex flex-wrap items-center gap-3">
+                                    
+                                    <div>
+                                        <h1 className="text-[clamp(1.75rem,4vw,2.25rem)] font-semibold leading-tight tracking-tight">
+                                            Report an incident
+                                        </h1>
+                                        <p className="mt-2 max-w-xl text-[14px] leading-relaxed text-white/75">
+                                            Accurate location and severity help prioritize the response.
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <Link
+                            to={incidentsHub}
+                            className="shrink-0 self-start rounded-2xl border border-white/25 bg-white/10 px-4 py-2.5 text-[12px] font-semibold text-white transition hover:bg-white/20"
+                        >
+                            {incidentsHubLabel}
+                        </Link>
+                    </div>
                 </div>
             </div>
 
-            <form onSubmit={handleSubmit} className="rounded-[30px] border border-border-light bg-white p-6 shadow-premium">
-                <div className="grid gap-5 md:grid-cols-2">
-                    <label className="flex flex-col gap-2">
-                        <span className="text-[12px] font-semibold uppercase tracking-[0.14em] text-text-gray">Type</span>
-                        <select
-                            value={formData.type}
-                            onChange={handleChange('type')}
-                            className="rounded-2xl border border-border-light bg-bg-soft px-4 py-3 text-[14px] text-primary-dark outline-none transition focus:border-primary-medium focus:bg-white"
-                        >
-                            <option value="">Type</option>
-                            {incidentTypes.map((option) => (
-                                <option key={option} value={option}>
-                                    {option.replaceAll('_', ' ')}
-                                </option>
-                            ))}
-                        </select>
-                    </label>
+            <div className="w-full space-y-6 pb-10">
+                <div className="flex gap-3 rounded-2xl border border-primary-medium/20 bg-gradient-to-r from-primary-light/25 to-white px-4 py-3.5 shadow-sm">
+                    <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-primary-dark" strokeWidth={2} />
+                    <p className="text-[13px] leading-relaxed text-primary-dark">
+                        <span className="font-semibold">Secure submission.</span> Your report is recorded for operations and
+                        investigation. Fields marked with <span className="text-[#E63946]">*</span> are required before you can
+                        submit.
+                    </p>
+                </div>
 
-                    <label className="flex flex-col gap-2">
-                        <span className="text-[12px] font-semibold uppercase tracking-[0.14em] text-text-gray">Severity</span>
-                        <select
-                            value={formData.severity}
-                            onChange={handleChange('severity')}
-                            className="rounded-2xl border border-border-light bg-bg-soft px-4 py-3 text-[14px] text-primary-dark outline-none transition focus:border-primary-medium focus:bg-white"
-                        >
-                            <option value="">Severity</option>
-                            {severityLevels.map((option) => (
-                                <option key={option} value={option}>
-                                    {option}
-                                </option>
-                            ))}
-                        </select>
-                    </label>
+                <form onSubmit={handleSubmit} className="flex flex-col gap-6">
+                    <FormSection
+                        step={1}
+                        title="Classification"
+                        description="Choose the incident type and severity so responders can triage correctly."
+                    >
+                        <div className="grid gap-5 md:grid-cols-2">
+                            <label className="flex flex-col gap-2">
+                                <FieldLabel required>Incident type</FieldLabel>
+                                <select
+                                    value={formData.type}
+                                    onChange={handleChange('type')}
+                                    className={inputClass}
+                                >
+                                    <option value="">Select type</option>
+                                    {incidentTypes.map((option) => (
+                                        <option key={option} value={option}>
+                                            {formatTypeLabel(option)}
+                                        </option>
+                                    ))}
+                                </select>
+                            </label>
 
-                    <label className="flex flex-col gap-2">
-                        <span className="text-[12px] font-semibold uppercase tracking-[0.14em] text-text-gray">Protected Area</span>
-                        <select
-                            value={formData.protectedAreaId}
-                            onChange={handleChange('protectedAreaId')}
-                            disabled={loadingAreas}
-                            className="rounded-2xl border border-border-light bg-bg-soft px-4 py-3 text-[14px] text-primary-dark outline-none transition focus:border-primary-medium focus:bg-white disabled:cursor-not-allowed disabled:opacity-70"
-                        >
-                            <option value="">{loadingAreas ? 'Loading areas...' : 'Select protected area'}</option>
-                            {areas.map((area) => (
-                                <option key={area.id} value={area.id}>
-                                    {area.name}
-                                </option>
-                            ))}
-                        </select>
-                    </label>
+                            <label className="flex flex-col gap-2">
+                                <FieldLabel required>Severity</FieldLabel>
+                                <select
+                                    value={formData.severity}
+                                    onChange={handleChange('severity')}
+                                    className={inputClass}
+                                >
+                                    <option value="">Select severity</option>
+                                    {severityLevels.map((option) => (
+                                        <option key={option} value={option}>
+                                            {option}
+                                        </option>
+                                    ))}
+                                </select>
+                            </label>
+                        </div>
+                    </FormSection>
 
-                    <label className="flex flex-col gap-2">
-                        <span className="text-[12px] font-semibold uppercase tracking-[0.14em] text-text-gray">Zone</span>
-                        <select
-                            value={formData.zoneId}
-                            onChange={handleChange('zoneId')}
-                            disabled={!formData.protectedAreaId || loadingZones}
-                            className="rounded-2xl border border-border-light bg-bg-soft px-4 py-3 text-[14px] text-primary-dark outline-none transition focus:border-primary-medium focus:bg-white disabled:cursor-not-allowed disabled:opacity-70"
-                        >
-                            <option value="">
-                                {!formData.protectedAreaId
-                                    ? 'Select protected area first'
-                                    : loadingZones
-                                      ? 'Loading zones...'
-                                      : 'Select zone'}
-                            </option>
-                            {zones.map((zone) => (
-                                <option key={zone.id} value={zone.id}>
-                                    {zone.name}
-                                </option>
-                            ))}
-                        </select>
-                    </label>
+                    <FormSection
+                        step={2}
+                        title="Site & time"
+                        description="Tie the report to a protected area and zone, and when the event occurred or was observed."
+                    >
+                        <div className="grid gap-5 md:grid-cols-2">
+                            <label className="flex flex-col gap-2">
+                                <FieldLabel required>Protected area</FieldLabel>
+                                <select
+                                    value={formData.protectedAreaId}
+                                    onChange={handleChange('protectedAreaId')}
+                                    disabled={loadingAreas}
+                                    className={`${inputClass} disabled:cursor-not-allowed disabled:opacity-70`}
+                                >
+                                    <option value="">{loadingAreas ? 'Loading areas…' : 'Select protected area'}</option>
+                                    {areas.map((area) => (
+                                        <option key={area.id} value={area.id}>
+                                            {area.name}
+                                        </option>
+                                    ))}
+                                </select>
+                            </label>
 
-                    <label className="flex flex-col gap-2 md:col-span-2">
-                        <span className="text-[12px] font-semibold uppercase tracking-[0.14em] text-text-gray">Incident Date & Time</span>
-                        <input
-                            type="datetime-local"
-                            value={formData.incidentDate}
-                            max={nowDateTimeLocal}
-                            onChange={handleChange('incidentDate')}
-                            className="rounded-2xl border border-border-light bg-bg-soft px-4 py-3 text-[14px] text-primary-dark outline-none transition focus:border-primary-medium focus:bg-white"
-                        />
-                    </label>
+                            <label className="flex flex-col gap-2">
+                                <FieldLabel required>Zone</FieldLabel>
+                                <select
+                                    value={formData.zoneId}
+                                    onChange={handleChange('zoneId')}
+                                    disabled={!formData.protectedAreaId || loadingZones}
+                                    className={`${inputClass} disabled:cursor-not-allowed disabled:opacity-70`}
+                                >
+                                    <option value="">
+                                        {!formData.protectedAreaId
+                                            ? 'Select protected area first'
+                                            : loadingZones
+                                              ? 'Loading zones…'
+                                              : 'Select zone'}
+                                    </option>
+                                    {zones.map((zone) => (
+                                        <option key={zone.id} value={zone.id}>
+                                            {zone.name}
+                                        </option>
+                                    ))}
+                                </select>
+                            </label>
 
-                    <div className="flex flex-col gap-3 md:col-span-2">
+                            <label className="flex flex-col gap-2 md:col-span-2">
+                                <FieldLabel required>Incident date &amp; time</FieldLabel>
+                                <input
+                                    type="datetime-local"
+                                    value={formData.incidentDate}
+                                    max={nowDateTimeLocal}
+                                    onChange={handleChange('incidentDate')}
+                                    className={inputClass}
+                                />
+                            </label>
+                        </div>
+                    </FormSection>
+
+                    <FormSection
+                        step={3}
+                        title="Geographic reference"
+                        description="Optional GPS coordinates help teams locate the scene on the map. You can detect your position or enter coordinates manually."
+                    >
+                    <div className="flex flex-col gap-3">
                         <div className="flex items-center justify-between">
                             <span className="text-[12px] font-semibold uppercase tracking-[0.14em] text-text-gray">
                                 Incident Location
@@ -521,26 +604,30 @@ const ReportIncidentPage = () => {
                             </div>
                         )}
                     </div>
+                    </FormSection>
 
-                    <label className="flex flex-col gap-2 md:col-span-2">
-                        <span className="text-[12px] font-semibold uppercase tracking-[0.14em] text-text-gray">Description</span>
+                    <FormSection
+                        step={4}
+                        title="Narrative & evidence"
+                        description="Describe what happened, attach photos if safe to do so, and add any extra notes for investigators."
+                    >
+                    <label className="flex flex-col gap-2">
+                        <FieldLabel required>Description</FieldLabel>
                         <textarea
-                            rows={5}
+                            rows={6}
                             value={formData.description}
                             onChange={handleChange('description')}
                             placeholder="Describe what happened, location clues, and any immediate safety concerns."
-                            className="resize-y rounded-2xl border border-border-light bg-bg-soft px-4 py-3 text-[14px] text-primary-dark outline-none transition focus:border-primary-medium focus:bg-white"
+                            className={`${inputClass} min-h-[140px] resize-y`}
                         />
                         <span className="text-[11px] text-text-gray">
-                            Minimum 10 characters. Provide clear, actionable detail.
+                            Minimum 10 characters. Clear, actionable detail helps teams respond faster.
                         </span>
                     </label>
 
-                    <div className="flex flex-col gap-3 md:col-span-2">
+                    <div className="mt-5 flex flex-col gap-3">
                         <div className="flex items-center justify-between">
-                            <span className="text-[12px] font-semibold uppercase tracking-[0.14em] text-text-gray">
-                                Evidence Images (optional)
-                            </span>
+                            <FieldLabel>Evidence images (optional)</FieldLabel>
                             <span className={`text-[11px] font-semibold ${evidenceImages.length >= MAX_IMAGES ? 'text-[#E63946]' : 'text-text-gray'}`}>
                                 {evidenceImages.length} / {MAX_IMAGES}
                             </span>
@@ -587,7 +674,7 @@ const ReportIncidentPage = () => {
                             <button
                                 type="button"
                                 onClick={() => fileInputRef.current?.click()}
-                                className="flex w-full items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-primary-light bg-bg-soft py-5 text-[13px] font-semibold text-primary-dark transition hover:border-primary-medium hover:bg-white"
+                                className="flex w-full items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-primary-medium/35 bg-primary-light/10 py-5 text-[13px] font-semibold text-primary-dark transition hover:border-primary-medium hover:bg-white hover:shadow-sm"
                             >
                                 <ImagePlus size={16} className="text-primary" />
                                 {evidenceImages.length === 0 ? 'Upload Evidence Images' : 'Add Another Image'}
@@ -599,41 +686,49 @@ const ReportIncidentPage = () => {
                         </span>
                     </div>
 
-                    <label className="flex flex-col gap-2 md:col-span-2">
-                        <span className="text-[12px] font-semibold uppercase tracking-[0.14em] text-text-gray">Notes (optional)</span>
+                    <label className="mt-5 flex flex-col gap-2">
+                        <FieldLabel>Notes (optional)</FieldLabel>
                         <textarea
                             rows={3}
                             value={formData.notes}
                             onChange={handleChange('notes')}
                             placeholder="Any additional context for investigators."
-                            className="resize-y rounded-2xl border border-border-light bg-bg-soft px-4 py-3 text-[14px] text-primary-dark outline-none transition focus:border-primary-medium focus:bg-white"
+                            className={`${inputClass} resize-y`}
                         />
                     </label>
-                </div>
+                    </FormSection>
 
                 {error && (
-                    <div className="mt-5 rounded-xl border border-[#E63946]/30 bg-[#fff5f5] px-4 py-3 text-[13px] text-[#a4161a]">
+                    <div className="rounded-2xl border border-[#E63946]/35 bg-[#fff5f5] px-4 py-3.5 text-[13px] text-[#a4161a] shadow-sm">
                         {error}
                     </div>
                 )}
 
                 {success && (
-                    <div className="mt-5 rounded-xl border border-[#2b8a3e]/30 bg-[#ebfbee] px-4 py-3 text-[13px] text-[#2b8a3e]">
+                    <div className="rounded-2xl border border-[#2b8a3e]/35 bg-[#ebfbee] px-4 py-3.5 text-[13px] font-medium text-[#2b8a3e] shadow-sm">
                         {success}
                     </div>
                 )}
 
-                <div className="mt-6 flex justify-end">
+                <div className="sticky bottom-0 z-[1] flex w-full flex-col gap-3 rounded-[28px] border border-border-light bg-white/95 p-5 shadow-[0_-8px_32px_rgba(23,54,43,0.08)] backdrop-blur-sm sm:flex-row sm:items-center sm:justify-between">
+                    <p className="text-[12px] text-text-gray">
+                        {submitting
+                            ? 'Submitting your report…'
+                            : canSubmit
+                              ? 'Ready to submit. After a successful save you will be taken back to your incident list.'
+                              : 'Complete all required fields (marked with *) to enable submission.'}
+                    </p>
                     <button
                         type="submit"
                         disabled={!canSubmit}
-                        className="inline-flex items-center gap-2 rounded-2xl bg-primary-dark px-5 py-3 text-[13px] font-semibold text-white transition hover:bg-black disabled:cursor-not-allowed disabled:opacity-60"
+                        className="inline-flex min-h-[48px] items-center justify-center gap-2 rounded-2xl bg-primary-dark px-8 py-3.5 text-[14px] font-semibold text-white shadow-md transition hover:bg-black hover:shadow-lg disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-none"
                     >
-                        {submitting ? <LoaderCircle size={15} className="animate-spin" /> : <Send size={14} />}
-                        {submitting ? 'Submitting...' : 'Submit Incident'}
+                        {submitting ? <LoaderCircle size={18} className="animate-spin" /> : <Send size={17} />}
+                        {submitting ? 'Submitting…' : 'Submit incident report'}
                     </button>
                 </div>
             </form>
+            </div>
         </div>
     );
 };

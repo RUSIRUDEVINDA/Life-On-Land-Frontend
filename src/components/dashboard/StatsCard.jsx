@@ -16,7 +16,9 @@ const StatsCard = ({ title, value, unit, icon: Icon, trend, trendColor, isDark =
                 {unit && <span className="text-sm pl-1">{unit}</span>}
             </div>
             <div className="text-[10px]">
-                <span className={`inline-flex items-center gap-1 ${trendColor || (isDark ? 'text-primary-medium' : 'text-[#868e96]')}`}>
+                <span
+                    className={`inline-flex items-center gap-1 ${trendColor || (isDark ? 'text-white/90' : 'text-[#868e96]')}`}
+                >
                     {trend.includes('+') || trend.includes('Active') ? <ArrowUpRight size={10} /> : null}
                     {trend}
                 </span>

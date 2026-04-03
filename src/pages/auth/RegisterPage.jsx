@@ -19,6 +19,7 @@ const RegisterPage = () => {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
+    const [role, setRole] = useState('RANGER');
     const [submitting, setSubmitting] = useState(false);
     const [error, setError] = useState('');
 
@@ -42,6 +43,7 @@ const RegisterPage = () => {
                     phone: phone.trim(),
                     email: email.trim(),
                     password,
+                    role,
                 }),
             });
 
@@ -74,7 +76,7 @@ const RegisterPage = () => {
 
     return (
         <div className="relative min-h-screen flex items-center justify-center bg-bg-soft overflow-hidden">
-            <div className="relative z-10 w-full max-w-[460px] p-12 bg-white rounded-[24px] shadow-[0_20px_40px_rgba(23,54,43,0.08)] border border-primary-medium/20">
+            <div className="relative z-10 w-full max-w-115 p-12 bg-white rounded-3xl shadow-[0_20px_40px_rgba(23,54,43,0.08)] border border-primary-medium/20">
                 <div className="text-center mb-9">
                     <h2 className="text-[32px] font-bold text-primary-dark mb-3 tracking-tighter">Create Account</h2>
                     <p className="text-text-gray text-[15px]">Join EcoTrack and make an impact</p>
@@ -121,6 +123,20 @@ const RegisterPage = () => {
                     </div>
 
                     <div className="flex flex-col gap-2">
+                        <label htmlFor="role" className="text-sm font-semibold text-primary">Role</label>
+                        <select
+                            id="role"
+                            className="px-5 py-4 bg-bg-soft border border-border-light rounded-xl text-[15px] transition-all duration-300 focus:bg-white focus:border-primary-medium focus:ring-4 focus:ring-primary-medium/20 outline-none"
+                            value={role}
+                            onChange={(e) => setRole(e.target.value)}
+                            required
+                        >
+                            <option value="RANGER">Ranger</option>
+                            <option value="ADMIN">Admin</option>
+                        </select>
+                    </div>
+
+                    <div className="flex flex-col gap-2">
                         <label htmlFor="password" className="text-sm font-semibold text-primary">Password</label>
                         <input
                             type="password"
@@ -163,9 +179,9 @@ const RegisterPage = () => {
             </div>
 
             <div className="absolute inset-0 pointer-events-none z-0">
-                <div className="absolute rounded-full w-[400px] h-[400px] bg-primary-medium opacity-25 -top-[150px] -right-[100px] blur-[60px]"></div>
-                <div className="absolute rounded-full w-[500px] h-[500px] bg-primary-light opacity-30 -bottom-[200px] -left-[150px] blur-[80px]"></div>
-                <div className="absolute rounded-full w-[250px] h-[250px] bg-primary-dark opacity-[0.08] bottom-[30%] right-[20%] blur-[40px]"></div>
+                <div className="absolute rounded-full w-100 h-100 bg-primary-medium opacity-25 -top-37.5 -right-25 blur-[60px]"></div>
+                <div className="absolute rounded-full w-125 h-125 bg-primary-light opacity-30 -bottom-50 -left-37.5 blur-[80px]"></div>
+                <div className="absolute rounded-full w-62.5 h-62.5 bg-primary-dark opacity-[0.08] bottom-[30%] right-[20%] blur-2xl"></div>
             </div>
         </div>
     );

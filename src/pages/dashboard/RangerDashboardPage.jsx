@@ -294,24 +294,24 @@ const RangerDashboardPage = () => {
                             <div className="rounded-[24px] border border-border-light bg-white p-5 shadow-premium">
                                 <h2 className="text-[16px] font-semibold text-primary-dark">Quick Actions</h2>
                                 <div className="mt-3 grid gap-2 text-[13px] font-semibold">
-                                    <Link
-                                        to="/dashboard/incidents/report"
-                                        className="rounded-xl border border-border-light bg-bg-soft px-4 py-3 text-primary-dark transition hover:bg-white"
-                                    >
-                                        Report New Incident
-                                    </Link>
-                                    <Link
-                                        to="/dashboard/patrols"
-                                        className="rounded-xl border border-border-light bg-bg-soft px-4 py-3 text-primary-dark transition hover:bg-white"
-                                    >
-                                        View Assigned Patrols
-                                    </Link>
-                                    <Link
-                                        to="/dashboard/movements"
-                                        className="rounded-xl border border-border-light bg-bg-soft px-4 py-3 text-primary-dark transition hover:bg-white"
-                                    >
-                                        Open Animal Movements
-                                    </Link>
+                                <Link
+                                    to="/dashboard/incidents/report"
+                                    className="rounded-xl border border-border-light bg-bg-soft px-4 py-3 text-primary-dark transition hover:bg-white"
+                                >
+                                    Report New Incident
+                                </Link>
+                                <Link
+                                    to="/dashboard/patrols"
+                                    className="rounded-xl border border-border-light bg-bg-soft px-4 py-3 text-primary-dark transition hover:bg-white"
+                                >
+                                    View Assigned Patrols
+                                </Link>
+                                <Link
+                                    to="/dashboard/movements"
+                                    className="rounded-xl border border-border-light bg-bg-soft px-4 py-3 text-primary-dark transition hover:bg-white"
+                                >
+                                    Open Animal Movements
+                                </Link>
                                     <div className="mt-2 inline-flex items-center gap-2 text-[12px] text-[#2b8a3e]">
                                         <Leaf size={14} />
                                         Keep disturbance low and maintain silent patrol zones near wildlife hotspots.

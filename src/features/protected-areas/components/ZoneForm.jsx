@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import GeometryDrawEditor from './GeometryDrawEditor';
-import { geometriesOverlap, geometryAreaHa, parseGeometryInput } from '../utils/geometryMetrics';
+import { geometriesOverlap, geometryAreaHa, parseGeometryInput, toFeature } from '../utils/geometryMetrics';
 
 const zoneTypes = ['CORE', 'BUFFER', 'EDGE', 'CORRIDOR'];
 
@@ -72,12 +72,19 @@ const ZoneForm = ({
 
     let geometry = null;
     if (geometryText.trim()) {
-      try {
-        geometry = JSON.parse(geometryText);
-      } catch {
+      const parsedGeometry = parseGeometryInput(geometryText);
+      if (!parsedGeometry) {
         setError('Zone geometry must be valid JSON.');
         return;
       }
+
+      const geometryFeature = toFeature(parsedGeometry);
+      if (!geometryFeature?.geometry) {
+        setError('Zone geometry must include a valid GeoJSON Polygon or MultiPolygon.');
+        return;
+      }
+
+      geometry = geometryFeature.geometry;
     }
 
     onSubmit({

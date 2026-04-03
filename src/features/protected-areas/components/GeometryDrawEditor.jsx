@@ -21,8 +21,39 @@ const parseGeometry = (value) => {
   return null;
 };
 
+const pickPolygonFeature = (collection) => {
+  if (!collection || !Array.isArray(collection.features)) return null;
+
+  return (
+    collection.features.find(
+      (feature) =>
+        feature?.type === 'Feature' &&
+        (feature?.geometry?.type === 'Polygon' || feature?.geometry?.type === 'MultiPolygon')
+    ) || null
+  );
+};
+
+const pickPolygonGeometry = (collection) => {
+  if (!collection || !Array.isArray(collection.geometries)) return null;
+
+  return (
+    collection.geometries.find((geometry) => geometry?.type === 'Polygon' || geometry?.type === 'MultiPolygon') || null
+  );
+};
+
 const geometryToFeature = (geometry) => {
   if (!geometry) return null;
+
+  if (geometry.type === 'FeatureCollection') {
+    return pickPolygonFeature(geometry);
+  }
+
+  if (geometry.type === 'GeometryCollection') {
+    const polygonGeometry = pickPolygonGeometry(geometry);
+    if (!polygonGeometry) return null;
+    return { type: 'Feature', geometry: polygonGeometry, properties: {} };
+  }
+
   if (geometry.type === 'Feature') return geometry;
   if (geometry.type === 'Polygon' || geometry.type === 'MultiPolygon') {
     return { type: 'Feature', geometry, properties: {} };
@@ -32,10 +63,10 @@ const geometryToFeature = (geometry) => {
 
 const contextStyle = {
   color: '#1f6f54',
-  weight: 2,
-  dashArray: '7 6',
+  weight: 2.5,
+  dashArray: '6 6',
   fillColor: '#8fb8a2',
-  fillOpacity: 0.06,
+  fillOpacity: 0,
   opacity: 0.95,
 };
 

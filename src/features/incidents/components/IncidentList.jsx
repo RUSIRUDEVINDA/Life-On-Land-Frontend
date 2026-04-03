@@ -36,6 +36,8 @@ const IncidentList = ({ incidents, selectedIncidentId, onSelect }) => {
         <div className="flex flex-col gap-4">
             {incidents.map((incident) => {
                 const isSelected = incident._id === selectedIncidentId;
+                const statusKey = String(incident.status || 'UNVERIFIED').toUpperCase();
+                const statusClass = statusClasses[statusKey] || statusClasses.UNVERIFIED;
 
                 return (
                     <button
@@ -70,12 +72,10 @@ const IncidentList = ({ incidents, selectedIncidentId, onSelect }) => {
                                         </span>
                                         <span
                                             className={`rounded-full px-2.5 py-1 text-[10px] font-semibold ${
-                                                isSelected
-                                                    ? 'bg-white/10 text-white'
-                                                    : statusClasses[incident.status]
+                                                isSelected ? 'bg-white/10 text-white' : statusClass
                                             }`}
                                         >
-                                            {incident.status.replaceAll('_', ' ')}
+                                            {statusKey.replaceAll('_', ' ')}
                                         </span>
                                         <span className={`text-[11px] font-semibold ${isSelected ? 'text-white/75' : 'text-text-gray'}`}>
                                             {incident.type.replaceAll('_', ' ')}

@@ -70,9 +70,17 @@ const requestJson = async (path, options = {}) => {
     return payload;
 };
 
-export const fetchAlerts = async () => {
+/** Backend validators often cap page size (e.g. max 50); higher values return 400. */
+const clampAlertPageLimit = (value) => {
+    const n = Number(value);
+    const raw = Number.isFinite(n) && n > 0 ? Math.floor(n) : 50;
+    return Math.min(50, Math.max(1, raw));
+};
+
+export const fetchAlerts = async (options = {}) => {
+    const limit = clampAlertPageLimit(options.limit);
     try {
-        const payload = await requestJson('/api/alerts?page=1&limit=50');
+        const payload = await requestJson(`/api/alerts?page=1&limit=${limit}`);
         if (Array.isArray(payload)) return payload;
         if (payload?.docs) return payload.docs;
         if (payload?.data) return payload.data;

@@ -1,12 +1,39 @@
 import React from 'react';
 import { Zap, Activity, Clock } from 'lucide-react';
 
-const MovementStats = () => {
+const MovementStats = ({ movements = [], summary }) => {
+    const totalLogs = summary?.pagination?.total || 0;
+    const activeTrackers = new Set(movements.map(m => m.tagId)).size;
+
     const stats = [
-        { label: 'Active Trackers', val: '28', change: '+4 Today', icon: <Zap size={16} />, color: 'primary' },
-        { label: 'Total Logs', val: '12,450', change: 'Last 24h', icon: <Activity size={16} />, color: 'primary' },
-        { label: 'High Risk Alert', val: '3', change: 'Action Required', icon: <Zap size={16} />, color: 'rose' },
-        { label: 'System Health', val: 'Optimal', change: 'Stable Latency', icon: <Clock size={16} />, color: 'emerald' }
+        {
+            label: 'Active Trackers',
+            val: activeTrackers || '0',
+            change: activeTrackers > 0 ? '+ Live' : 'No Activity',
+            icon: <Zap size={16} />,
+            color: 'primary'
+        },
+        {
+            label: 'Total Logs',
+            val: totalLogs.toLocaleString(),
+            change: 'Last 24h',
+            icon: <Activity size={16} />,
+            color: 'primary'
+        },
+        {
+            label: 'High Risk Alert',
+            val: '3',
+            change: 'Action Required',
+            icon: <Zap size={16} />,
+            color: 'rose'
+        },
+        {
+            label: 'System Health',
+            val: 'Optimal',
+            change: 'Stable Latency',
+            icon: <Clock size={16} />,
+            color: 'emerald'
+        }
     ];
 
     return (

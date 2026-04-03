@@ -17,9 +17,41 @@ export const parseGeometryInput = (value) => {
   return value;
 };
 
+const getPolygonFeatureFromCollection = (collection) => {
+  if (!collection || !Array.isArray(collection.features)) return null;
+
+  return (
+    collection.features.find(
+      (feature) =>
+        feature?.type === 'Feature' &&
+        (feature?.geometry?.type === 'Polygon' || feature?.geometry?.type === 'MultiPolygon')
+    ) || null
+  );
+};
+
+const getPolygonGeometryFromGeometryCollection = (collection) => {
+  if (!collection || !Array.isArray(collection.geometries)) return null;
+
+  return (
+    collection.geometries.find((geometry) => geometry?.type === 'Polygon' || geometry?.type === 'MultiPolygon') || null
+  );
+};
+
 export const toFeature = (value) => {
   const parsed = parseGeometryInput(value);
   if (!parsed) return null;
+
+  if (parsed.type === 'FeatureCollection') {
+    const polygonFeature = getPolygonFeatureFromCollection(parsed);
+    if (!polygonFeature) return null;
+    return polygonFeature;
+  }
+
+  if (parsed.type === 'GeometryCollection') {
+    const polygonGeometry = getPolygonGeometryFromGeometryCollection(parsed);
+    if (!polygonGeometry) return null;
+    return { type: 'Feature', properties: {}, geometry: polygonGeometry };
+  }
 
   if (parsed.type === 'Feature') return parsed;
   if (parsed.type === 'Polygon' || parsed.type === 'MultiPolygon') {
