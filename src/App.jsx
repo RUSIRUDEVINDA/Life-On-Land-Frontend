@@ -18,6 +18,7 @@ import AlertsPage from './pages/alerts/AlertsPage';
 import ProtectedAreasSectionPage from './pages/protected-areas/ProtectedAreasSectionPage';
 import ProtectedAreasPage from './pages/protected-areas/ProtectedAreasPage';
 import ProtectedAreasMapPage from './pages/protected-areas/ProtectedAreasMapPage';
+import ZonesPage from './pages/protected-areas/ZonesPage';
 import CreatePatrolPage from './pages/patrols/CreatePatrolPage';
 import PatrolDetailsPage from './pages/patrols/PatrolDetailsPage';
 
@@ -70,6 +71,7 @@ function App() {
                             <Route path="protected-areas" element={<ProtectedAreasSectionPage />}>
                                 <Route index element={<ProtectedAreasPage />} />
                                 <Route path="manage" element={<ProtectedAreasPage />} />
+                                <Route path="zones" element={<ZonesPage />} />
                                 <Route path="map" element={<ProtectedAreasMapPage />} />
                             </Route>
                             <Route path="patrols/create" element={<CreatePatrolPage />} />

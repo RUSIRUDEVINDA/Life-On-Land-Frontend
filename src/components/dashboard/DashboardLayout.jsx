@@ -20,6 +20,7 @@ const adminMenuItems = [
     { name: 'Map Tracking', path: '/dashboard/map-tracking', icon: <Map size={18} />, badge: 'Live' },
     { name: 'Risk Map', path: '/dashboard/risk-map', icon: <Map size={18} /> },
     { name: 'Protected Areas', path: '/dashboard/protected-areas', icon: <MapPin size={18} /> },
+    { name: 'Zones', path: '/dashboard/protected-areas/zones', icon: <MapPin size={18} /> },
     { name: 'Animals', path: '/dashboard/animals', icon: <Cat size={18} /> },
     { name: 'Movements', path: '/dashboard/movements', icon: <Activity size={18} /> },
     { name: 'Patrols', path: '/dashboard/patrols', icon: <ClipboardList size={18} /> },
@@ -86,7 +87,7 @@ const DashboardLayout = () => {
 
     return (
         <div className="flex h-screen w-full overflow-hidden bg-bg-soft">
-            <aside className="w-[220px] bg-white border-r border-border-light flex flex-col z-10 transition-all duration-300">
+            <aside className="w-55 bg-white border-r border-border-light flex flex-col z-10 transition-all duration-300">
                 <div className="p-5 px-4 flex items-center gap-2">
                     <div className="w-6 h-6 bg-primary-dark rounded-md flex items-center justify-center text-[12px] text-white">🌿</div>
                     <h2 className="text-lg font-bold text-primary-dark m-0 tracking-tight">EcoTrack</h2>
@@ -139,7 +140,7 @@ const DashboardLayout = () => {
             </aside>
 
             <div className="flex-1 flex flex-col h-screen overflow-hidden bg-bg-soft">
-                <header className="h-14 bg-transparent flex justify-end items-center px-6 z-[5]">
+                <header className="h-14 bg-transparent flex justify-end items-center px-6 z-5">
                     <div className="flex items-center gap-3">
                         <Link
                             to="/dashboard/profile"
@@ -148,7 +149,7 @@ const DashboardLayout = () => {
                         >
                             <div className="flex flex-col items-end">
                                 <span className="text-[12px] font-semibold text-primary-dark">{displayName}</span>
-                                <span className="text-[10px] text-[#868e96]">{displayEmail}</span>
+                                <span className="text-[10px] text-text-gray">{displayEmail}</span>
                             </div>
                             <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border-2 border-white bg-primary-light text-[11px] font-bold text-primary-dark shadow-[0_1px_4px_rgba(0,0,0,0.04)] transition group-hover:ring-2 group-hover:ring-primary-medium/25">
                                 {initials || <UserRound size={14} />}

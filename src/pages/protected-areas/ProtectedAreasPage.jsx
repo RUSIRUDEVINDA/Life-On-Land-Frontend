@@ -99,6 +99,12 @@ const ProtectedAreasPage = () => {
             >
               View Map
             </Link>
+            <Link
+              to="/dashboard/protected-areas/zones"
+              className="rounded-xl border border-border-light bg-white px-4 py-2 text-[12px] font-semibold text-primary-dark transition hover:bg-bg-soft"
+            >
+              Manage Zones
+            </Link>
             <button
               type="button"
               onClick={() => {
