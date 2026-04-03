@@ -1,7 +1,14 @@
 import React from 'react';
 import { Activity, Clock, MapPin } from 'lucide-react';
 
-const ZoneDensity = ({ summary }) => {
+const ZoneDensity = ({ summary, zoneLookup = {}, totalZones = 15 }) => {
+    const data = summary?.data || [];
+    const totalCount = summary?.pagination?.total || 0;
+    const activeSectors = data.length;
+
+    // Last 24 hours = 1440 minutes
+    const ingressRate = totalCount > 0 ? (totalCount / 1440).toFixed(1) : '0.0';
+
     return (
         <div className="flex flex-col gap-6">
             <div className="bg-primary-dark text-white rounded-[24px] p-6 shadow-elevated relative overflow-hidden group">
@@ -21,14 +28,14 @@ const ZoneDensity = ({ summary }) => {
                                 <div className="w-8 h-8 bg-white/5 rounded-lg flex items-center justify-center text-primary-medium"><Clock size={14} /></div>
                                 <span className="text-[13px] font-bold text-white/80">Ingress Rate</span>
                             </div>
-                            <span className="text-[13px] font-black text-primary-light">2.4/min</span>
+                            <span className="text-[13px] font-black text-primary-light">{ingressRate}/min</span>
                         </div>
                         <div className="flex justify-between items-center">
                             <div className="flex gap-2.5 items-center">
                                 <div className="w-8 h-8 bg-white/5 rounded-lg flex items-center justify-center text-primary-medium"><MapPin size={14} /></div>
                                 <span className="text-[13px] font-bold text-white/80">Active Sector</span>
                             </div>
-                            <span className="text-[13px] font-black">12 / 15</span>
+                            <span className="text-[13px] font-black">{activeSectors} / {totalZones}</span>
                         </div>
                     </div>
                 </div>
@@ -41,16 +48,18 @@ const ZoneDensity = ({ summary }) => {
                     <span className="text-[10px] text-[#adb5bd] font-bold uppercase tracking-widest">Log Distribution</span>
                 </div>
                 <div className="flex flex-col gap-4">
-                    {summary?.data?.map((zone, idx) => (
+                    {data.map((zone, idx) => (
                         <div key={idx} className="flex flex-col gap-2 group">
                             <div className="flex justify-between items-center text-[12px]">
-                                <span className="font-bold text-primary-dark group-hover:text-primary transition-colors">{zone.zoneDetails?.name || zone._id}</span>
+                                <span className="font-bold text-primary-dark group-hover:text-primary transition-colors">
+                                    {zone.zoneDetails?.name || zoneLookup[zone._id] || zone._id || 'Unknown Zone'}
+                                </span>
                                 <span className="text-[10px] font-black bg-bg-soft px-1.5 py-0.5 rounded-md text-text-gray">{zone.count}</span>
                             </div>
                             <div className="w-full h-1.5 bg-bg-soft rounded-full overflow-hidden">
                                 <div
                                     className="h-full bg-gradient-to-r from-primary to-primary-medium rounded-full transition-all duration-1000 ease-out"
-                                    style={{ width: `${Math.min(100, (zone.count / 100) * 100)}%` }}
+                                    style={{ width: `${Math.min(100, (zone.count / (totalCount || 100)) * 100)}%` }}
                                 ></div>
                             </div>
                         </div>
