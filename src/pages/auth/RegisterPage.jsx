@@ -19,6 +19,7 @@ const RegisterPage = () => {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
+    const [role, setRole] = useState('RANGER');
     const [submitting, setSubmitting] = useState(false);
     const [error, setError] = useState('');
 
@@ -42,6 +43,7 @@ const RegisterPage = () => {
                     phone: phone.trim(),
                     email: email.trim(),
                     password,
+                    role,
                 }),
             });
 
@@ -118,6 +120,20 @@ const RegisterPage = () => {
                             onChange={(e) => setEmail(e.target.value)}
                             required
                         />
+                    </div>
+
+                    <div className="flex flex-col gap-2">
+                        <label htmlFor="role" className="text-sm font-semibold text-primary">Role</label>
+                        <select
+                            id="role"
+                            className="px-5 py-4 bg-bg-soft border border-border-light rounded-xl text-[15px] transition-all duration-300 focus:bg-white focus:border-primary-medium focus:ring-4 focus:ring-primary-medium/20 outline-none"
+                            value={role}
+                            onChange={(e) => setRole(e.target.value)}
+                            required
+                        >
+                            <option value="RANGER">Ranger</option>
+                            <option value="ADMIN">Admin</option>
+                        </select>
                     </div>
 
                     <div className="flex flex-col gap-2">
