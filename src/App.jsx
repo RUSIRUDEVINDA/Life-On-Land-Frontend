@@ -18,6 +18,10 @@ import AlertsPage from './pages/alerts/AlertsPage';
 import ProtectedAreasSectionPage from './pages/protected-areas/ProtectedAreasSectionPage';
 import ProtectedAreasPage from './pages/protected-areas/ProtectedAreasPage';
 import ProtectedAreasMapPage from './pages/protected-areas/ProtectedAreasMapPage';
+<<<<<<< HEAD
+=======
+import ZonesPage from './pages/protected-areas/ZonesPage';
+>>>>>>> 8110fbba0d7d511ae1ab61f1aca30a89a6f79e60
 import CreatePatrolPage from './pages/patrols/CreatePatrolPage';
 import PatrolDetailsPage from './pages/patrols/PatrolDetailsPage';
 
@@ -64,13 +68,18 @@ function App() {
                             <Route path="admin" element={<DashboardPage />} />
                             <Route path="incidents" element={<IncidentsPage />} />
                             <Route path="risk-map" element={<RiskMapPage />} />
-                            <Route path="map-tracking" element={<MapTrackingPage />} />
                             <Route path="animals" element={<AnimalsPage />} />
                             <Route path="users" element={<UsersPage />} />
                             <Route path="alerts" element={<AlertsPage />} />
                             <Route path="protected-areas" element={<ProtectedAreasSectionPage />}>
+<<<<<<< HEAD
                                 <Route index element={<Navigate to="manage" replace />} />
                                 <Route path="manage" element={<ProtectedAreasPage />} />
+=======
+                                <Route index element={<ProtectedAreasPage />} />
+                                <Route path="manage" element={<ProtectedAreasPage />} />
+                                <Route path="zones" element={<ZonesPage />} />
+>>>>>>> 8110fbba0d7d511ae1ab61f1aca30a89a6f79e60
                                 <Route path="map" element={<ProtectedAreasMapPage />} />
                             </Route>
                             <Route path="patrols/create" element={<CreatePatrolPage />} />
@@ -88,6 +97,7 @@ function App() {
                             element={<RoleRoute allowedRoles={['ADMIN', 'RANGER']} />}
                         >
                             <Route path="incidents/report" element={<ReportIncidentPage />} />
+                            <Route path="map-tracking" element={<MapTrackingPage />} />
                             <Route path="movements" element={<MovementsPage />} />
                             <Route path="patrols" element={<PatrolsPage />} />
                             <Route path="patrols/:id" element={<PatrolDetailsPage />} />

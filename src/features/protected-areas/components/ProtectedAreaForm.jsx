@@ -110,9 +110,24 @@ const ProtectedAreaForm = ({
       return;
     }
 
+    if (geometry?.type === 'Feature') {
+      geometry = geometry.geometry || null;
+    }
+
+    if (geometry?.type === 'MultiPolygon') {
+      setError('Geometry must be a GeoJSON Polygon (MultiPolygon is not supported).');
+      return;
+    }
+
+    if (geometry && geometry.type !== 'Polygon') {
+      setError('Geometry must be a GeoJSON Polygon.');
+      return;
+    }
+
     onSubmit({
       name: name.trim(),
       areaType: normalizeAreaType(areaType),
+      areaType: normalizeTypeValue(areaType),
       district: district.trim(),
       description: description.trim(),
       status: status.trim(),
@@ -122,7 +137,7 @@ const ProtectedAreaForm = ({
   };
 
   return (
-    <div className="fixed inset-0 z-[1100] flex items-center justify-center bg-black/45 p-3 sm:p-6" onClick={onCancel}>
+    <div className="fixed inset-0 z-1100 flex items-center justify-center bg-black/45 p-3 sm:p-6" onClick={onCancel}>
       <div
         className="max-h-[92vh] w-full max-w-6xl overflow-hidden rounded-2xl border border-border-light bg-white shadow-2xl"
         onClick={(event) => event.stopPropagation()}
@@ -163,9 +178,9 @@ const ProtectedAreaForm = ({
                 className="w-full rounded-xl border border-border-light bg-white px-4 py-2.5 text-[14px] text-primary-dark outline-none transition focus:border-primary-medium"
               >
                 <option value="">Select an option</option>
-                {areaTypes.map((item) => (
-                  <option key={item.value} value={item.value}>
-                    {item.label}
+                {areaTypes.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
                   </option>
                 ))}
               </select>

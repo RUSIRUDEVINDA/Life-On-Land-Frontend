@@ -47,6 +47,40 @@ const normalizeZoneType = (value) => {
   return 'EDGE';
 };
 
+const normalizeAreaTypeInput = (value) => {
+  const normalized = String(value || '').trim().toUpperCase().replace(/\s+/g, '_');
+  return normalized || '';
+};
+
+const normalizeStatusInput = (value) => {
+  const normalized = String(value || '').trim().toUpperCase();
+  if (normalized === 'INACTIVE') return 'DELETED';
+  if (normalized === 'ACTIVE' || normalized === 'DELETED') return normalized;
+  return '';
+};
+
+const toAreaPayload = (input) => {
+  if (!input || typeof input !== 'object') return input;
+
+  const payload = { ...input };
+  const normalizedType = normalizeAreaTypeInput(payload.type || payload.areaType);
+  if (normalizedType) payload.type = normalizedType;
+  delete payload.areaType;
+
+  const normalizedStatus = normalizeStatusInput(payload.status);
+  if (normalizedStatus) {
+    payload.status = normalizedStatus;
+  } else {
+    delete payload.status;
+  }
+
+  if (payload.geometry?.type === 'Feature') {
+    payload.geometry = payload.geometry.geometry || null;
+  }
+
+  return payload;
+};
+
 const toFeatureGeometry = (value) => {
   const parsedValue = parseGeometryValue(value);
   if (!parsedValue) return null;
@@ -204,8 +238,12 @@ export const protectedAreaService = {
 
   async createProtectedArea(input) {
     try {
+<<<<<<< HEAD
       const payloadToSend = buildAreaPayload(input);
       const response = await apiClient.post('/api/protected-areas', payloadToSend);
+=======
+      const response = await apiClient.post('/api/protected-areas', toAreaPayload(input));
+>>>>>>> 8110fbba0d7d511ae1ab61f1aca30a89a6f79e60
       const payload = unwrap(response.data);
       const item = payload?.protectedArea || payload?.area || payload?.data || payload;
       return normalizeArea(item);
@@ -216,8 +254,12 @@ export const protectedAreaService = {
 
   async updateProtectedArea(areaId, input) {
     try {
+<<<<<<< HEAD
       const payloadToSend = buildAreaPayload(input);
       const response = await apiClient.put(`/api/protected-areas/${areaId}`, payloadToSend);
+=======
+      const response = await apiClient.put(`/api/protected-areas/${areaId}`, toAreaPayload(input));
+>>>>>>> 8110fbba0d7d511ae1ab61f1aca30a89a6f79e60
       const payload = unwrap(response.data);
       const item = payload?.protectedArea || payload?.area || payload?.data || payload;
       return normalizeArea(item);
