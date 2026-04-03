@@ -237,6 +237,16 @@ const mergeReporterNamesFromUserDirectory = async (incidents) => {
     }
 };
 
+/** Uppercase status for UI/filters; map common backend aliases to RESOLVED. */
+const normalizeIncidentStatus = (raw) => {
+    const u = String(raw ?? 'UNVERIFIED')
+        .trim()
+        .toUpperCase()
+        .replace(/\s+/g, '_');
+    if (u === 'COMPLETED' || u === 'CLOSED') return 'RESOLVED';
+    return u || 'UNVERIFIED';
+};
+
 const normalizeIncident = (item) => {
     const zone = normalizeIncidentReference(item.zoneId || item.zone, 'Unknown Zone');
     const protectedArea = normalizeIncidentReference(
@@ -251,8 +261,8 @@ const normalizeIncident = (item) => {
         description: item?.description || '',
         zone,
         protectedArea,
-        severity: item?.severity || 'LOW',
-        status: item?.status || 'UNVERIFIED',
+        severity: String(item?.severity || 'LOW').trim().toUpperCase() || 'LOW',
+        status: normalizeIncidentStatus(item?.status),
         reportedBy,
         incidentDate: item?.incidentDate || item?.createdAt || new Date().toISOString(),
         evidence: Array.isArray(item?.evidence) ? item.evidence : [],
@@ -356,6 +366,23 @@ export const fetchZonesByProtectedArea = async (protectedAreaId) => {
     const payload = await requestJson(`/api/protected-areas/${protectedAreaId}/zones`);
     const items = pickZonesArray(payload);
     return items.map(normalizeEntity).filter((item) => item.id);
+};
+
+/**
+ * First page only, sorted newest-first (by createdAt). For dashboards and previews.
+ * Caps limit to avoid backends that reject large page sizes.
+ */
+export const fetchRecentIncidents = async (limit = 15) => {
+    const cap = Math.min(Math.max(1, Number(limit) || 15), 50);
+    const payload = await requestJson(`/api/incidents?page=1&limit=${cap}`);
+    const items = pickIncidentArray(payload);
+    const normalized = items.map(normalizeIncident).filter((item) => item._id);
+    const merged = await mergeReporterNamesFromUserDirectory(normalized);
+    return merged.sort((a, b) => {
+        const ta = new Date(b.createdAt).getTime();
+        const tb = new Date(a.createdAt).getTime();
+        return ta - tb;
+    });
 };
 
 export const fetchIncidents = async () => {

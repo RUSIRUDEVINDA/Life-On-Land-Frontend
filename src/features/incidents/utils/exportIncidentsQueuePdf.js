@@ -34,11 +34,13 @@ export const exportIncidentsQueueToPdf = (incidents, filterSummary = {}) => {
         };
     }
 
-    const doc = new jsPDF({
-        orientation: 'landscape',
-        unit: 'mm',
-        format: 'a4',
-    });
+    let doc;
+    try {
+        doc = new jsPDF({
+            orientation: 'landscape',
+            unit: 'mm',
+            format: 'a4',
+        });
 
     const pageWidth = doc.internal.pageSize.getWidth();
     const pageHeight = doc.internal.pageSize.getHeight();
@@ -131,8 +133,15 @@ export const exportIncidentsQueueToPdf = (incidents, filterSummary = {}) => {
         },
     });
 
-    const day = new Date().toISOString().slice(0, 10);
-    doc.save(`EcoTrack-incident-queue-${day}.pdf`);
+        const day = new Date().toISOString().slice(0, 10);
+        doc.save(`EcoTrack-incident-queue-${day}.pdf`);
 
-    return { ok: true };
+        return { ok: true };
+    } catch (e) {
+        console.error('exportIncidentsQueueToPdf', e);
+        return {
+            ok: false,
+            message: 'Could not build the PDF document. Check the browser console for details.',
+        };
+    }
 };
