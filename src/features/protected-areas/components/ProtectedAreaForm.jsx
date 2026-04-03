@@ -1,6 +1,12 @@
-import { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 
-const areaTypes = ['NATIONAL PARK', 'FOREST RESERVE', 'WILDLIFE SANCTUARY', 'MARINE PARK', 'OTHER'];
+const areaTypes = [
+  { value: 'NATIONAL_PARK', label: 'National Park' },
+  { value: 'FOREST_RESERVE', label: 'Forest Reserve' },
+  { value: 'SAFARI_AREA', label: 'Safari Area' },
+];
+
+const normalizeTypeValue = (value) => String(value || '').trim().toUpperCase().replace(/\s+/g, '_');
 
 const geometryPlaceholder = `{
   "type": "Polygon",
@@ -21,40 +27,30 @@ const ProtectedAreaForm = ({
   onCancel,
   isSubmitting = false,
 }) => {
-  const [name, setName] = useState('');
-  const [areaType, setAreaType] = useState('');
-  const [district, setDistrict] = useState('');
-  const [description, setDescription] = useState('');
-  const [areaSize, setAreaSize] = useState('');
-  const [status, setStatus] = useState('ACTIVE');
-  const [geometryText, setGeometryText] = useState('');
+  const [prevInitialData, setPrevInitialData] = useState(initialData);
+
+  const [name, setName] = useState(initialData?.name || '');
+  const [areaType, setAreaType] = useState(normalizeTypeValue(initialData?.areaType || initialData?.type || ''));
+  const [district, setDistrict] = useState(initialData?.district || '');
+  const [description, setDescription] = useState(initialData?.description || '');
+  const [areaSize, setAreaSize] = useState(initialData?.areaSize ? String(initialData.areaSize) : '');
+  const [status, setStatus] = useState(initialData?.status || 'ACTIVE');
+  const [geometryText, setGeometryText] = useState(initialData?.geometry ? JSON.stringify(initialData.geometry, null, 2) : '');
   const [geometryMode, setGeometryMode] = useState('manual');
   const [error, setError] = useState('');
 
-  useEffect(() => {
-    if (!initialData) {
-      setName('');
-      setAreaType('');
-      setDistrict('');
-      setDescription('');
-      setAreaSize('');
-      setStatus('ACTIVE');
-      setGeometryText('');
-      setGeometryMode('manual');
-      setError('');
-      return;
-    }
-
-    setName(initialData.name || '');
-    setAreaType(initialData.areaType || '');
-    setDistrict(initialData.district || '');
-    setDescription(initialData.description || '');
-    setAreaSize(initialData.areaSize ? String(initialData.areaSize) : '');
-    setStatus(initialData.status || 'ACTIVE');
-    setGeometryText(initialData.geometry ? JSON.stringify(initialData.geometry, null, 2) : '');
+  if (initialData !== prevInitialData) {
+    setPrevInitialData(initialData);
+    setName(initialData?.name || '');
+    setAreaType(normalizeTypeValue(initialData?.areaType || initialData?.type || ''));
+    setDistrict(initialData?.district || '');
+    setDescription(initialData?.description || '');
+    setAreaSize(initialData?.areaSize ? String(initialData.areaSize) : '');
+    setStatus(initialData?.status || 'ACTIVE');
+    setGeometryText(initialData?.geometry ? JSON.stringify(initialData.geometry, null, 2) : '');
     setGeometryMode('manual');
     setError('');
-  }, [initialData]);
+  }
 
   const handleSubmit = (event) => {
     event.preventDefault();
@@ -70,9 +66,23 @@ const ProtectedAreaForm = ({
       }
     }
 
+    if (geometry?.type === 'Feature') {
+      geometry = geometry.geometry || null;
+    }
+
+    if (geometry?.type === 'MultiPolygon') {
+      setError('Geometry must be a GeoJSON Polygon (MultiPolygon is not supported).');
+      return;
+    }
+
+    if (geometry && geometry.type !== 'Polygon') {
+      setError('Geometry must be a GeoJSON Polygon.');
+      return;
+    }
+
     onSubmit({
       name: name.trim(),
-      areaType: areaType.trim(),
+      areaType: normalizeTypeValue(areaType),
       district: district.trim(),
       description: description.trim(),
       status: status.trim(),
@@ -82,7 +92,7 @@ const ProtectedAreaForm = ({
   };
 
   return (
-    <div className="fixed inset-0 z-[1100] flex items-center justify-center bg-black/45 p-3 sm:p-6" onClick={onCancel}>
+    <div className="fixed inset-0 z-1100 flex items-center justify-center bg-black/45 p-3 sm:p-6" onClick={onCancel}>
       <div
         className="max-h-[92vh] w-full max-w-6xl overflow-hidden rounded-2xl border border-border-light bg-white shadow-2xl"
         onClick={(event) => event.stopPropagation()}
@@ -123,9 +133,9 @@ const ProtectedAreaForm = ({
                 className="w-full rounded-xl border border-border-light bg-white px-4 py-2.5 text-[14px] text-primary-dark outline-none transition focus:border-primary-medium"
               >
                 <option value="">Select an option</option>
-                {areaTypes.map((value) => (
-                  <option key={value} value={value}>
-                    {value}
+                {areaTypes.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
                   </option>
                 ))}
               </select>
@@ -175,7 +185,7 @@ const ProtectedAreaForm = ({
                 className="w-full rounded-xl border border-border-light bg-white px-4 py-2.5 text-[14px] text-primary-dark outline-none transition focus:border-primary-medium"
               >
                 <option value="ACTIVE">ACTIVE</option>
-                <option value="INACTIVE">INACTIVE</option>
+                <option value="DELETED">DELETED</option>
               </select>
             </label>
 
