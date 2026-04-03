@@ -16,6 +16,8 @@ import UsersPage from './pages/dashboard/UsersPage';
 import AnimalsPage from './pages/animals/AnimalsPage';
 import AlertsPage from './pages/alerts/AlertsPage';
 import ProtectedAreasSectionPage from './pages/protected-areas/ProtectedAreasSectionPage';
+import ProtectedAreasPage from './pages/protected-areas/ProtectedAreasPage';
+import ProtectedAreasMapPage from './pages/protected-areas/ProtectedAreasMapPage';
 import CreatePatrolPage from './pages/patrols/CreatePatrolPage';
 import PatrolDetailsPage from './pages/patrols/PatrolDetailsPage';
 
@@ -66,7 +68,11 @@ function App() {
                             <Route path="animals" element={<AnimalsPage />} />
                             <Route path="users" element={<UsersPage />} />
                             <Route path="alerts" element={<AlertsPage />} />
-                            <Route path="protected-areas" element={<ProtectedAreasSectionPage />} />
+                            <Route path="protected-areas" element={<ProtectedAreasSectionPage />}>
+                                <Route index element={<Navigate to="manage" replace />} />
+                                <Route path="manage" element={<ProtectedAreasPage />} />
+                                <Route path="map" element={<ProtectedAreasMapPage />} />
+                            </Route>
                             <Route path="patrols/create" element={<CreatePatrolPage />} />
                         </Route>
 

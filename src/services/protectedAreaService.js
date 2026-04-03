@@ -86,9 +86,85 @@ const normalizeZone = (item) => ({
   name: item?.name || 'Unnamed Zone',
   zoneType: normalizeZoneType(item?.zoneType || item?.type),
   areaSize: Number(item?.areaSize || item?.size || 0),
+  status: String(item?.status || '').trim().toUpperCase() || 'ACTIVE',
   geometry: toFeatureGeometry(item?.geometry || item?.geoJson || item?.polygon),
   raw: item,
 });
+
+const sanitizeNumber = (value) => {
+  if (value === '' || value === null || value === undefined) return undefined;
+  const numberValue = Number(value);
+  return Number.isFinite(numberValue) ? numberValue : undefined;
+};
+
+const normalizeAreaTypeEnum = (value) => {
+  const normalized = String(value || '')
+    .trim()
+    .toUpperCase()
+    .replace(/[\s-]+/g, '_');
+
+  if (normalized.includes('NATIONAL') && normalized.includes('PARK')) return 'NATIONAL_PARK';
+  if (normalized.includes('FOREST') && normalized.includes('RESERVE')) return 'FOREST_RESERVE';
+  if (normalized.includes('SAFARI')) return 'SAFARI_AREA';
+  if (normalized.includes('WILDLIFE') && normalized.includes('SANCTUARY')) return 'WILDLIFE_SANCTUARY';
+  if (normalized.includes('MARINE') && normalized.includes('PARK')) return 'MARINE_PARK';
+  if (normalized === 'OTHER') return 'OTHER';
+
+  return normalized;
+};
+
+const toBackendAreaType = (areaType) => {
+  if (areaType === 'NATIONAL_PARK') return 'NATIONAL_PARK';
+  if (areaType === 'FOREST_RESERVE') return 'FOREST_RESERVE';
+  if (areaType === 'SAFARI_AREA') return 'SAFARI_AREA';
+
+  // Backend enum currently supports only NATIONAL_PARK, FOREST_RESERVE, SAFARI_AREA.
+  // Keep user's chosen detailed areaType, but send a compatible base type for validation.
+  if (areaType === 'WILDLIFE_SANCTUARY') return 'SAFARI_AREA';
+  if (areaType === 'MARINE_PARK') return 'NATIONAL_PARK';
+  if (areaType === 'OTHER') return 'SAFARI_AREA';
+
+  return 'SAFARI_AREA';
+};
+
+const normalizeAreaStatus = (value) => {
+  const normalized = String(value || '').trim().toUpperCase();
+  if (normalized === 'DELETED') return 'DELETED';
+  return 'ACTIVE';
+};
+
+const buildAreaPayload = (input = {}) => {
+  const geometry = toFeatureGeometry(input.geometry || input.geoJson || input.polygon);
+  const areaType = normalizeAreaTypeEnum(input.areaType || input.type);
+  const backendType = toBackendAreaType(areaType);
+
+  return {
+    name: String(input.name || '').trim(),
+    areaType,
+    type: backendType,
+    district: String(input.district || '').trim(),
+    status: normalizeAreaStatus(input.status),
+    description: String(input.description || '').trim(),
+    areaSize: sanitizeNumber(input.areaSize),
+    geometry,
+    geoJson: geometry,
+    polygon: geometry,
+  };
+};
+
+const buildZonePayload = (input = {}) => {
+  const geometry = toFeatureGeometry(input.geometry || input.geoJson || input.polygon);
+
+  return {
+    name: String(input.name || '').trim(),
+    zoneType: normalizeZoneType(input.zoneType || input.type),
+    type: normalizeZoneType(input.type || input.zoneType),
+    areaSize: sanitizeNumber(input.areaSize),
+    geometry,
+    geoJson: geometry,
+    polygon: geometry,
+  };
+};
 
 const apiError = (error, fallbackMessage) => {
   const status = error?.response?.status;
@@ -128,7 +204,8 @@ export const protectedAreaService = {
 
   async createProtectedArea(input) {
     try {
-      const response = await apiClient.post('/api/protected-areas', input);
+      const payloadToSend = buildAreaPayload(input);
+      const response = await apiClient.post('/api/protected-areas', payloadToSend);
       const payload = unwrap(response.data);
       const item = payload?.protectedArea || payload?.area || payload?.data || payload;
       return normalizeArea(item);
@@ -139,7 +216,8 @@ export const protectedAreaService = {
 
   async updateProtectedArea(areaId, input) {
     try {
-      const response = await apiClient.put(`/api/protected-areas/${areaId}`, input);
+      const payloadToSend = buildAreaPayload(input);
+      const response = await apiClient.put(`/api/protected-areas/${areaId}`, payloadToSend);
       const payload = unwrap(response.data);
       const item = payload?.protectedArea || payload?.area || payload?.data || payload;
       return normalizeArea(item);
@@ -170,7 +248,8 @@ export const protectedAreaService = {
 
   async createZone(areaId, input) {
     try {
-      const response = await apiClient.post(`/api/protected-areas/${areaId}/zones`, input);
+      const payloadToSend = buildZonePayload(input);
+      const response = await apiClient.post(`/api/protected-areas/${areaId}/zones`, payloadToSend);
       const payload = unwrap(response.data);
       const item = payload?.zone || payload?.data || payload;
       return normalizeZone(item);
@@ -181,14 +260,16 @@ export const protectedAreaService = {
 
   async updateZone(areaId, zoneId, input) {
     try {
-      const response = await apiClient.put(`/api/protected-areas/${areaId}/zones/${zoneId}`, input);
+      const payloadToSend = buildZonePayload(input);
+      const response = await apiClient.put(`/api/protected-areas/${areaId}/zones/${zoneId}`, payloadToSend);
       const payload = unwrap(response.data);
       const item = payload?.zone || payload?.data || payload;
       return normalizeZone(item);
     } catch (error) {
       if (error?.response?.status === 404) {
         try {
-          const response = await apiClient.put(`/api/zones/${zoneId}`, input);
+          const payloadToSend = buildZonePayload(input);
+          const response = await apiClient.put(`/api/zones/${zoneId}`, payloadToSend);
           const payload = unwrap(response.data);
           const item = payload?.zone || payload?.data || payload;
           return normalizeZone(item);

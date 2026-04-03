@@ -29,6 +29,14 @@ export const getUserId = () => {
 
 export const getDefaultDashboardPathByRole = (role) => {
     const normalized = String(role || getUserRole()).trim().toUpperCase();
-    return normalized === 'RANGER' ? '/dashboard/ranger' : '/dashboard/admin';
+    if (normalized === 'RANGER') {
+        return '/dashboard/ranger';
+    }
+
+    if (normalized === 'ADMIN') {
+        return '/dashboard/admin';
+    }
+
+    return '/login';
 };
 
