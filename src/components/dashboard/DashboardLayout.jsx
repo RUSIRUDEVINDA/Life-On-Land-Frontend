@@ -30,6 +30,7 @@ const adminMenuItems = [
 
 const rangerMenuItems = [
     { name: 'Dashboard', path: '/dashboard/ranger', icon: <LayoutDashboard size={18} /> },
+    { name: 'Map Tracking', path: '/dashboard/map-tracking', icon: <Map size={18} />, badge: 'Live' },
     { name: 'Risk map', path: '/dashboard/ranger-risk-map', icon: <Map size={18} /> },
     { name: 'My Incidents', path: '/dashboard/my-incidents', icon: <AlertTriangle size={18} /> },
     { name: 'Report Incident', path: '/dashboard/incidents/report', icon: <ClipboardList size={18} /> },
@@ -106,7 +107,7 @@ const DashboardLayout = () => {
                                 >
                                     <span className={`mr-3 flex items-center text-inherit opacity-80 ${isActive ? 'text-primary opacity-100' : ''}`}>{item.icon}</span>
                                     <span className="flex-1">{item.name}</span>
-                                    {item.name === 'Map Tracking' && <span className="ml-auto bg-primary-dark text-white text-[9px] font-bold px-1.5 py-0.5 rounded-md">Live</span>}
+                                    {item.badge ? <span className="ml-auto bg-primary-dark text-white text-[9px] font-bold px-1.5 py-0.5 rounded-md">{item.badge}</span> : null}
                                 </Link>
                             );
                         })}

@@ -64,7 +64,6 @@ function App() {
                             <Route path="admin" element={<DashboardPage />} />
                             <Route path="incidents" element={<IncidentsPage />} />
                             <Route path="risk-map" element={<RiskMapPage />} />
-                            <Route path="map-tracking" element={<MapTrackingPage />} />
                             <Route path="animals" element={<AnimalsPage />} />
                             <Route path="users" element={<UsersPage />} />
                             <Route path="alerts" element={<AlertsPage />} />
@@ -88,6 +87,7 @@ function App() {
                             element={<RoleRoute allowedRoles={['ADMIN', 'RANGER']} />}
                         >
                             <Route path="incidents/report" element={<ReportIncidentPage />} />
+                            <Route path="map-tracking" element={<MapTrackingPage />} />
                             <Route path="movements" element={<MovementsPage />} />
                             <Route path="patrols" element={<PatrolsPage />} />
                             <Route path="patrols/:id" element={<PatrolDetailsPage />} />
