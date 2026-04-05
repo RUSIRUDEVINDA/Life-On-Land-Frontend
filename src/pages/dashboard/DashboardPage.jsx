@@ -344,12 +344,7 @@ const DashboardPage = () => {
                     >
                         <Plus size={14} /> <span>Log Incident</span>
                     </Link>
-                    <Link
-                        to="/dashboard/incidents"
-                        className="bg-transparent text-primary-dark border border-primary-medium px-3.5 py-2 rounded-2xl text-[12px] font-medium flex items-center gap-1.5 transition-colors hover:bg-primary-light/10"
-                    >
-                        <span>Export Report</span>
-                    </Link>
+                    
                 </div>
             </div>
 
