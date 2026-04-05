@@ -6,6 +6,7 @@ import { getAnimals, deleteAnimal } from '../../features/animals/api/animalsApi'
 import AnimalFilters from '../../features/animals/components/AnimalFilters';
 import AnimalTable from '../../features/animals/components/AnimalTable';
 import AnimalForm from '../../features/animals/components/AnimalForm';
+import AnimalDetailsPanel from '../../features/animals/components/AnimalDetailsPanel';
 
 const AnimalsPage = () => {
     const [animals, setAnimals] = useState([]);
@@ -15,6 +16,7 @@ const AnimalsPage = () => {
     const [debouncedSearch, setDebouncedSearch] = useState('');
     const [filters, setFilters] = useState({ status: '', species: '' });
     const [pagination, setPagination] = useState({ page: 1, limit: 10, total: 0, pages: 1 });
+    const [selectedAnimal, setSelectedAnimal] = useState(null);
 
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [selectedTagId, setSelectedTagId] = useState(null);
@@ -52,6 +54,16 @@ const AnimalsPage = () => {
     useEffect(() => {
         fetchAnimals();
     }, [fetchAnimals]);
+
+    useEffect(() => {
+        if (!selectedAnimal) return;
+        const match = animals.find((animal) => animal.tagId === selectedAnimal.tagId);
+        if (match) {
+            setSelectedAnimal(match);
+        } else {
+            setSelectedAnimal(null);
+        }
+    }, [animals, selectedAnimal]);
 
     const handleDelete = async (tagId) => {
         if (window.confirm(`Are you sure you want to delete animal ${tagId}?`)) {
@@ -94,37 +106,43 @@ const AnimalsPage = () => {
                 </button>
             </div>
 
-            <div className="bg-white rounded-3xl border border-border-light shadow-premium overflow-hidden transition-all duration-500">
-                <AnimalFilters
-                    search={search}
-                    onSearchChange={setSearch}
-                    status={filters.status}
-                    onStatusChange={(val) => setFilters(prev => ({ ...prev, status: val }))}
-                    species={filters.species}
-                    onSpeciesChange={(val) => setFilters(prev => ({ ...prev, species: val }))}
-                    pageSize={pagination.limit}
-                    onPageSizeChange={(limit) => setPagination((prev) => ({ ...prev, limit, page: 1 }))}
-                />
+            <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_340px]">
+                <div className="bg-white rounded-3xl border border-border-light shadow-premium overflow-hidden transition-all duration-500">
+                    <AnimalFilters
+                        search={search}
+                        onSearchChange={setSearch}
+                        status={filters.status}
+                        onStatusChange={(val) => setFilters((prev) => ({ ...prev, status: val }))}
+                        species={filters.species}
+                        onSpeciesChange={(val) => setFilters((prev) => ({ ...prev, species: val }))}
+                        pageSize={pagination.limit}
+                        onPageSizeChange={(limit) => setPagination((prev) => ({ ...prev, limit, page: 1 }))}
+                    />
 
-                <AnimalTable
-                    animals={animals}
-                    loading={loading}
-                    error={error}
-                    onDelete={handleDelete}
-                    onEdit={handleEditClick}
-                />
+                    <AnimalTable
+                        animals={animals}
+                        loading={loading}
+                        error={error}
+                        onDelete={handleDelete}
+                        onEdit={handleEditClick}
+                        onSelect={setSelectedAnimal}
+                        selectedTagId={selectedAnimal?.tagId}
+                    />
 
-                {!loading && !error && pagination.total > 0 && (
-                    <div className="border-t border-border-light bg-bg-soft/10 px-5 py-3">
-                        <ListPaginationFooter
-                            totalItems={pagination.total}
-                            pageSize={pagination.limit}
-                            currentPage={pagination.page}
-                            onPageChange={(page) => setPagination((prev) => ({ ...prev, page }))}
-                            countSuffix="animals"
-                        />
-                    </div>
-                )}
+                    {!loading && !error && pagination.total > 0 && (
+                        <div className="border-t border-border-light bg-bg-soft/10 px-5 py-3">
+                            <ListPaginationFooter
+                                totalItems={pagination.total}
+                                pageSize={pagination.limit}
+                                currentPage={pagination.page}
+                                onPageChange={(page) => setPagination((prev) => ({ ...prev, page }))}
+                                countSuffix="animals"
+                            />
+                        </div>
+                    )}
+                </div>
+
+                <AnimalDetailsPanel animal={selectedAnimal} />
             </div>
 
             <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)}>
