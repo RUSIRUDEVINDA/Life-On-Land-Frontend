@@ -24,20 +24,31 @@ const MovementsPage = () => {
     const [loading, setLoading] = useState(true);
     const [exporting, setExporting] = useState(false);
     const [search, setSearch] = useState('');
+    const [timeRangeHours, setTimeRangeHours] = useState(24);
     const [pagination, setPagination] = useState({ page: 1, limit: 10, total: 0, pages: 1 });
     const [areaLookup, setAreaLookup] = useState({});
     const [zoneLookup, setZoneLookup] = useState({});
 
+    const getDateRangeParams = useCallback(() => {
+        const hours = Number(timeRangeHours);
+        if (!Number.isFinite(hours) || hours <= 0) return {};
+        const now = new Date();
+        const from = new Date(now.getTime() - hours * 60 * 60 * 1000);
+        return { from: from.toISOString(), to: now.toISOString() };
+    }, [timeRangeHours]);
+
     const fetchData = useCallback(async () => {
         setLoading(true);
         try {
+            const dateRange = getDateRangeParams();
             const [movData, sumData] = await Promise.all([
                 getMovements({
                     page: pagination.page,
                     limit: pagination.limit,
                     tagId: search,
+                    ...dateRange,
                 }),
-                getMovementSummary(),
+                getMovementSummary(dateRange),
             ]);
 
             setMovements(movData?.data || []);
@@ -51,11 +62,11 @@ const MovementsPage = () => {
         } finally {
             setLoading(false);
         }
-    }, [pagination.page, pagination.limit, search]);
+    }, [pagination.page, pagination.limit, search, getDateRangeParams]);
 
     useEffect(() => {
         setPagination((prev) => ({ ...prev, page: 1 }));
-    }, [search]);
+    }, [search, timeRangeHours]);
 
     useEffect(() => {
         fetchData();
@@ -121,10 +132,12 @@ const MovementsPage = () => {
         const tagId = search.trim();
         setExporting(true);
         try {
+            const dateRange = getDateRangeParams();
             const first = await getMovements({
                 page: 1,
                 limit: MOVEMENTS_EXPORT_PAGE_SIZE,
                 tagId,
+                ...dateRange,
             });
             const allRaw = [...(first.data || [])];
             const totalPages = Math.max(1, Number(first.pagination?.pages) || 1);
@@ -133,6 +146,7 @@ const MovementsPage = () => {
                     page: p,
                     limit: MOVEMENTS_EXPORT_PAGE_SIZE,
                     tagId,
+                    ...dateRange,
                 });
                 allRaw.push(...(res.data || []));
             }
@@ -173,12 +187,19 @@ const MovementsPage = () => {
                         <ArrowUpRight size={16} />
                         {exporting ? 'Exporting…' : 'Export Queue'}
                     </button>
-                    <button
-                        type="button"
-                        className="bg-white border border-border-light px-4 py-2.5 rounded-xl text-[13px] font-bold text-primary-dark flex items-center gap-2 shadow-sm hover:bg-bg-soft hover:-translate-y-0.5 transition-all duration-300"
-                    >
-                        <Calendar size={16} className="text-primary-medium" /> Last 24 Hours
-                    </button>
+                    <div className="relative">
+                        <Calendar size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-primary-medium" />
+                        <select
+                            value={timeRangeHours}
+                            onChange={(event) => setTimeRangeHours(Number(event.target.value))}
+                            className="appearance-none bg-white border border-border-light pl-9 pr-9 py-2.5 rounded-xl text-[13px] font-bold text-primary-dark shadow-sm hover:bg-bg-soft hover:-translate-y-0.5 transition-all duration-300"
+                        >
+                            <option value={24}>Last 24 Hours</option>
+                            <option value={48}>Last 48 Hours</option>
+                            <option value={72}>Last 72 Hours</option>
+                        </select>
+                        <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[12px] text-text-gray">▾</span>
+                    </div>
                     <Link to="/dashboard/map-tracking" className="bg-primary-dark text-white px-4 py-2.5 rounded-xl text-[13px] font-bold flex items-center gap-2 shadow-elevated hover:bg-black hover:-translate-y-0.5 transition-all duration-300">
                         <Zap size={16} className="text-primary-medium animate-pulse" /> Map Tracking
                     </Link>
