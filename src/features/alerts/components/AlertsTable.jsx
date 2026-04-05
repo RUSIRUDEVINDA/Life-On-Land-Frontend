@@ -1,24 +1,35 @@
-import React, { useState, useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Search, Filter, AlertCircle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import ListPaginationFooter from '../../../components/common/ListPaginationFooter';
 
-const AlertsTable = ({ alerts }) => {
+const AlertsTable = ({
+    alerts,
+    filteredAlerts,
+    searchTerm,
+    onSearchTermChange,
+    severityFilter,
+    onSeverityFilterChange,
+}) => {
     const navigate = useNavigate();
-    const [searchTerm, setSearchTerm] = useState('');
-    const [severityFilter, setSeverityFilter] = useState('ALL');
+    const [pageSize, setPageSize] = useState(10);
+    const [currentPage, setCurrentPage] = useState(1);
 
-    const filteredAlerts = useMemo(() => {
-        return alerts.filter(alert => {
-            const searchString = `${alert.type || ''} ${alert.description || ''}`.toLowerCase();
-            const matchesSearch = searchString.includes(searchTerm.toLowerCase());
-            const matchesSeverity = severityFilter === 'ALL' || alert.severity === severityFilter;
-            return matchesSearch && matchesSeverity;
-        });
-    }, [alerts, searchTerm, severityFilter]);
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [searchTerm, severityFilter, pageSize]);
+
+    const totalPages = Math.max(1, Math.ceil(filteredAlerts.length / pageSize));
+    const safePage = Math.min(currentPage, totalPages);
+
+    const paginatedAlerts = useMemo(() => {
+        const start = (safePage - 1) * pageSize;
+        return filteredAlerts.slice(start, start + pageSize);
+    }, [filteredAlerts, safePage, pageSize]);
 
     return (
         <div className="bg-white rounded-[24px] border border-border-light shadow-premium overflow-hidden">
-            <div className="p-4 border-b border-border-light flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-bg-soft/20">
+            <div className="p-4 border-b border-border-light flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between bg-bg-soft/20">
                 <div className="relative w-full xl:max-w-[320px]">
                     <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
                         <Search size={16} className="text-text-gray" />
@@ -27,19 +38,19 @@ const AlertsTable = ({ alerts }) => {
                         type="text"
                         placeholder="Search alerts by type or description..."
                         value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
+                        onChange={(e) => onSearchTermChange(e.target.value)}
                         className="w-full pl-10 pr-4 py-2.5 rounded-2xl border border-border-light bg-white text-[13px] text-primary-dark placeholder-text-gray focus:outline-none focus:border-primary-light focus:ring-2 focus:ring-primary-light/20 transition-all font-medium min-w-[280px]"
                     />
                 </div>
 
-                <div className="flex items-center gap-2 w-full sm:w-auto">
+                <div className="flex flex-wrap items-center gap-3 w-full lg:w-auto">
                     <div className="relative w-full sm:w-auto">
                         <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                             <Filter size={14} className="text-text-gray" />
                         </div>
                         <select
                             value={severityFilter}
-                            onChange={(e) => setSeverityFilter(e.target.value)}
+                            onChange={(e) => onSeverityFilterChange(e.target.value)}
                             className="w-full sm:w-auto appearance-none pl-9 pr-8 py-2.5 rounded-2xl border border-border-light bg-white text-[13px] font-semibold text-primary-dark focus:outline-none focus:border-primary-light focus:ring-2 focus:ring-primary-light/20 cursor-pointer transition-all min-w-[160px]"
                         >
                             <option value="ALL">All Severities</option>
@@ -53,6 +64,21 @@ const AlertsTable = ({ alerts }) => {
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                             </svg>
                         </div>
+                    </div>
+                    <div className="flex items-center gap-2 text-[12px] text-text-gray">
+                        <span className="font-medium">Show</span>
+                        <select
+                            value={pageSize}
+                            onChange={(e) => setPageSize(Number(e.target.value))}
+                            className="rounded-xl border border-border-light bg-white px-3 py-1.5 text-[12px] font-semibold text-primary-dark outline-none transition focus:border-primary-medium"
+                        >
+                            {[10, 20, 30].map((n) => (
+                                <option key={n} value={n}>
+                                    {n}
+                                </option>
+                            ))}
+                        </select>
+                        <span className="font-medium">per page</span>
                     </div>
                 </div>
             </div>
@@ -87,7 +113,7 @@ const AlertsTable = ({ alerts }) => {
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-border-light">
-                            {filteredAlerts.map((alert, index) => (
+                            {paginatedAlerts.map((alert, index) => (
                                 <tr
                                     key={alert._id || alert.id}
                                     className="group hover:bg-bg-soft/40 transition-all duration-300"
@@ -143,6 +169,18 @@ const AlertsTable = ({ alerts }) => {
                     </table>
                 )}
             </div>
+
+            {filteredAlerts.length > 0 && (
+                <div className="border-t border-border-light px-5 py-3">
+                    <ListPaginationFooter
+                        totalItems={filteredAlerts.length}
+                        pageSize={pageSize}
+                        currentPage={currentPage}
+                        onPageChange={setCurrentPage}
+                        countSuffix="alerts"
+                    />
+                </div>
+            )}
         </div>
     );
 };

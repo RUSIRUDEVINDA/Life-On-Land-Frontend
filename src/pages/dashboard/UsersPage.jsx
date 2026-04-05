@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { ChevronLeft, ChevronRight, LoaderCircle, Search, ShieldCheck, Users, Trash2, Edit2, X, AlertTriangle } from 'lucide-react';
+import { LoaderCircle, Search, ShieldCheck, Users, Trash2, Edit2, X, AlertTriangle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import ListPaginationFooter from '../../components/common/ListPaginationFooter';
 import { fetchAllUsers, updateUser, deleteUser } from '../../features/users/api/usersApi';
 
 const ROLES = ['ALL', 'ADMIN', 'RANGER'];
@@ -154,14 +155,12 @@ const UsersPage = () => {
     useEffect(() => { setCurrentPage(1); }, [search, roleFilter, pageSize]);
 
     const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+    const safePage = Math.min(currentPage, totalPages);
 
     const paginatedUsers = useMemo(() => {
-        const start = (currentPage - 1) * pageSize;
+        const start = (safePage - 1) * pageSize;
         return filtered.slice(start, start + pageSize);
-    }, [filtered, currentPage, pageSize]);
-
-    const rangeStart = filtered.length === 0 ? 0 : (currentPage - 1) * pageSize + 1;
-    const rangeEnd = Math.min(currentPage * pageSize, filtered.length);
+    }, [filtered, safePage, pageSize]);
 
     const totalAdmins = useMemo(() => users.filter((u) => u.role === 'ADMIN').length, [users]);
     const totalRangers = useMemo(() => users.filter((u) => u.role === 'RANGER').length, [users]);
@@ -352,46 +351,14 @@ const UsersPage = () => {
                 )}
 
                 {!loading && !error && filtered.length > 0 && (
-                    <div className="flex flex-col gap-3 border-t border-border-light px-5 py-3 sm:flex-row sm:items-center sm:justify-between">
-                        <p className="text-[12px] text-text-gray">
-                            Showing{' '}
-                            <span className="font-semibold text-primary-dark">{rangeStart}–{rangeEnd}</span>{' '}
-                            of{' '}
-                            <span className="font-semibold text-primary-dark">{filtered.length}</span> users
-                        </p>
-                        {totalPages > 1 && (
-                            <div className="flex items-center gap-1">
-                                <button
-                                    type="button"
-                                    onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                                    disabled={currentPage === 1}
-                                    className="flex h-8 w-8 items-center justify-center rounded-xl border border-border-light bg-white text-primary-dark transition hover:bg-bg-soft disabled:cursor-not-allowed disabled:opacity-40"
-                                >
-                                    <ChevronLeft size={14} />
-                                </button>
-                                {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
-                                    <button
-                                        key={page}
-                                        type="button"
-                                        onClick={() => setCurrentPage(page)}
-                                        className={`flex h-8 min-w-[32px] items-center justify-center rounded-xl border px-2 text-[12px] font-semibold transition ${page === currentPage
-                                                ? 'border-primary-dark bg-primary-dark text-white'
-                                                : 'border-border-light bg-white text-primary-dark hover:bg-bg-soft'
-                                            }`}
-                                    >
-                                        {page}
-                                    </button>
-                                ))}
-                                <button
-                                    type="button"
-                                    onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-                                    disabled={currentPage === totalPages}
-                                    className="flex h-8 w-8 items-center justify-center rounded-xl border border-border-light bg-white text-primary-dark transition hover:bg-bg-soft disabled:cursor-not-allowed disabled:opacity-40"
-                                >
-                                    <ChevronRight size={14} />
-                                </button>
-                            </div>
-                        )}
+                    <div className="border-t border-border-light px-5 py-3">
+                        <ListPaginationFooter
+                            totalItems={filtered.length}
+                            pageSize={pageSize}
+                            currentPage={currentPage}
+                            onPageChange={setCurrentPage}
+                            countSuffix="users"
+                        />
                     </div>
                 )}
             </div>

@@ -2,8 +2,6 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
     AlertTriangle,
     CalendarClock,
-    ChevronLeft,
-    ChevronRight,
     ImagePlus,
     LoaderCircle,
     MapPin,
@@ -12,6 +10,7 @@ import {
     X,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import ListPaginationFooter from '../../components/common/ListPaginationFooter';
 import {
     deleteIncident,
     fetchIncidentsByReporter,
@@ -37,8 +36,62 @@ const STATUS_STYLES = {
     UNVERIFIED: 'bg-[#fff5f5] text-[#a4161a] border-[#ffa8a8]/40',
 };
 
-const SEVERITY_OPTIONS = ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'];
+/** Same order as report incident form. */
+const SEVERITY_OPTIONS = ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW'];
 const INCIDENT_TYPES = ['POACHING', 'ILLEGAL_LOGGING', 'WILDLIFE_TRADE', 'HABITAT_DESTRUCTION', 'OTHER'];
+
+/** Matches report form: description must be at least this many trimmed characters. */
+const MIN_INCIDENT_DESCRIPTION_LENGTH = 10;
+
+const formatTypeLabel = (t) =>
+    String(t || '')
+        .split('_')
+        .map((w) => (w ? w.charAt(0) + w.slice(1).toLowerCase() : ''))
+        .join(' ');
+
+/** Disallow ASCII control characters except tab (0x09) and newline (0x0A). */
+const INVALID_TEXT_CHAR_REGEX = /[\x00-\x08\x0B\x0C\x0E-\x1F]/;
+
+const validateEditIncidentForm = (form) => {
+    const errors = {};
+    if (!String(form.type || '').trim()) {
+        errors.type = 'Please select an incident type.';
+    }
+    if (!String(form.severity || '').trim()) {
+        errors.severity = 'Please select a severity level.';
+    }
+    if (!form.protectedAreaId) {
+        errors.protectedAreaId = 'Select a protected area.';
+    }
+    if (!form.zoneId) {
+        errors.zoneId = 'Select a zone for this incident.';
+    }
+    if (!String(form.incidentDate || '').trim()) {
+        errors.incidentDate = 'Incident date and time is required.';
+    }
+    const rawDesc = form.description ?? '';
+    if (INVALID_TEXT_CHAR_REGEX.test(rawDesc)) {
+        errors.description = 'Description contains invalid characters that cannot be saved.';
+    } else {
+        const desc = rawDesc.trim();
+        if (desc.length === 0) {
+            errors.description = 'Description is required.';
+        } else if (desc.length < MIN_INCIDENT_DESCRIPTION_LENGTH) {
+            errors.description = `Description must be at least ${MIN_INCIDENT_DESCRIPTION_LENGTH} characters. Provide clear, actionable detail.`;
+        }
+    }
+    const notes = form.notes ?? '';
+    if (INVALID_TEXT_CHAR_REGEX.test(notes)) {
+        errors.notes = 'Notes contain invalid characters that cannot be saved.';
+    }
+    return errors;
+};
+
+const fieldErrorClass = (hasError) =>
+    hasError ? 'border-[#E63946]/60 ring-1 ring-[#E63946]/25' : '';
+
+const FieldError = ({ message }) =>
+    message ? <p className="mt-1 text-[11px] font-medium text-[#a4161a]">{message}</p> : null;
 
 const formatDateTime = (value) => {
     if (!value) return 'Unknown date';
@@ -48,6 +101,7 @@ const formatDateTime = (value) => {
 const toDateTimeLocal = (value) => {
     if (!value) return '';
     const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return '';
     const tzOffset = date.getTimezoneOffset() * 60000;
     return new Date(date.getTime() - tzOffset).toISOString().slice(0, 16);
 };
@@ -55,7 +109,10 @@ const toDateTimeLocal = (value) => {
 const RangerMyIncidentsPage = () => {
     const [incidents, setIncidents] = useState([]);
     const [loading, setLoading] = useState(true);
-    const [error, setError] = useState('');
+    const [loadError, setLoadError] = useState('');
+    const [actionNotice, setActionNotice] = useState('');
+    const [editNotice, setEditNotice] = useState('');
+    const [editFieldErrors, setEditFieldErrors] = useState({});
     const [savingId, setSavingId] = useState('');
     const [deletingId, setDeletingId] = useState('');
     const [editingId, setEditingId] = useState('');
@@ -67,26 +124,30 @@ const RangerMyIncidentsPage = () => {
     const [loadingEditAreas, setLoadingEditAreas] = useState(false);
     const [loadingEditZones, setLoadingEditZones] = useState(false);
     const editFileInputRef = useRef(null);
+    const incidentDateInputRef = useRef(null);
     const [editEvidenceImages, setEditEvidenceImages] = useState([]);
     const [editForm, setEditForm] = useState({
-        type: 'OTHER',
+        type: '',
         description: '',
-        severity: 'MEDIUM',
+        severity: '',
         notes: '',
         incidentDate: '',
         protectedAreaId: '',
         zoneId: '',
     });
 
+    /** Recomputed each render so `max` matches current moment for native constraint validation. */
+    const incidentDateMaxLocal = toDateTimeLocal(new Date().toISOString());
+
     const loadMyIncidents = async () => {
         setLoading(true);
-        setError('');
+        setLoadError('');
         try {
             const myUserId = getUserId();
             const mine = await fetchIncidentsByReporter(myUserId);
             setIncidents(mine);
         } catch (requestError) {
-            setError(requestError.message || 'Failed to load your incidents.');
+            setLoadError(requestError.message || 'Failed to load your incidents.');
         } finally {
             setLoading(false);
         }
@@ -125,6 +186,7 @@ const RangerMyIncidentsPage = () => {
     const handleSearch = (e) => {
         setSearchQuery(e.target.value);
         setCurrentPage(1);
+        setActionNotice('');
     };
 
     const handlePageSize = (e) => {
@@ -156,16 +218,20 @@ const RangerMyIncidentsPage = () => {
     };
 
     const beginEdit = async (incident) => {
-        setError('');
+        setEditNotice('');
+        setEditFieldErrors({});
         setEditingId(incident._id);
 
         const protectedAreaId = incident.protectedArea?.id || '';
         const zoneId = incident.zone?.id || '';
+        const type = incident.type && INCIDENT_TYPES.includes(incident.type) ? incident.type : '';
+        const severity =
+            incident.severity && SEVERITY_OPTIONS.includes(incident.severity) ? incident.severity : '';
 
         setEditForm({
-            type: incident.type || 'OTHER',
+            type,
             description: incident.description || '',
-            severity: incident.severity || 'MEDIUM',
+            severity,
             notes: incident.notes || '',
             incidentDate: toDateTimeLocal(incident.incidentDate),
             protectedAreaId,
@@ -190,10 +256,12 @@ const RangerMyIncidentsPage = () => {
         setEditingId('');
         setEditAreas([]);
         setEditZones([]);
+        setEditNotice('');
+        setEditFieldErrors({});
         setEditForm({
-            type: 'OTHER',
+            type: '',
             description: '',
-            severity: 'MEDIUM',
+            severity: '',
             notes: '',
             incidentDate: '',
             protectedAreaId: '',
@@ -203,13 +271,16 @@ const RangerMyIncidentsPage = () => {
     };
 
     const handleEditImageSelect = async (event) => {
-        setError('');
+        setEditFieldErrors((prev) => ({ ...prev, evidence: '' }));
         const files = Array.from(event.target.files || []);
         if (!files.length) return;
 
         const invalidType = files.find((file) => !ACCEPTED_TYPES.includes(file.type));
         if (invalidType) {
-            setError(`"${invalidType.name}" is not a supported image type. Use JPG, PNG, WebP, or GIF.`);
+            setEditFieldErrors((prev) => ({
+                ...prev,
+                evidence: `"${invalidType.name}" is not a supported image type. Use JPG, PNG, WebP, or GIF.`,
+            }));
             event.target.value = '';
             return;
         }
@@ -217,23 +288,30 @@ const RangerMyIncidentsPage = () => {
         const oversized = files.find((file) => file.size > MAX_FILE_SIZE_BYTES);
         if (oversized) {
             const sizeMb = (oversized.size / (1024 * 1024)).toFixed(1);
-            setError(
-                `"${oversized.name}" is too large (${sizeMb} MB). Maximum allowed size is ${MAX_FILE_SIZE_MB} MB per image.`
-            );
+            setEditFieldErrors((prev) => ({
+                ...prev,
+                evidence: `"${oversized.name}" is too large (${sizeMb} MB). Maximum allowed size is ${MAX_FILE_SIZE_MB} MB per image.`,
+            }));
             event.target.value = '';
             return;
         }
 
         const remaining = MAX_IMAGES - editEvidenceImages.length;
         if (remaining <= 0) {
-            setError(`Maximum ${MAX_IMAGES} images allowed.`);
+            setEditFieldErrors((prev) => ({
+                ...prev,
+                evidence: `Maximum ${MAX_IMAGES} images allowed.`,
+            }));
             event.target.value = '';
             return;
         }
 
         const toProcess = files.slice(0, remaining);
         if (files.length > remaining) {
-            setError(`Only ${remaining} more image(s) can be added (maximum ${MAX_IMAGES}).`);
+            setEditFieldErrors((prev) => ({
+                ...prev,
+                evidence: `Only ${remaining} more image(s) can be added (maximum ${MAX_IMAGES}).`,
+            }));
         }
 
         try {
@@ -244,31 +322,42 @@ const RangerMyIncidentsPage = () => {
                 dataUrl: dataUrls[index],
             }));
             setEditEvidenceImages((previous) => [...previous, ...newImages]);
+            setEditFieldErrors((prev) => ({ ...prev, evidence: '' }));
         } catch {
-            setError('Failed to process one or more image files. Please try different images.');
+            setEditFieldErrors((prev) => ({
+                ...prev,
+                evidence: 'Failed to process one or more image files. Please try different images.',
+            }));
         }
 
         event.target.value = '';
     };
 
     const removeEditImage = (id) => {
-        setError('');
         setEditEvidenceImages((previous) => previous.filter((image) => image.id !== id));
     };
 
     const saveEdit = async (incident) => {
         if (!incident?._id) return;
-        if (!editForm.description.trim()) {
-            setError('Description is required to update the incident.');
+        setEditNotice('');
+
+        const validationErrors = validateEditIncidentForm(editForm);
+        if (Object.keys(validationErrors).length > 0) {
+            setEditFieldErrors(validationErrors);
             return;
         }
-        if (!editForm.protectedAreaId || !editForm.zoneId) {
-            setError('Protected area and zone are required to update the incident.');
-            return;
+        setEditFieldErrors({});
+
+        const dateEl = incidentDateInputRef.current;
+        if (dateEl) {
+            dateEl.setCustomValidity('');
+            if (!dateEl.checkValidity()) {
+                dateEl.reportValidity();
+                return;
+            }
         }
 
         setSavingId(incident._id);
-        setError('');
         try {
             await updateIncident(incident._id, {
                 type: editForm.type,
@@ -286,7 +375,7 @@ const RangerMyIncidentsPage = () => {
             await loadMyIncidents();
             cancelEdit();
         } catch (requestError) {
-            setError(requestError.message || 'Failed to update incident.');
+            setEditNotice(requestError.message || 'Failed to update incident.');
         } finally {
             setSavingId('');
         }
@@ -298,13 +387,13 @@ const RangerMyIncidentsPage = () => {
         if (!confirmed) return;
 
         setDeletingId(incidentId);
-        setError('');
+        setActionNotice('');
         try {
             await deleteIncident(incidentId);
             setIncidents((previous) => previous.filter((item) => item._id !== incidentId));
             if (editingId === incidentId) cancelEdit();
         } catch (requestError) {
-            setError(requestError.message || 'Failed to delete incident.');
+            setActionNotice(requestError.message || 'Failed to delete incident.');
         } finally {
             setDeletingId('');
         }
@@ -339,7 +428,7 @@ const RangerMyIncidentsPage = () => {
 
             <div className="rounded-[26px] border border-border-light bg-white shadow-premium">
                 {/* Search + page-size toolbar */}
-                {!loading && !error && (
+                {!loading && !loadError && (
                     <div className="flex flex-col gap-3 border-b border-border-light px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
                         <div className="flex items-center gap-2 rounded-2xl border border-border-light bg-bg-soft px-3 py-2 w-full sm:max-w-xs">
                             <Search size={14} className="shrink-0 text-text-gray" />
@@ -367,13 +456,19 @@ const RangerMyIncidentsPage = () => {
                     </div>
                 )}
 
+                {!loading && !loadError && actionNotice && (
+                    <div className="border-b border-border-light px-5 py-3 text-[13px] font-medium text-[#a4161a]">
+                        {actionNotice}
+                    </div>
+                )}
+
                 {loading ? (
                     <div className="flex items-center justify-center gap-2 py-16 text-[13px] text-text-gray">
                         <LoaderCircle size={16} className="animate-spin" />
                         Loading your incidents...
                     </div>
-                ) : error ? (
-                    <div className="px-6 py-8 text-[13px] text-[#a4161a]">{error}</div>
+                ) : loadError ? (
+                    <div className="px-6 py-8 text-[13px] text-[#a4161a]">{loadError}</div>
                 ) : incidents.length === 0 ? (
                     <div className="px-6 py-12 text-center">
                         <p className="text-[14px] font-semibold text-primary-dark">No incidents reported by you yet.</p>
@@ -412,52 +507,73 @@ const RangerMyIncidentsPage = () => {
                                                         Edit Incident
                                                     </p>
 
+                                                    {editNotice ? (
+                                                        <p className="mb-4 text-[13px] font-medium text-[#a4161a]">{editNotice}</p>
+                                                    ) : null}
+
                                                     <div className="grid gap-5 md:grid-cols-2">
                                                         <label className="flex flex-col gap-2">
-                                                            <span className="text-[12px] font-semibold uppercase tracking-[0.14em] text-text-black">Type</span>
+                                                            <span className="text-[12px] font-semibold uppercase tracking-[0.14em] text-text-black">
+                                                                Type <span className="text-[#E63946]">*</span>
+                                                            </span>
                                                             <select
                                                                 value={editForm.type}
-                                                                onChange={(e) =>
-                                                                    setEditForm((prev) => ({ ...prev, type: e.target.value }))
-                                                                }
-                                                                className="rounded-2xl border border-border-light bg-bg-soft px-4 py-3 text-[14px] text-primary-dark outline-none transition focus:border-primary-medium focus:bg-white"
+                                                                onChange={(e) => {
+                                                                    setEditFieldErrors((prev) => ({ ...prev, type: '' }));
+                                                                    setEditForm((prev) => ({ ...prev, type: e.target.value }));
+                                                                }}
+                                                                className={`rounded-2xl border border-border-light bg-bg-soft px-4 py-3 text-[14px] text-primary-dark outline-none transition focus:border-primary-medium focus:bg-white ${fieldErrorClass(!!editFieldErrors.type)}`}
                                                             >
+                                                                <option value="">Select type</option>
                                                                 {INCIDENT_TYPES.map((option) => (
                                                                     <option key={option} value={option}>
-                                                                        {option.replaceAll('_', ' ')}
+                                                                        {formatTypeLabel(option)}
                                                                     </option>
                                                                 ))}
                                                             </select>
+                                                            <FieldError message={editFieldErrors.type} />
                                                         </label>
 
                                                         <label className="flex flex-col gap-2">
-                                                            <span className="text-[12px] font-semibold uppercase tracking-[0.14em] text-text-black">Severity</span>
+                                                            <span className="text-[12px] font-semibold uppercase tracking-[0.14em] text-text-black">
+                                                                Severity <span className="text-[#E63946]">*</span>
+                                                            </span>
                                                             <select
                                                                 value={editForm.severity}
-                                                                onChange={(e) =>
-                                                                    setEditForm((prev) => ({ ...prev, severity: e.target.value }))
-                                                                }
-                                                                className="rounded-2xl border border-border-light bg-bg-soft px-4 py-3 text-[14px] text-primary-dark outline-none transition focus:border-primary-medium focus:bg-white"
+                                                                onChange={(e) => {
+                                                                    setEditFieldErrors((prev) => ({ ...prev, severity: '' }));
+                                                                    setEditForm((prev) => ({ ...prev, severity: e.target.value }));
+                                                                }}
+                                                                className={`rounded-2xl border border-border-light bg-bg-soft px-4 py-3 text-[14px] text-primary-dark outline-none transition focus:border-primary-medium focus:bg-white ${fieldErrorClass(!!editFieldErrors.severity)}`}
                                                             >
+                                                                <option value="">Select severity</option>
                                                                 {SEVERITY_OPTIONS.map((option) => (
                                                                     <option key={option} value={option}>
                                                                         {option}
                                                                     </option>
                                                                 ))}
                                                             </select>
+                                                            <FieldError message={editFieldErrors.severity} />
                                                         </label>
 
                                                         <label className="flex flex-col gap-2">
-                                                            <span className="text-[12px] font-semibold uppercase tracking-[0.14em] text-text-black">Protected Area</span>
+                                                            <span className="text-[12px] font-semibold uppercase tracking-[0.14em] text-text-black">
+                                                                Protected Area <span className="text-[#E63946]">*</span>
+                                                            </span>
                                                             <select
                                                                 value={editForm.protectedAreaId}
                                                                 onChange={async (e) => {
                                                                     const areaId = e.target.value;
+                                                                    setEditFieldErrors((prev) => ({
+                                                                        ...prev,
+                                                                        protectedAreaId: '',
+                                                                        zoneId: '',
+                                                                    }));
                                                                     setEditForm((prev) => ({ ...prev, protectedAreaId: areaId, zoneId: '' }));
                                                                     await loadEditZones(areaId, '');
                                                                 }}
                                                                 disabled={loadingEditAreas}
-                                                                className="rounded-2xl border border-border-light bg-bg-soft px-4 py-3 text-[14px] text-primary-dark outline-none transition focus:border-primary-medium focus:bg-white disabled:cursor-not-allowed disabled:opacity-70"
+                                                                className={`rounded-2xl border border-border-light bg-bg-soft px-4 py-3 text-[14px] text-primary-dark outline-none transition focus:border-primary-medium focus:bg-white disabled:cursor-not-allowed disabled:opacity-70 ${fieldErrorClass(!!editFieldErrors.protectedAreaId)}`}
                                                             >
                                                                 <option value="">
                                                                     {loadingEditAreas ? 'Loading areas...' : 'Select protected area'}
@@ -468,17 +584,21 @@ const RangerMyIncidentsPage = () => {
                                                                     </option>
                                                                 ))}
                                                             </select>
+                                                            <FieldError message={editFieldErrors.protectedAreaId} />
                                                         </label>
 
                                                         <label className="flex flex-col gap-2">
-                                                            <span className="text-[12px] font-semibold uppercase tracking-[0.14em] text-text-black">Zone</span>
+                                                            <span className="text-[12px] font-semibold uppercase tracking-[0.14em] text-text-black">
+                                                                Zone <span className="text-[#E63946]">*</span>
+                                                            </span>
                                                             <select
                                                                 value={editForm.zoneId}
-                                                                onChange={(e) =>
-                                                                    setEditForm((prev) => ({ ...prev, zoneId: e.target.value }))
-                                                                }
+                                                                onChange={(e) => {
+                                                                    setEditFieldErrors((prev) => ({ ...prev, zoneId: '' }));
+                                                                    setEditForm((prev) => ({ ...prev, zoneId: e.target.value }));
+                                                                }}
                                                                 disabled={!editForm.protectedAreaId || loadingEditZones}
-                                                                className="rounded-2xl border border-border-light bg-bg-soft px-4 py-3 text-[14px] text-primary-dark outline-none transition focus:border-primary-medium focus:bg-white disabled:cursor-not-allowed disabled:opacity-70"
+                                                                className={`rounded-2xl border border-border-light bg-bg-soft px-4 py-3 text-[14px] text-primary-dark outline-none transition focus:border-primary-medium focus:bg-white disabled:cursor-not-allowed disabled:opacity-70 ${fieldErrorClass(!!editFieldErrors.zoneId)}`}
                                                             >
                                                                 <option value="">
                                                                     {!editForm.protectedAreaId
@@ -493,31 +613,49 @@ const RangerMyIncidentsPage = () => {
                                                                     </option>
                                                                 ))}
                                                             </select>
+                                                            <FieldError message={editFieldErrors.zoneId} />
                                                         </label>
 
                                                         <label className="flex flex-col gap-2 md:col-span-2">
-                                                            <span className="text-[12px] font-semibold uppercase tracking-[0.14em] text-text-black">Incident Date &amp; Time</span>
+                                                            <span className="text-[12px] font-semibold uppercase tracking-[0.14em] text-text-black">
+                                                                Incident Date &amp; Time <span className="text-[#E63946]">*</span>
+                                                            </span>
                                                             <input
+                                                                ref={incidentDateInputRef}
                                                                 type="datetime-local"
                                                                 value={editForm.incidentDate}
-                                                                onChange={(e) =>
-                                                                    setEditForm((prev) => ({ ...prev, incidentDate: e.target.value }))
-                                                                }
-                                                                className="rounded-2xl border border-border-light bg-bg-soft px-4 py-3 text-[14px] text-primary-dark outline-none transition focus:border-primary-medium focus:bg-white"
+                                                                max={incidentDateMaxLocal}
+                                                                onChange={(e) => {
+                                                                    e.target.setCustomValidity('');
+                                                                    setEditFieldErrors((prev) => ({ ...prev, incidentDate: '' }));
+                                                                    setEditForm((prev) => ({
+                                                                        ...prev,
+                                                                        incidentDate: e.target.value,
+                                                                    }));
+                                                                }}
+                                                                className={`rounded-2xl border border-border-light bg-bg-soft px-4 py-3 text-[14px] text-primary-dark outline-none transition focus:border-primary-medium focus:bg-white ${fieldErrorClass(!!editFieldErrors.incidentDate)}`}
                                                             />
+                                                            <FieldError message={editFieldErrors.incidentDate} />
                                                         </label>
 
                                                         <label className="flex flex-col gap-2 md:col-span-2">
-                                                            <span className="text-[12px] font-semibold uppercase tracking-[0.14em] text-text-black">Description</span>
+                                                            <span className="text-[12px] font-semibold uppercase tracking-[0.14em] text-text-black">
+                                                                Description <span className="text-[#E63946]">*</span>
+                                                            </span>
                                                             <textarea
                                                                 rows={3}
                                                                 value={editForm.description}
-                                                                onChange={(e) =>
-                                                                    setEditForm((prev) => ({ ...prev, description: e.target.value }))
-                                                                }
+                                                                onChange={(e) => {
+                                                                    setEditFieldErrors((prev) => ({ ...prev, description: '' }));
+                                                                    setEditForm((prev) => ({ ...prev, description: e.target.value }));
+                                                                }}
                                                                 placeholder="Describe the incident in detail..."
-                                                                className="rounded-2xl border border-border-light bg-bg-soft px-4 py-3 text-[14px] text-primary-dark outline-none transition focus:border-primary-medium focus:bg-white"
+                                                                className={`rounded-2xl border border-border-light bg-bg-soft px-4 py-3 text-[14px] text-primary-dark outline-none transition focus:border-primary-medium focus:bg-white ${fieldErrorClass(!!editFieldErrors.description)}`}
                                                             />
+                                                            <p className="text-[11px] text-text-gray">
+                                                                Minimum {MIN_INCIDENT_DESCRIPTION_LENGTH} characters. Clear, actionable detail helps teams respond faster.
+                                                            </p>
+                                                            <FieldError message={editFieldErrors.description} />
                                                         </label>
 
                                                         <div className="flex flex-col gap-3 md:col-span-2">
@@ -587,6 +725,7 @@ const RangerMyIncidentsPage = () => {
                                                             <span className="text-[11px] text-text-black">
                                                                 Up to {MAX_IMAGES} images (JPG, PNG, WebP, GIF).
                                                             </span>
+                                                            <FieldError message={editFieldErrors.evidence} />
                                                         </div>
 
                                                         <label className="flex flex-col gap-2 md:col-span-2">
@@ -594,12 +733,14 @@ const RangerMyIncidentsPage = () => {
                                                             <textarea
                                                                 rows={2}
                                                                 value={editForm.notes}
-                                                                onChange={(e) =>
-                                                                    setEditForm((prev) => ({ ...prev, notes: e.target.value }))
-                                                                }
+                                                                onChange={(e) => {
+                                                                    setEditFieldErrors((prev) => ({ ...prev, notes: '' }));
+                                                                    setEditForm((prev) => ({ ...prev, notes: e.target.value }));
+                                                                }}
                                                                 placeholder="Any additional notes..."
-                                                                className="rounded-2xl border border-border-light bg-bg-soft px-4 py-3 text-[14px] text-primary-dark outline-none transition focus:border-primary-medium focus:bg-white"
+                                                                className={`rounded-2xl border border-border-light bg-bg-soft px-4 py-3 text-[14px] text-primary-dark outline-none transition focus:border-primary-medium focus:bg-white ${fieldErrorClass(!!editFieldErrors.notes)}`}
                                                             />
+                                                            <FieldError message={editFieldErrors.notes} />
                                                         </label>
                                                     </div>
 
@@ -658,62 +799,14 @@ const RangerMyIncidentsPage = () => {
                                 </div>
                             );
                         })}
-                        {/* Pagination footer */}
-                        {totalPages > 1 && (
-                            <div className="flex items-center justify-between px-5 py-3">
-                                <p className="text-[12px] text-text-gray">
-                                    Showing{' '}
-                                    <span className="font-semibold text-primary-dark">
-                                        {(safePage - 1) * pageSize + 1}–{Math.min(safePage * pageSize, filteredIncidents.length)}
-                                    </span>{' '}
-                                    of{' '}
-                                    <span className="font-semibold text-primary-dark">{filteredIncidents.length}</span>
-                                </p>
-                                <div className="flex items-center gap-1">
-                                    <button
-                                        type="button"
-                                        onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                                        disabled={safePage === 1}
-                                        className="inline-flex h-8 w-8 items-center justify-center rounded-xl border border-border-light bg-white text-primary-dark transition hover:bg-bg-soft disabled:cursor-not-allowed disabled:opacity-40"
-                                    >
-                                        <ChevronLeft size={14} />
-                                    </button>
-
-                                    {Array.from({ length: totalPages }, (_, i) => i + 1)
-                                        .filter((p) => p === 1 || p === totalPages || Math.abs(p - safePage) <= 1)
-                                        .reduce((acc, p, idx, arr) => {
-                                            if (idx > 0 && p - arr[idx - 1] > 1) acc.push('…');
-                                            acc.push(p);
-                                            return acc;
-                                        }, [])
-                                        .map((item, idx) =>
-                                            item === '…' ? (
-                                                <span key={`ellipsis-${idx}`} className="px-1 text-[12px] text-text-gray">…</span>
-                                            ) : (
-                                                <button
-                                                    key={item}
-                                                    type="button"
-                                                    onClick={() => setCurrentPage(item)}
-                                                    className={`inline-flex h-8 w-8 items-center justify-center rounded-xl border text-[12px] font-semibold transition ${
-                                                        safePage === item
-                                                            ? 'border-primary-dark bg-primary-dark text-white'
-                                                            : 'border-border-light bg-white text-primary-dark hover:bg-bg-soft'
-                                                    }`}
-                                                >
-                                                    {item}
-                                                </button>
-                                            )
-                                        )}
-
-                                    <button
-                                        type="button"
-                                        onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-                                        disabled={safePage === totalPages}
-                                        className="inline-flex h-8 w-8 items-center justify-center rounded-xl border border-border-light bg-white text-primary-dark transition hover:bg-bg-soft disabled:cursor-not-allowed disabled:opacity-40"
-                                    >
-                                        <ChevronRight size={14} />
-                                    </button>
-                                </div>
+                        {filteredIncidents.length > 0 && (
+                            <div className="border-t border-border-light px-5 py-3">
+                                <ListPaginationFooter
+                                    totalItems={filteredIncidents.length}
+                                    pageSize={pageSize}
+                                    currentPage={currentPage}
+                                    onPageChange={setCurrentPage}
+                                />
                             </div>
                         )}
                     </div>

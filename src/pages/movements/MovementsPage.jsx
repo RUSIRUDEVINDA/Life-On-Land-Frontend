@@ -1,6 +1,7 @@
-import React, { useMemo, useState, useEffect } from 'react';
-import { Calendar, Zap } from 'lucide-react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { ArrowUpRight, Calendar, Zap } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import ListPaginationFooter from '../../components/common/ListPaginationFooter';
 import { getMovements, getMovementSummary } from '../../features/movements/api/movementsApi';
 import MovementStats from '../../features/movements/components/MovementStats';
 import MovementFilters from '../../features/movements/components/MovementFilters';
@@ -8,37 +9,40 @@ import MovementTable from '../../features/movements/components/MovementTable';
 import ZoneDensity from '../../features/movements/components/ZoneDensity';
 import { fetchProtectedAreas, fetchZonesByProtectedArea } from '../../features/incidents/api/incidentsApi';
 
+const movementToIdString = (value) => {
+    if (value == null) return '';
+    if (typeof value === 'string') return value;
+    if (typeof value === 'object') return value._id || value.id || '';
+    return String(value);
+};
+
+const MOVEMENTS_EXPORT_PAGE_SIZE = 50;
+
 const MovementsPage = () => {
     const [movements, setMovements] = useState([]);
     const [summary, setSummary] = useState(null);
     const [loading, setLoading] = useState(true);
+    const [exporting, setExporting] = useState(false);
     const [search, setSearch] = useState('');
-    const [pagination, setPagination] = useState({ page: 1, limit: 15, total: 0 });
+    const [pagination, setPagination] = useState({ page: 1, limit: 10, total: 0, pages: 1 });
     const [areaLookup, setAreaLookup] = useState({});
     const [zoneLookup, setZoneLookup] = useState({});
 
-    const toIdString = (value) => {
-        if (value == null) return '';
-        if (typeof value === 'string') return value;
-        if (typeof value === 'object') return value._id || value.id || '';
-        return String(value);
-    };
-
-    const fetchData = async () => {
+    const fetchData = useCallback(async () => {
         setLoading(true);
         try {
             const [movData, sumData] = await Promise.all([
                 getMovements({
                     page: pagination.page,
                     limit: pagination.limit,
-                    tagId: search
+                    tagId: search,
                 }),
-                getMovementSummary()
+                getMovementSummary(),
             ]);
 
             setMovements(movData?.data || []);
             if (movData?.pagination) {
-                setPagination(prev => ({ ...prev, ...movData.pagination }));
+                setPagination((prev) => ({ ...prev, ...movData.pagination }));
             }
             setSummary(sumData);
         } catch (err) {
@@ -47,11 +51,15 @@ const MovementsPage = () => {
         } finally {
             setLoading(false);
         }
-    };
+    }, [pagination.page, pagination.limit, search]);
+
+    useEffect(() => {
+        setPagination((prev) => ({ ...prev, page: 1 }));
+    }, [search]);
 
     useEffect(() => {
         fetchData();
-    }, [pagination.page, search]);
+    }, [fetchData]);
 
     useEffect(() => {
         const loadLookups = async () => {
@@ -68,7 +76,7 @@ const MovementsPage = () => {
                 );
                 const zoneMap = {};
                 zoneLists.flat().forEach((zone) => {
-                    const id = toIdString(zone?._id || zone?.id);
+                    const id = movementToIdString(zone?._id || zone?.id);
                     if (!id) return;
                     zoneMap[id] = zone?.name || zone?.title || 'Unknown Zone';
                 });
@@ -81,25 +89,72 @@ const MovementsPage = () => {
         loadLookups();
     }, []);
 
-    const displayMovements = useMemo(() => {
-        return movements.map((move) => {
-            const protectedAreaId = toIdString(move?.protectedAreaId || move?.protectedArea);
-            const zoneId = toIdString(move?.zoneId || move?.zone);
-            return {
-                ...move,
-                protectedAreaName:
-                    move?.protectedAreaName ||
-                    move?.protectedArea?.name ||
-                    areaLookup[protectedAreaId] ||
-                    'Unknown Protected Area',
-                zoneName:
-                    move?.zoneName ||
-                    move?.zone?.name ||
-                    zoneLookup[zoneId] ||
-                    'Unknown Zone',
-            };
-        });
-    }, [movements, areaLookup, zoneLookup]);
+    const enrichMovementRows = useCallback(
+        (raw) =>
+            raw.map((move) => {
+                const protectedAreaId = movementToIdString(move?.protectedAreaId || move?.protectedArea);
+                const zoneId = movementToIdString(move?.zoneId || move?.zone);
+                return {
+                    ...move,
+                    protectedAreaName:
+                        move?.protectedAreaName ||
+                        move?.protectedArea?.name ||
+                        areaLookup[protectedAreaId] ||
+                        'Unknown Protected Area',
+                    zoneName:
+                        move?.zoneName ||
+                        move?.zone?.name ||
+                        zoneLookup[zoneId] ||
+                        'Unknown Zone',
+                };
+            }),
+        [areaLookup, zoneLookup]
+    );
+
+    const displayMovements = useMemo(
+        () => enrichMovementRows(movements),
+        [movements, enrichMovementRows]
+    );
+
+    const handleExportQueue = async () => {
+        if (pagination.total <= 0 && movements.length === 0) return;
+        const tagId = search.trim();
+        setExporting(true);
+        try {
+            const first = await getMovements({
+                page: 1,
+                limit: MOVEMENTS_EXPORT_PAGE_SIZE,
+                tagId,
+            });
+            const allRaw = [...(first.data || [])];
+            const totalPages = Math.max(1, Number(first.pagination?.pages) || 1);
+            for (let p = 2; p <= totalPages; p += 1) {
+                const res = await getMovements({
+                    page: p,
+                    limit: MOVEMENTS_EXPORT_PAGE_SIZE,
+                    tagId,
+                });
+                allRaw.push(...(res.data || []));
+            }
+            const rows = enrichMovementRows(allRaw);
+            const { exportMovementsQueueToPdf } = await import(
+                '../../features/movements/utils/exportMovementsQueuePdf'
+            );
+            const result = exportMovementsQueueToPdf(rows, { searchTerm: tagId });
+            if (!result.ok) {
+                window.alert(result.message);
+            }
+        } catch (err) {
+            console.error('Movements PDF export failed:', err);
+            const hint =
+                err?.message && /Failed to fetch dynamically imported module|Loading chunk/i.test(err.message)
+                    ? ' If you just cloned the repo, run npm install and reload the page.'
+                    : '';
+            window.alert(`Could not generate the PDF. Please try again.${hint}`);
+        } finally {
+            setExporting(false);
+        }
+    };
 
     return (
         <div className="flex flex-col gap-8 animate-enter">
@@ -108,8 +163,20 @@ const MovementsPage = () => {
                     <h1 className="text-[22px] font-bold text-primary-dark tracking-tight leading-none">Telemetry Intelligence</h1>
                     <p className="text-text-gray text-[12px] font-medium mt-1">Real-time geospatial tracking and movement analytics.</p>
                 </div>
-                <div className="flex gap-3">
-                    <button className="bg-white border border-border-light px-4 py-2.5 rounded-xl text-[13px] font-bold text-primary-dark flex items-center gap-2 shadow-sm hover:bg-bg-soft hover:-translate-y-0.5 transition-all duration-300">
+                <div className="flex flex-wrap gap-3">
+                    <button
+                        type="button"
+                        onClick={handleExportQueue}
+                        disabled={loading || exporting || (pagination.total <= 0 && movements.length === 0)}
+                        className="inline-flex items-center gap-2 rounded-xl border border-primary-medium bg-white px-4 py-2.5 text-[13px] font-bold text-primary-dark shadow-sm transition hover:bg-primary-light/10 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                        <ArrowUpRight size={16} />
+                        {exporting ? 'Exporting…' : 'Export Queue'}
+                    </button>
+                    <button
+                        type="button"
+                        className="bg-white border border-border-light px-4 py-2.5 rounded-xl text-[13px] font-bold text-primary-dark flex items-center gap-2 shadow-sm hover:bg-bg-soft hover:-translate-y-0.5 transition-all duration-300"
+                    >
                         <Calendar size={16} className="text-primary-medium" /> Last 24 Hours
                     </button>
                     <Link to="/dashboard/map-tracking" className="bg-primary-dark text-white px-4 py-2.5 rounded-xl text-[13px] font-bold flex items-center gap-2 shadow-elevated hover:bg-black hover:-translate-y-0.5 transition-all duration-300">
@@ -125,8 +192,21 @@ const MovementsPage = () => {
                     <MovementFilters
                         search={search}
                         onSearchChange={setSearch}
+                        pageSize={pagination.limit}
+                        onPageSizeChange={(limit) => setPagination((prev) => ({ ...prev, limit, page: 1 }))}
                     />
                     <MovementTable movements={displayMovements} loading={loading} />
+                    {!loading && pagination.total > 0 && (
+                        <div className="border-t border-border-light px-5 py-3">
+                            <ListPaginationFooter
+                                totalItems={pagination.total}
+                                pageSize={pagination.limit}
+                                currentPage={pagination.page}
+                                onPageChange={(page) => setPagination((prev) => ({ ...prev, page }))}
+                                countSuffix="records"
+                            />
+                        </div>
+                    )}
                 </div>
 
                 <div className="flex flex-col gap-6">

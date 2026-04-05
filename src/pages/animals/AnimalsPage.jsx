@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Plus, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Plus } from 'lucide-react';
 import Modal from '../../components/common/Modal';
+import ListPaginationFooter from '../../components/common/ListPaginationFooter';
 import { getAnimals, deleteAnimal } from '../../features/animals/api/animalsApi';
 import AnimalFilters from '../../features/animals/components/AnimalFilters';
 import AnimalTable from '../../features/animals/components/AnimalTable';
@@ -101,6 +102,8 @@ const AnimalsPage = () => {
                     onStatusChange={(val) => setFilters(prev => ({ ...prev, status: val }))}
                     species={filters.species}
                     onSpeciesChange={(val) => setFilters(prev => ({ ...prev, species: val }))}
+                    pageSize={pagination.limit}
+                    onPageSizeChange={(limit) => setPagination((prev) => ({ ...prev, limit, page: 1 }))}
                 />
 
                 <AnimalTable
@@ -111,27 +114,17 @@ const AnimalsPage = () => {
                     onEdit={handleEditClick}
                 />
 
-                <div className="p-6 border-t border-border-light flex items-center justify-between bg-bg-soft/10">
-                    <span className="text-[13px] text-text-gray font-bold">
-                        Displaying <span className="text-primary-dark font-extrabold">{animals.length}</span> entities of {pagination.total} total
-                    </span>
-                    <div className="flex gap-2.5">
-                        <button
-                            disabled={pagination.page === 1}
-                            onClick={() => setPagination(prev => ({ ...prev, page: prev.page - 1 }))}
-                            className="w-10 h-10 flex items-center justify-center border border-border-light rounded-xl text-text-gray bg-white hover:bg-bg-soft hover:text-primary-dark transition-all duration-200 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer shadow-sm active:scale-90"
-                        >
-                            <ChevronLeft size={18} />
-                        </button>
-                        <button
-                            disabled={pagination.page === pagination.pages}
-                            onClick={() => setPagination(prev => ({ ...prev, page: prev.page + 1 }))}
-                            className="w-10 h-10 flex items-center justify-center border border-border-light rounded-xl text-text-gray bg-white hover:bg-bg-soft hover:text-primary-dark transition-all duration-200 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer shadow-sm active:scale-90"
-                        >
-                            <ChevronRight size={18} />
-                        </button>
+                {!loading && !error && pagination.total > 0 && (
+                    <div className="border-t border-border-light bg-bg-soft/10 px-5 py-3">
+                        <ListPaginationFooter
+                            totalItems={pagination.total}
+                            pageSize={pagination.limit}
+                            currentPage={pagination.page}
+                            onPageChange={(page) => setPagination((prev) => ({ ...prev, page }))}
+                            countSuffix="animals"
+                        />
                     </div>
-                </div>
+                )}
             </div>
 
             <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)}>

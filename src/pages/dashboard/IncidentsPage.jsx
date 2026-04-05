@@ -1,14 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import {
-    ArrowUpRight,
-    CalendarClock,
-    ChevronLeft,
-    ChevronRight,
-    FilePlus2,
-    LoaderCircle,
-    ShieldAlert,
-    Trash2,
-} from 'lucide-react';
+import { ArrowUpRight, CalendarClock, FilePlus2, LoaderCircle, ShieldAlert, Trash2 } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import IncidentMetricCard from '../../features/incidents/components/IncidentMetricCard';
 import IncidentFilters from '../../features/incidents/components/IncidentFilters';
@@ -20,23 +11,13 @@ import {
 } from '../../features/incidents/data/incidents';
 import { deleteIncident, fetchIncidents } from '../../features/incidents/api/incidentsApi';
 import ConfirmDialog from '../../components/common/ConfirmDialog';
+import ListPaginationFooter from '../../components/common/ListPaginationFooter';
 
 const formatDate = (value) =>
     new Intl.DateTimeFormat('en-GB', {
         dateStyle: 'medium',
         timeStyle: 'short',
     }).format(new Date(value));
-
-const buildPaginationItems = (totalPages, activePage) => {
-    if (totalPages <= 1) return [1];
-    return Array.from({ length: totalPages }, (_, i) => i + 1)
-        .filter((p) => p === 1 || p === totalPages || Math.abs(p - activePage) <= 1)
-        .reduce((acc, p, idx, arr) => {
-            if (idx > 0 && p - arr[idx - 1] > 1) acc.push('…');
-            acc.push(p);
-            return acc;
-        }, []);
-};
 
 const IncidentsPage = () => {
     const navigate = useNavigate();
@@ -107,7 +88,6 @@ const IncidentsPage = () => {
     }, [incidents, searchTerm, type, status, severity]);
 
     const totalPages = Math.max(1, Math.ceil(filteredIncidents.length / pageSize));
-    const effectivePage = Math.min(currentPage, totalPages);
 
     useEffect(() => {
         if (currentPage > totalPages) {
@@ -121,14 +101,7 @@ const IncidentsPage = () => {
         return filteredIncidents.slice(start, start + pageSize);
     }, [filteredIncidents, currentPage, pageSize, totalPages]);
 
-    const paginationItems = useMemo(
-        () => buildPaginationItems(totalPages, effectivePage),
-        [totalPages, effectivePage]
-    );
-
     const totalFiltered = filteredIncidents.length;
-    const rangeStart = totalFiltered === 0 ? 0 : (effectivePage - 1) * pageSize + 1;
-    const rangeEnd = Math.min(effectivePage * pageSize, totalFiltered);
 
     const selectedIncident =
         filteredIncidents.find((incident) => incident._id === selectedIncidentId) ??
@@ -221,13 +194,7 @@ const IncidentsPage = () => {
                 </div>
 
                 <div className="flex flex-wrap gap-2">
-                    <button
-                        onClick={() => navigate('/dashboard/incidents/report')}
-                        className="inline-flex items-center gap-2 rounded-2xl bg-primary-dark px-4 py-3 text-[13px] font-semibold text-white transition hover:bg-black"
-                    >
-                        <FilePlus2 size={15} />
-                        Report Incident
-                    </button>
+                    
                     <button
                         type="button"
                         onClick={handleExportQueue}
@@ -372,64 +339,13 @@ const IncidentsPage = () => {
 
             {!loading && !error && totalFiltered > 0 && (
                 <div className="rounded-[28px] border border-border-light bg-white px-5 py-4 shadow-premium">
-                    <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-                        <div className="flex flex-wrap items-center gap-x-3 gap-y-2 text-[13px] text-text-gray">
-                            <p>
-                                Showing{' '}
-                                <span className="font-semibold text-primary-dark">
-                                    {rangeStart}–{rangeEnd}
-                                </span>{' '}
-                                of{' '}
-                                <span className="font-semibold text-primary-dark">{totalFiltered}</span> incidents
-                            </p>
-                        </div>
-
-                        <div className="flex flex-wrap items-center justify-center gap-2 sm:justify-end">
-                            <button
-                                type="button"
-                                aria-label="Previous page"
-                                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                                disabled={effectivePage <= 1}
-                                className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-border-light bg-white text-primary-dark shadow-sm transition hover:bg-bg-soft disabled:cursor-not-allowed disabled:opacity-40"
-                            >
-                                <ChevronLeft size={18} strokeWidth={2} />
-                            </button>
-
-                            {paginationItems.map((item, idx) =>
-                                item === '…' ? (
-                                    <span
-                                        key={`ellipsis-${idx}`}
-                                        className="inline-flex h-10 min-w-10 items-center justify-center px-1 text-[13px] font-medium text-text-gray"
-                                    >
-                                        …
-                                    </span>
-                                ) : (
-                                    <button
-                                        key={item}
-                                        type="button"
-                                        onClick={() => setCurrentPage(item)}
-                                        className={`inline-flex h-10 min-w-10 shrink-0 items-center justify-center rounded-2xl border px-3 text-[13px] font-semibold shadow-sm transition ${
-                                            effectivePage === item
-                                                ? 'border-primary-dark bg-primary-dark text-white'
-                                                : 'border-border-light bg-white text-primary-dark hover:bg-bg-soft'
-                                        }`}
-                                    >
-                                        {item}
-                                    </button>
-                                )
-                            )}
-
-                            <button
-                                type="button"
-                                aria-label="Next page"
-                                onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-                                disabled={effectivePage >= totalPages}
-                                className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-border-light bg-white text-primary-dark shadow-sm transition hover:bg-bg-soft disabled:cursor-not-allowed disabled:opacity-40"
-                            >
-                                <ChevronRight size={18} strokeWidth={2} />
-                            </button>
-                        </div>
-                    </div>
+                    <ListPaginationFooter
+                        totalItems={totalFiltered}
+                        pageSize={pageSize}
+                        currentPage={currentPage}
+                        onPageChange={setCurrentPage}
+                        countSuffix="incidents"
+                    />
                 </div>
             )}
 
