@@ -72,18 +72,14 @@ export const exportMovementsQueueToPdf = (movements, filterSummary = {}) => {
             y += 6;
         }
 
-        const head = [['Record ID', 'Entity ID', 'Coordinates', 'Protected area', 'Zone', 'Timestamp']];
+        const head = [['No.', 'Entity ID', 'Coordinates', 'Protected area', 'Zone', 'Timestamp']];
 
         const body = movements.map((move, idx) => {
-            const recordId = truncate(
-                String(move?.id || move?._id || `${move?.tagId || 'row'}-${move?.timestamp || idx}`),
-                20
-            );
             const tagLabel = String(move?.tagId ?? '—');
             const area = move?.protectedAreaName || move?.protectedArea?.name || '—';
             const zone = move?.zoneName || move?.zone?.name || '—';
             return [
-                recordId,
+                String(idx + 1),
                 truncate(tagLabel, 18),
                 formatCoords(move),
                 truncate(area, 26),
