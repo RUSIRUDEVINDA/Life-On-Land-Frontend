@@ -3,7 +3,7 @@ import Map, { Source, Layer, Marker, Popup, NavigationControl, FullscreenControl
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { Activity, MapPinned, Info, AlertTriangle } from 'lucide-react';
-import { fetchZonesByProtectedArea, fetchRiskMapByProtectedArea } from '../../risk-map/api/riskMapApi';
+import { fetchProtectedAreas, fetchZonesByProtectedArea, fetchRiskMapByProtectedArea } from '../../risk-map/api/riskMapApi';
 import { getLiveMovements } from '../api/movementsApi';
 import { MAP_STYLE } from '../../map/mapConfig';
 
@@ -109,9 +109,18 @@ const TelemetryMap = ({ selectedAreaId }) => {
   });
 
   const loadAreaData = useCallback(async (areaId) => {
-    if (!areaId) return;
     setLoading(true);
     try {
+      if (!areaId) {
+        const areas = await fetchProtectedAreas();
+        const zoneLists = await Promise.all(
+          areas.map((area) => fetchZonesByProtectedArea(area.id).catch(() => []))
+        );
+        setZones(zoneLists.flat());
+        setRiskData({});
+        return;
+      }
+
       const [zonesData, riskMap] = await Promise.all([
         fetchZonesByProtectedArea(areaId),
         fetchRiskMapByProtectedArea(areaId)
@@ -140,7 +149,8 @@ const TelemetryMap = ({ selectedAreaId }) => {
 
   const loadMovements = useCallback(async () => {
     try {
-      const data = await getLiveMovements({ protectedAreaId: selectedAreaId });
+      const params = selectedAreaId ? { protectedAreaId: selectedAreaId } : {};
+      const data = await getLiveMovements(params);
       console.log(`[MAP-DEBUG] Received ${data?.length || 0} movements for area: ${selectedAreaId}`, data);
       setMovements(data || []);
     } catch (err) {
@@ -203,24 +213,28 @@ const TelemetryMap = ({ selectedAreaId }) => {
         const resolvedZone = containingZone || zonesById[movementZoneId] || null;
         const resolvedZoneId = normalizeId(resolvedZone?._id || resolvedZone?.id || movementZoneId);
         const riskInfo = riskData[resolvedZoneId] || riskData[movementZoneId] || null;
-        const resolvedRiskLevel = normalizeRiskLevel(riskInfo?.riskLevel);
+        const fallbackZoneName = movement?.zoneName || movement?.zone?.name || '';
+        const fallbackZoneType = movement?.zoneType || movement?.zone?.zoneType || '';
+        const resolvedRiskLevel = normalizeRiskLevel(riskInfo?.riskLevel || movement?.riskLevel);
 
         return {
           ...movement,
           lng: coordinates.lng,
           lat: coordinates.lat,
           resolvedZoneId,
-          resolvedZoneName: riskInfo?.zoneName || resolvedZone?.name || 'N/A',
-          resolvedZoneType: resolvedZone?.zoneType || '',
+          resolvedZoneName: riskInfo?.zoneName || resolvedZone?.name || fallbackZoneName || 'N/A',
+          resolvedZoneType: resolvedZone?.zoneType || fallbackZoneType || '',
           resolvedRiskLevel,
         };
       })
       .filter(Boolean)
   ), [movements, zones, zonesById, riskData]);
 
-  const zoneFeatures = useMemo(() => ({
-    type: 'FeatureCollection',
-    features: zones.map(zone => {
+  const zoneFeatures = useMemo(() => {
+    const mapZones = selectedAreaId ? zones : [];
+    return {
+      type: 'FeatureCollection',
+      features: mapZones.map(zone => {
       const zoneId = normalizeId(zone._id || zone.id);
       const riskInfo = riskData[zoneId];
       const riskLevel = normalizeRiskLevel(riskInfo?.riskLevel);
@@ -236,8 +250,9 @@ const TelemetryMap = ({ selectedAreaId }) => {
           color: riskLevelStyles[riskLevel].color
         }
       };
-    })
-  }), [zones, riskData]);
+      })
+    };
+  }, [zones, riskData, selectedAreaId]);
 
   return (
     <div className="h-[65vh] w-full rounded-[28px] overflow-hidden border border-border-light shadow-premium relative bg-bg-soft group">
@@ -257,7 +272,7 @@ const TelemetryMap = ({ selectedAreaId }) => {
         onMove={evt => setViewState(evt.viewState)}
         mapStyle={MAP_STYLE}
         style={{ width: '100%', height: '100%' }}
-        interactiveLayerIds={['zones-layer']}
+        interactiveLayerIds={selectedAreaId ? ['zones-layer'] : []}
         onMouseEnter={evt => {
            const feature = evt.features?.[0];
            if (feature) setHoveredZone(feature.properties);
@@ -267,25 +282,27 @@ const TelemetryMap = ({ selectedAreaId }) => {
         <NavigationControl position="top-right" />
         <FullscreenControl position="top-right" />
 
-        <Source id="zones-data" type="geojson" data={zoneFeatures}>
-          <Layer
-            id="zones-layer"
-            type="fill"
-            paint={{
-              'fill-color': ['get', 'color'],
-              'fill-opacity': 0.25
-            }}
-          />
-          <Layer
-            id="zones-outline"
-            type="line"
-            paint={{
-              'line-color': ['get', 'color'],
-              'line-width': 2.5,
-              'line-opacity': 0.7
-            }}
-          />
-        </Source>
+        {selectedAreaId && (
+          <Source id="zones-data" type="geojson" data={zoneFeatures}>
+            <Layer
+              id="zones-layer"
+              type="fill"
+              paint={{
+                'fill-color': ['get', 'color'],
+                'fill-opacity': 0.25
+              }}
+            />
+            <Layer
+              id="zones-outline"
+              type="line"
+              paint={{
+                'line-color': ['get', 'color'],
+                'line-width': 2.5,
+                'line-opacity': 0.7
+              }}
+            />
+          </Source>
+        )}
 
         {enrichedMovements.map((mv) => {
           const style = riskLevelStyles[mv.resolvedRiskLevel] || riskLevelStyles.LOW;
