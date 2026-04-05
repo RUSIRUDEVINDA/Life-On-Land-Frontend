@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { ClipboardList, Search, Filter } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import ListPaginationFooter from '../../../components/common/ListPaginationFooter';
+import PatrolTitle from './PatrolTitle';
 
 const PatrolsTable = ({ patrols }) => {
     const navigate = useNavigate();
@@ -123,18 +124,16 @@ const PatrolsTable = ({ patrols }) => {
                                     style={{ animationDelay: `${index * 40}ms` }}
                                     title="Click to view patrol details and add check-ins"
                                 >
-                                    <td className="px-6 py-3.5">
+                                    <td className="px-6 py-4 xl:py-5">
                                         <div className="flex flex-col">
-                                            <span className="text-[13px] font-bold text-primary-dark tracking-tight max-w-[300px] xl:max-w-[400px] truncate group-hover:text-primary-medium transition-colors">
-                                                {patrol.title || 'Untitled Patrol'}
-                                            </span>
+                                            <PatrolTitle title={patrol.title} />
                                         </div>
                                     </td>
                                     <td className="px-6 py-3.5">
                                         <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider shadow-sm border border-black/5 ${patrol.status === 'IN_PROGRESS' ? 'bg-blue-100 text-blue-700' :
-                                                patrol.status === 'COMPLETED' ? 'bg-emerald-100 text-emerald-700' :
-                                                    patrol.status === 'CANCELLED' ? 'bg-rose-100 text-rose-700' :
-                                                        'bg-indigo-100 text-indigo-700'
+                                            patrol.status === 'COMPLETED' ? 'bg-emerald-100 text-emerald-700' :
+                                                patrol.status === 'CANCELLED' ? 'bg-rose-100 text-rose-700' :
+                                                    'bg-indigo-100 text-indigo-700'
                                             }`}>
                                             {patrol.status === 'IN_PROGRESS' && <span className="w-1.5 h-1.5 rounded-full bg-blue-500 opacity-70 animate-pulse"></span>}
                                             {patrol.status || 'PLANNED'}
