@@ -80,7 +80,7 @@ export const exportIncidentsQueueToPdf = (incidents, filterSummary = {}) => {
 
     const head = [
         [
-            'Record ID',
+            'No.',
             'Type',
             'Severity',
             'Status',
@@ -92,8 +92,8 @@ export const exportIncidentsQueueToPdf = (incidents, filterSummary = {}) => {
         ],
     ];
 
-    const body = incidents.map((inc) => [
-        truncate(String(inc._id), 18),
+    const body = incidents.map((inc, index) => [
+        String(index + 1),
         truncate(String(inc.type ?? '').replaceAll('_', ' '), 18),
         inc.severity ?? '',
         truncate(String(inc.status ?? '').replaceAll('_', ' '), 14),

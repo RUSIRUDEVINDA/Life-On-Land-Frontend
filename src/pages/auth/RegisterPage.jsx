@@ -82,7 +82,7 @@ const RegisterPage = () => {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     name: name.trim(),
-                    phone: phone.trim(),
+                    phone: phone.replace(/\D/g, ''),
                     email: email.trim(),
                     password,
                     role,
@@ -144,8 +144,9 @@ const RegisterPage = () => {
                             type="text"
                             id="name"
                             autoComplete="name"
+                            maxLength={100}
                             className={inputClass(Boolean(fieldErrors.name))}
-                            placeholder="John Doe"
+                            placeholder="John Doe (letters and spaces, max 100)"
                             value={name}
                             onChange={(e) => {
                                 setName(e.target.value);
@@ -166,7 +167,7 @@ const RegisterPage = () => {
                             id="phone"
                             autoComplete="tel"
                             className={inputClass(Boolean(fieldErrors.phone))}
-                            placeholder="0771234567 or +94771234567"
+                            placeholder="0771234567"
                             value={phone}
                             onChange={(e) => {
                                 setPhone(e.target.value);
@@ -186,6 +187,7 @@ const RegisterPage = () => {
                             type="email"
                             id="email"
                             autoComplete="email"
+                            maxLength={250}
                             className={inputClass(Boolean(fieldErrors.email))}
                             placeholder="hello@ecotrack.com"
                             value={email}

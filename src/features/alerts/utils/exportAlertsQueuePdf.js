@@ -72,10 +72,10 @@ export const exportAlertsQueueToPdf = (alerts, filterSummary = {}) => {
             y += 6;
         }
 
-        const head = [['Record ID', 'Type', 'Severity', 'Status', 'Created', 'Description']];
+        const head = [['No.', 'Type', 'Severity', 'Status', 'Created', 'Description']];
 
-        const body = alerts.map((a) => [
-            truncate(String(a._id || a.id), 18),
+        const body = alerts.map((a, index) => [
+            String(index + 1),
             truncate(String(a.type ?? ''), 22),
             a.severity ?? '',
             truncate(String(a.status ?? 'NEW'), 14),

@@ -4,16 +4,17 @@ export const INVALID_CTRL_REGEX = /[\x00-\x08\x0B\x0C\x0E-\x1F]/;
 const EMAIL_REGEX =
     /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/;
 
-/** Name: letters (Unicode), spaces, common punctuation — no digits-only garbage. */
-const NAME_REGEX = /^[\p{L}\p{M}][\p{L}\p{M}\s'.-]*$/u;
+/** Full name: Unicode letters and regular spaces only (no digits or punctuation). */
+const NAME_REGEX = /^[\p{L}\p{M} ]+$/u;
 
-/** Phone: optional leading +, digits with spaces/hyphens between. */
-const PHONE_REGEX = /^\+?[0-9][0-9\s-]{6,22}$/;
+/** Sign-up phone: exactly 10 digit characters (spaces/hyphens/+ allowed for display, stripped when counting). */
+const PHONE_ALLOWED_CHARS_REGEX = /^[\d\s\-+()]*$/;
 
 const MIN_PASSWORD_LEN = 8;
 const MAX_PASSWORD_LEN = 128;
 const MIN_NAME_LEN = 2;
-const MAX_NAME_LEN = 120;
+const MAX_NAME_LEN = 100;
+const MAX_EMAIL_LEN = 250;
 
 /**
  * Map common API validation payloads to { [fieldName]: message }.
@@ -74,6 +75,8 @@ export function validateLoginFields({ email, password }) {
         errors.email = 'Email is required.';
     } else if (INVALID_CTRL_REGEX.test(email)) {
         errors.email = 'Email contains invalid characters that cannot be used.';
+    } else if (em.length > MAX_EMAIL_LEN) {
+        errors.email = 'Email can only contain 250 characters.';
     } else if (!EMAIL_REGEX.test(em)) {
         errors.email = 'Enter a valid email address.';
     }
@@ -105,26 +108,35 @@ export function validateRegisterFields({ name, phone, email, password, confirmPa
         errors.name = 'Full name is required.';
     } else if (INVALID_CTRL_REGEX.test(name)) {
         errors.name = 'Name contains invalid characters that cannot be used.';
+    } else if (n.length > MAX_NAME_LEN) {
+        errors.name = 'Full name can only contain 100 characters.';
     } else if (n.length < MIN_NAME_LEN) {
         errors.name = `Name must be at least ${MIN_NAME_LEN} characters.`;
-    } else if (n.length > MAX_NAME_LEN) {
-        errors.name = 'Name is too long.';
     } else if (!NAME_REGEX.test(n)) {
-        errors.name = 'Name can only include letters, spaces, hyphens, apostrophes, and periods.';
+        errors.name = 'Full name can only contain letters and spaces.';
     }
 
     if (!ph) {
         errors.phone = 'Phone number is required.';
     } else if (INVALID_CTRL_REGEX.test(phone)) {
         errors.phone = 'Phone contains invalid characters that cannot be used.';
-    } else if (!PHONE_REGEX.test(ph.replace(/\s+/g, ' '))) {
-        errors.phone = 'Enter a valid phone number (digits, optional + prefix).';
+    } else if (!PHONE_ALLOWED_CHARS_REGEX.test(ph)) {
+        errors.phone = 'Phone number can only include digits, spaces, hyphens, parentheses, or +.';
+    } else {
+        const digitsOnly = ph.replace(/\D/g, '');
+        if (digitsOnly.length > 10) {
+            errors.phone = 'Phone number can only contain 10 digits.';
+        } else if (digitsOnly.length < 10) {
+            errors.phone = 'Phone number must contain exactly 10 digits.';
+        }
     }
 
     if (!em) {
         errors.email = 'Email is required.';
     } else if (INVALID_CTRL_REGEX.test(email)) {
         errors.email = 'Email contains invalid characters that cannot be used.';
+    } else if (em.length > MAX_EMAIL_LEN) {
+        errors.email = 'Email can only contain 250 characters.';
     } else if (!EMAIL_REGEX.test(em)) {
         errors.email = 'Enter a valid email address.';
     }

@@ -148,6 +148,7 @@ const LoginPage = () => {
                             type="email"
                             id="email"
                             autoComplete="email"
+                            maxLength={250}
                             className={inputClass(Boolean(fieldErrors.email))}
                             placeholder="hello@ecotrack.com"
                             value={email}
