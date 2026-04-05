@@ -101,3 +101,11 @@ export const createAlert = async (input) => {
     });
     return payload;
 };
+
+export const updateAlertStatus = async (id, input) => {
+    const payload = await requestJson(`/api/alerts/${id}`, {
+        method: 'PATCH',
+        body: JSON.stringify(input),
+    });
+    return payload;
+};

@@ -3,7 +3,8 @@ import { fetchProtectedAreas } from '../../features/risk-map/api/riskMapApi';
 import { getLiveMovements } from '../../features/movements/api/movementsApi';
 import { fetchAlerts } from '../../features/alerts/api/alertsApi';
 import TelemetryMap from '../../features/movements/components/TelemetryMap';
-import { Map, Activity, Layers, Bell } from 'lucide-react';
+import AlertDescription from '../../features/alerts/components/AlertDescription';
+import { Map, Activity, Layers, Bell, ShieldAlert } from 'lucide-react';
 
 const MapTrackingPage = () => {
     const [areas, setAreas] = useState([]);
@@ -83,12 +84,12 @@ const MapTrackingPage = () => {
                         </select>
                         <Layers size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-primary-medium pointer-events-none" />
                         <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none transition-transform group-hover:translate-y-0.5 duration-300">
-                           <svg width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg">
-                               <path d="M2.5 4.5L6 8L9.5 4.5" stroke="#2A5A45" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                           </svg>
+                            <svg width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M2.5 4.5L6 8L9.5 4.5" stroke="#2A5A45" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                            </svg>
                         </div>
                     </div>
-                    
+
                     <button className="bg-primary-dark text-white p-3 rounded-2xl shadow-elevated hover:bg-black hover:scale-105 transition-all duration-300">
                         <Bell size={20} />
                     </button>
@@ -97,7 +98,7 @@ const MapTrackingPage = () => {
 
             <main className="grid grid-cols-1 lg:grid-cols-4 gap-6">
                 <section className="lg:col-span-3">
-                   <TelemetryMap selectedAreaId={selectedAreaId} />
+                    <TelemetryMap selectedAreaId={selectedAreaId} />
                 </section>
 
                 <aside className="flex flex-col gap-6">
@@ -127,26 +128,45 @@ const MapTrackingPage = () => {
                     </div>
 
                     <div className="bg-white rounded-[28px] p-6 border border-border-light shadow-premium flex flex-col gap-5">
-                       <h3 className="text-[15px] font-bold text-primary-dark">Intelligence Insights</h3>
-                       <div className="space-y-4">
-                           {areaAlerts.length > 0 ? (
-                               areaAlerts.slice(0, 2).map((alert, idx) => (
-                                   <div key={idx} className={`p-4 rounded-2xl border ${alert.severity === 'CRITICAL' ? 'bg-red-50 border-red-100' : 'bg-bg-soft border-border-light/50'}`}>
-                                       <p className={`text-[11px] font-bold uppercase tracking-wider ${alert.severity === 'CRITICAL' ? 'text-red-600' : 'text-primary-medium'}`}>
-                                           {alert.type || 'System Intel'}
-                                       </p>
-                                       <p className="text-[13px] text-primary-dark font-medium mt-1 leading-relaxed">
-                                           {alert.description}
-                                       </p>
-                                   </div>
-                               ))
-                           ) : (
-                               <div className="p-10 bg-bg-soft rounded-2xl border border-dashed border-border-light flex flex-col items-center text-center gap-2">
-                                   <Activity size={20} className="text-primary-medium opacity-20" />
-                                   <p className="text-[12px] font-bold text-primary-dark opacity-40 uppercase tracking-tighter">No Active Intel</p>
-                               </div>
-                           )}
-                       </div>
+                        <h3 className="text-[15px] font-bold text-primary-dark">Intelligence Insights</h3>
+                        <div className="space-y-4">
+                            {areaAlerts.length > 0 ? (
+                                areaAlerts.slice(0, 2).map((alert, idx) => (
+                                    <div
+                                        key={idx}
+                                        className={`p-4 rounded-2xl border transition-all duration-200 ${alert.severity === 'CRITICAL'
+                                                ? 'bg-rose-50 border-rose-100'
+                                                : alert.severity === 'HIGH'
+                                                    ? 'bg-orange-50 border-orange-100'
+                                                    : 'bg-bg-soft border-border-light/50'
+                                            }`}
+                                    >
+                                        <div className="flex items-center gap-2 mb-2">
+                                            <div className={`w-5 h-5 rounded-md flex items-center justify-center flex-shrink-0 ${alert.type === 'INCIDENT' ? 'bg-rose-100' : 'bg-primary-light/30'
+                                                }`}>
+                                                {alert.type === 'INCIDENT'
+                                                    ? <ShieldAlert size={11} className="text-rose-600" />
+                                                    : <Activity size={11} className="text-primary-medium" />
+                                                }
+                                            </div>
+                                            <span className={`text-[10px] font-bold uppercase tracking-widest ${alert.severity === 'CRITICAL' ? 'text-rose-600'
+                                                    : alert.severity === 'HIGH' ? 'text-orange-600'
+                                                        : 'text-primary-medium'
+                                                }`}>
+                                                {alert.severity} · {alert.type === 'INCIDENT' ? 'Incident' : 'Movement'}
+                                            </span>
+                                        </div>
+                                        <AlertDescription alert={alert} compact={false} />
+                                    </div>
+                                ))
+
+                            ) : (
+                                <div className="p-10 bg-bg-soft rounded-2xl border border-dashed border-border-light flex flex-col items-center text-center gap-2">
+                                    <Activity size={20} className="text-primary-medium opacity-20" />
+                                    <p className="text-[12px] font-bold text-primary-dark opacity-40 uppercase tracking-tighter">No Active Intel</p>
+                                </div>
+                            )}
+                        </div>
                     </div>
                 </aside>
             </main>

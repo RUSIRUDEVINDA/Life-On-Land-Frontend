@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import { fetchPatrolById, addCheckIn, updatePatrol, deleteCheckIn } from '../../features/patrols/api/patrolsApi';
 import { getUserRole } from '../../utils/auth';
+import PatrolTitle from '../../features/patrols/components/PatrolTitle';
 
 const STATUS_OPTIONS = [
     { value: 'PLANNED', label: 'Planned', badge: 'bg-indigo-100 text-indigo-700', active: 'ring-2 ring-indigo-500 bg-indigo-50' },
@@ -182,18 +183,19 @@ const PatrolDetailsPage = () => {
 
                         <div className="flex items-center justify-between gap-4 mb-6 relative z-10">
                             <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-bold uppercase tracking-widest shadow-sm border border-black/5 ${status === 'IN_PROGRESS' ? 'bg-blue-100 text-blue-700' :
-                                    status === 'COMPLETED' ? 'bg-emerald-100 text-emerald-700' :
-                                        status === 'CANCELLED' ? 'bg-rose-100 text-rose-700' :
-                                            'bg-indigo-100 text-indigo-700'
+                                status === 'COMPLETED' ? 'bg-emerald-100 text-emerald-700' :
+                                    status === 'CANCELLED' ? 'bg-rose-100 text-rose-700' :
+                                        'bg-indigo-100 text-indigo-700'
                                 }`}>
                                 {status === 'IN_PROGRESS' && <span className="w-1.5 h-1.5 rounded-full bg-blue-500 opacity-70 animate-pulse"></span>}
                                 {status || 'PLANNED'}
                             </span>
                         </div>
 
-                        <h2 className="text-[24px] md:text-[28px] font-extrabold text-primary-dark tracking-tight leading-tight mb-8 relative z-10">
-                            {title || 'Classified Wildlife Operation'}
-                        </h2>
+
+                        <div className="mb-8 relative z-10">
+                            <PatrolTitle title={title} />
+                        </div>
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-5 relative z-10">
                             <div>
@@ -364,8 +366,8 @@ const PatrolDetailsPage = () => {
                                             onClick={() => handleStatusUpdate(opt.value)}
                                             disabled={updatingStatus || isSelected}
                                             className={`relative w-full flex items-center justify-between px-5 py-3.5 rounded-2xl text-[13px] font-bold transition-all border ${isSelected
-                                                    ? `${opt.active} border-transparent text-primary-dark shadow-sm`
-                                                    : 'bg-white border-border-light text-text-gray hover:bg-bg-soft hover:border-text-gray/30'
+                                                ? `${opt.active} border-transparent text-primary-dark shadow-sm`
+                                                : 'bg-white border-border-light text-text-gray hover:bg-bg-soft hover:border-text-gray/30'
                                                 } disabled:cursor-not-allowed`}
                                         >
                                             {opt.label}
