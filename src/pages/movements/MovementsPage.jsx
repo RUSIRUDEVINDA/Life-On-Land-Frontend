@@ -112,8 +112,8 @@ const MovementsPage = () => {
                     <button className="bg-white border border-border-light px-4 py-2.5 rounded-xl text-[13px] font-bold text-primary-dark flex items-center gap-2 shadow-sm hover:bg-bg-soft hover:-translate-y-0.5 transition-all duration-300">
                         <Calendar size={16} className="text-primary-medium" /> Last 24 Hours
                     </button>
-                    <Link to="/dashboard/maps" className="bg-primary-dark text-white px-4 py-2.5 rounded-xl text-[13px] font-bold flex items-center gap-2 shadow-elevated hover:bg-black hover:-translate-y-0.5 transition-all duration-300">
-                        <Zap size={16} className="text-primary-medium animate-pulse" /> Live Tracking
+                    <Link to="/dashboard/map-tracking" className="bg-primary-dark text-white px-4 py-2.5 rounded-xl text-[13px] font-bold flex items-center gap-2 shadow-elevated hover:bg-black hover:-translate-y-0.5 transition-all duration-300">
+                        <Zap size={16} className="text-primary-medium animate-pulse" /> Map Tracking
                     </Link>
                 </div>
             </div>
@@ -130,7 +130,7 @@ const MovementsPage = () => {
                 </div>
 
                 <div className="flex flex-col gap-6">
-                    <ZoneDensity summary={summary} zoneLookup={zoneLookup} totalZones={Object.keys(zoneLookup).length} />
+                    <ZoneDensity summary={summary} zoneLookup={zoneLookup} areaLookup={areaLookup} />
                 </div>
             </div>
         </div>
