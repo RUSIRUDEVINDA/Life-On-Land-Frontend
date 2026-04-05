@@ -40,6 +40,15 @@ const geometryPlaceholder = `{
   ]
 }`;
 
+const editingAreaStyle = {
+  color: '#1f6f54',
+  weight: 3,
+  dashArray: '8 6',
+  fillColor: '#8fb8a2',
+  fillOpacity: 0,
+  opacity: 1,
+};
+
 const ProtectedAreaForm = ({
   initialData,
   onSubmit,
@@ -88,7 +97,14 @@ const ProtectedAreaForm = ({
     setDescription(initialData.description || '');
     setAreaSize(initialData.areaSize ? String(initialData.areaSize) : '');
     setStatus(initialData.status || 'ACTIVE');
-    setGeometryText(initialData.geometry ? JSON.stringify(initialData.geometry, null, 2) : '');
+    const initialGeometryFeature = toFeature(
+      initialData.geometry ||
+      initialData.raw?.geometry ||
+      initialData.raw?.geoJson ||
+      initialData.raw?.polygon ||
+      null
+    );
+    setGeometryText(initialGeometryFeature?.geometry ? JSON.stringify(initialGeometryFeature.geometry, null, 2) : '');
     setGeometryMode('draw');
     setError('');
   }, [initialData]);
@@ -267,6 +283,9 @@ const ProtectedAreaForm = ({
                 <GeometryDrawEditor
                   value={geometryText}
                   onChange={(geometry) => syncGeometryAndArea(geometry ? JSON.stringify(geometry, null, 2) : '')}
+                  editableStyle={editingAreaStyle}
+                  showValueOutline
+                  valueOutlineStyle={editingAreaStyle}
                 />
               )}
 

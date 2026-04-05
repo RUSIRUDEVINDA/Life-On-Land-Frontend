@@ -88,6 +88,11 @@ const activeZoneStyle = {
   opacity: 0.95,
 };
 
+const applyPathStyle = (layer, style) => {
+  if (!style || !layer || typeof layer.setStyle !== 'function') return;
+  layer.setStyle(style);
+};
+
 const buildGeometryFromLayers = (layersGroup) => {
   const polygons = [];
 
@@ -115,7 +120,13 @@ const buildGeometryFromLayers = (layersGroup) => {
   return { type: 'MultiPolygon', coordinates: polygons };
 };
 
-const DrawController = ({ value, onChange, contextFeature }) => {
+const DrawController = ({
+  value,
+  onChange,
+  contextFeature,
+  allowMultiPolygon = true,
+  editableStyle = null,
+}) => {
   const map = useMap();
   const layersRef = useRef(null);
   const syncingFromOutsideRef = useRef(false);
@@ -151,7 +162,7 @@ const DrawController = ({ value, onChange, contextFeature }) => {
       drawPolygon: true,
       editMode: true,
       dragMode: true,
-      cutPolygon: true,
+      cutPolygon: allowMultiPolygon,
       removalMode: true,
       rotateMode: false,
     });
@@ -176,7 +187,12 @@ const DrawController = ({ value, onChange, contextFeature }) => {
     };
 
     const onCreate = (event) => {
+      if (!allowMultiPolygon) {
+        layers.clearLayers();
+      }
+
       if (event?.layer && !layers.hasLayer(event.layer)) {
+        applyPathStyle(event.layer, editableStyle);
         layers.addLayer(event.layer);
       }
 
@@ -235,7 +251,7 @@ const DrawController = ({ value, onChange, contextFeature }) => {
         map.removeLayer(layersRef.current);
       }
     };
-  }, [map, onChange]);
+  }, [map, onChange, allowMultiPolygon, editableStyle]);
 
   useEffect(() => {
     const layers = layersRef.current;
@@ -252,14 +268,17 @@ const DrawController = ({ value, onChange, contextFeature }) => {
     if (!feature) return;
 
     const geoLayer = L.geoJSON(feature);
-    geoLayer.eachLayer((layer) => layers.addLayer(layer));
+    geoLayer.eachLayer((layer) => {
+      applyPathStyle(layer, editableStyle);
+      layers.addLayer(layer);
+    });
     enableLayerEditing(layers);
 
     const bounds = geoLayer.getBounds();
     if (bounds.isValid()) {
       map.fitBounds(bounds, { padding: [25, 25], maxZoom: 15 });
     }
-  }, [map, parsedValue]);
+  }, [map, parsedValue, editableStyle]);
 
   useEffect(() => {
     if (parsedValue) return;
@@ -281,7 +300,16 @@ const GeometryDrawEditor = ({
   contextGeometry = null,
   contextZones = [],
   activeZoneId = '',
+  allowMultiPolygon = true,
+  editableStyle = null,
+  showValueOutline = false,
+  valueOutlineStyle = null,
 }) => {
+  const valueFeature = useMemo(() => {
+    const parsed = parseGeometry(value);
+    return geometryToFeature(parsed);
+  }, [value]);
+
   const contextFeature = useMemo(() => {
     const parsed = parseGeometry(contextGeometry);
     return geometryToFeature(parsed);
@@ -306,7 +334,9 @@ const GeometryDrawEditor = ({
   return (
     <div className="overflow-hidden rounded-xl border border-border-light bg-white">
       <div className="border-b border-border-light bg-bg-soft px-4 py-2 text-[12px] text-text-gray">
-        Draw polygon(s), use Edit to reshape, Cut to split, and Delete to remove. Multiple polygons are saved as MultiPolygon.
+        {allowMultiPolygon
+          ? 'Draw polygon(s), use Edit to reshape, Cut to split, and Delete to remove. Multiple polygons are saved as MultiPolygon.'
+          : 'Draw one polygon, use Edit to reshape, and Delete to remove. Creating a new polygon replaces the previous shape.'}
       </div>
       <div className="h-[330px]">
         <MapContainer center={SRI_LANKA_CENTER} zoom={7} className="h-full w-full" scrollWheelZoom>
@@ -314,6 +344,12 @@ const GeometryDrawEditor = ({
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
           />
+          {showValueOutline && valueFeature && (
+            <GeoJSON
+              data={valueFeature}
+              pathOptions={{ ...(valueOutlineStyle || editableStyle || contextStyle), interactive: false }}
+            />
+          )}
           {contextFeature && <GeoJSON data={contextFeature} pathOptions={contextStyle} />}
           {mappedContextZones.map((zone) => (
             <GeoJSON
@@ -322,7 +358,13 @@ const GeometryDrawEditor = ({
               pathOptions={zone.id === String(activeZoneId || '') ? activeZoneStyle : contextZoneStyle}
             />
           ))}
-          <DrawController value={value} onChange={onChange} contextFeature={contextFeature} />
+          <DrawController
+            value={value}
+            onChange={onChange}
+            contextFeature={contextFeature}
+            allowMultiPolygon={allowMultiPolygon}
+            editableStyle={editableStyle}
+          />
         </MapContainer>
       </div>
     </div>
