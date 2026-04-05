@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Plus, TreePine, ShieldAlert, Compass, Cat, LoaderCircle } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import StatsCard from '../../components/dashboard/StatsCard';
-import LiveMap from '../../components/dashboard/LiveMap';
+import BarChartCard from '../../components/dashboard/BarChartCard';
 import AlertCard from '../../components/dashboard/AlertCard';
 import RecentMovements from '../../components/dashboard/RecentMovements';
 import PatrolList from '../../components/dashboard/PatrolList';
@@ -23,6 +23,15 @@ const OVERVIEW_LIST_LIMIT = 50;
 
 const formatInt = (n) => (Number.isFinite(n) ? Math.round(n).toLocaleString('en-US') : '0');
 
+const normalizeLookupId = (value) => {
+    if (value == null) return '';
+    if (typeof value === 'string' || typeof value === 'number') return String(value);
+    if (typeof value === 'object') {
+        return String(value._id || value.id || '');
+    }
+    return '';
+};
+
 const patrolSortPriority = (p) => {
     const s = String(p?.status || '').toUpperCase();
     if (s === 'IN_PROGRESS') return 0;
@@ -30,7 +39,7 @@ const patrolSortPriority = (p) => {
     return 2;
 };
 
-const mapPatrolForDashboardList = (patrol, index) => {
+const mapPatrolForDashboardList = (patrol, index, zoneLookup = {}, areaLookup = {}) => {
     const status = String(patrol?.status || '').toUpperCase();
     const displayStatus =
         status === 'IN_PROGRESS'
@@ -58,12 +67,19 @@ const mapPatrolForDashboardList = (patrol, index) => {
             ? `${words[0][0] || ''}${words[words.length - 1][0] || ''}`.toUpperCase()
             : String(displayName).slice(0, 2).toUpperCase() || 'P';
 
-    const pa = patrol?.protectedAreaId;
+    const areaId = normalizeLookupId(patrol?.protectedAreaId || patrol?.protectedArea);
+    const zoneId = normalizeLookupId(Array.isArray(patrol?.zoneIds) ? patrol.zoneIds[0] : patrol?.zoneId);
     const zone =
-        (typeof pa === 'object' && pa?.name) ||
-        patrol?.protectedArea?.name ||
         patrol?.zoneName ||
+        (typeof patrol?.zone === 'object' ? patrol.zone?.name : '') ||
+        zoneLookup[zoneId] ||
         'Zone TBD';
+
+    const resolvedArea =
+        patrol?.protectedArea?.name ||
+        (typeof patrol?.protectedAreaId === 'object' ? patrol.protectedAreaId?.name : '') ||
+        areaLookup[areaId] ||
+        '';
 
     const rangersCount = Array.isArray(patrol?.assignedRangerIds) ? patrol.assignedRangerIds.length : 0;
     const unitLabel = rangersCount ? `${rangersCount} ranger${rangersCount === 1 ? '' : 's'}` : 'Patrol';
@@ -73,7 +89,7 @@ const mapPatrolForDashboardList = (patrol, index) => {
         name: displayName,
         initials,
         unit: unitLabel,
-        zone,
+        zone: resolvedArea ? `${zone} - ${resolvedArea}` : zone,
         status: displayStatus,
         color: index % 2 === 0 ? 'bg-primary-light' : 'bg-primary-medium/40',
     };
@@ -81,7 +97,7 @@ const mapPatrolForDashboardList = (patrol, index) => {
 
 const formatRelativeTimeShort = (value) => {
     const d = value ? new Date(value) : null;
-    if (!d || Number.isNaN(d.getTime())) return '—';
+    if (!d || Number.isNaN(d.getTime())) return '--';
     const sec = Math.floor((Date.now() - d.getTime()) / 1000);
     if (sec < 45) return 'just now';
     const min = Math.floor(sec / 60);
@@ -95,17 +111,27 @@ const formatRelativeTimeShort = (value) => {
 
 const RECENT_MOVEMENT_SWATCHES = ['bg-[#fab005]', 'bg-primary-medium', 'bg-primary-light'];
 
-const mapMovementForRecentList = (move, index) => {
+const mapMovementForRecentList = (move, index, zoneLookup = {}, areaLookup = {}, zoneAreaLookup = {}) => {
     const tagId = move?.tagId || move?.id || 'Unknown';
-    const zone = move?.zoneName || move?.zone?.name || 'Unknown zone';
-    const pa = move?.protectedAreaName || move?.protectedArea?.name || '';
-    const description = pa ? `${zone} · ${pa}` : zone;
+    const zoneId = normalizeLookupId(move?.zoneId || move?.zone);
+    const areaId = normalizeLookupId(move?.protectedAreaId || move?.protectedArea) || zoneAreaLookup[zoneId] || '';
+    const zone =
+        move?.zoneName ||
+        move?.zone?.name ||
+        zoneLookup[zoneId] ||
+        'Unknown zone';
+    const pa =
+        move?.protectedAreaName ||
+        move?.protectedArea?.name ||
+        areaLookup[areaId] ||
+        '';
+    const description = pa ? `${zone} - ${pa}` : zone;
     const ts = move?.timestamp || move?.createdAt;
     return {
         id: String(move?.id || move?._id || `${tagId}-${ts || index}`),
         name: `Tag "${String(tagId)}"`,
         description,
-        time: ts ? formatRelativeTimeShort(ts) : '—',
+        time: ts ? formatRelativeTimeShort(ts) : '--',
         statusColor: RECENT_MOVEMENT_SWATCHES[index % RECENT_MOVEMENT_SWATCHES.length],
     };
 };
@@ -134,10 +160,14 @@ const DashboardPage = () => {
     const [riskBuckets, setRiskBuckets] = useState({ safe: 0, elevated: 0, unassigned: 0 });
     const [recentMovements, setRecentMovements] = useState([]);
     const [recentIncident, setRecentIncident] = useState(null);
-    const [liveMapMovements, setLiveMapMovements] = useState([]);
+    const [latestAlert, setLatestAlert] = useState(null);
+    const [incidentBars, setIncidentBars] = useState([]);
+    const [movementBars, setMovementBars] = useState([]);
+    const [patrolBars, setPatrolBars] = useState([]);
 
     useEffect(() => {
         let cancelled = false;
+        let intervalId;
 
         const loadOverview = async () => {
             setStatsLoading(true);
@@ -158,9 +188,17 @@ const DashboardPage = () => {
             let totalHectares = 0;
             let areaCount = 0;
             let zoneCount = 0;
+            let areaLookup = {};
+            let zoneLookup = {};
+            let zoneAreaLookup = {};
+            let riskByZoneId = {};
 
             if (areasResult.status === 'fulfilled') {
                 const areas = areasResult.value;
+                areaLookup = areas.reduce((acc, area) => {
+                    if (area?.id) acc[area.id] = area.name || 'Unknown Area';
+                    return acc;
+                }, {});
                 areaCount = areas.length;
                 totalHectares = areas.reduce((sum, a) => {
                     const km2 = Number(a.areaSize) || 0;
@@ -174,16 +212,32 @@ const DashboardPage = () => {
                     if (zr.status === 'fulfilled' && Array.isArray(zr.value)) return sum + zr.value.length;
                     return sum;
                 }, 0);
+
+                zoneLists.forEach((zr) => {
+                    if (zr.status !== 'fulfilled' || !Array.isArray(zr.value)) return;
+                    zr.value.forEach((zone) => {
+                        if (!zone?.id) return;
+                        zoneLookup[zone.id] = zone.name || 'Unknown Zone';
+                        zoneAreaLookup[zone.id] = zone.protectedAreaId || '';
+                    });
+                });
             }
 
             let animalTotal = 0;
+            let animalsList = [];
             if (animalsResult.status === 'fulfilled') {
                 const body = animalsResult.value;
+                animalsList =
+                    (Array.isArray(body?.data) && body.data) ||
+                    (Array.isArray(body?.animals) && body.animals) ||
+                    (Array.isArray(body) && body) ||
+                    [];
                 animalTotal =
                     body?.pagination?.total ??
                     body?.total ??
-                    (Array.isArray(body?.data) ? body.data.length : 0);
+                    animalsList.length;
             }
+
 
             let activePatrols = 0;
             let patrolTotal = 0;
@@ -191,6 +245,25 @@ const DashboardPage = () => {
                 const list = patrolsResult.value;
                 patrolTotal = list.length;
                 activePatrols = list.filter((p) => String(p?.status || '').toUpperCase() === 'IN_PROGRESS').length;
+
+                if (!cancelled) {
+                    const counts = {
+                        IN_PROGRESS: 0,
+                        PLANNED: 0,
+                        COMPLETED: 0,
+                        CANCELLED: 0,
+                    };
+                    list.forEach((patrol) => {
+                        const status = String(patrol?.status || 'PLANNED').toUpperCase();
+                        if (counts[status] !== undefined) counts[status] += 1;
+                    });
+                    setPatrolBars([
+                        { label: 'In Progress', value: counts.IN_PROGRESS, color: '#2a5a45' },
+                        { label: 'Planned', value: counts.PLANNED, color: '#91c4a5' },
+                        { label: 'Completed', value: counts.COMPLETED, color: '#adb5bd' },
+                        { label: 'Cancelled', value: counts.CANCELLED, color: '#E63946' },
+                    ]);
+                }
             }
 
             let pendingAlerts = 0;
@@ -199,6 +272,42 @@ const DashboardPage = () => {
                     const s = String(a?.status || 'NEW').toUpperCase();
                     return !CLOSED_ALERT_STATUSES.has(s);
                 }).length;
+            }
+
+            if (!cancelled) {
+                if (alertsResult.status === 'fulfilled' && Array.isArray(alertsResult.value)) {
+                    const list = alertsResult.value;
+                    const sorted = [...list].sort((a, b) => {
+                        const ta = new Date(b?.createdAt || b?.updatedAt || 0).getTime();
+                        const tb = new Date(a?.createdAt || a?.updatedAt || 0).getTime();
+                        return ta - tb;
+                    });
+                    const top = sorted[0];
+                    if (top) {
+                        const zoneId = normalizeLookupId(top?.zoneId || top?.zone);
+                        const areaId =
+                            normalizeLookupId(top?.protectedAreaId || top?.protectedArea) ||
+                            zoneAreaLookup[zoneId] ||
+                            '';
+                        const zoneName =
+                            top?.zoneName ||
+                            zoneLookup[zoneId] ||
+                            'Unknown zone';
+                        const areaName =
+                            top?.protectedAreaName ||
+                            areaLookup[areaId] ||
+                            'Unknown area';
+                        setLatestAlert({
+                            ...top,
+                            zoneName,
+                            protectedAreaName: areaName,
+                        });
+                    } else {
+                        setLatestAlert(null);
+                    }
+                } else {
+                    setLatestAlert(null);
+                }
             }
 
             let patrolRows = [];
@@ -210,7 +319,7 @@ const DashboardPage = () => {
                     })
                     .sort((a, b) => patrolSortPriority(a) - patrolSortPriority(b))
                     .slice(0, 6)
-                    .map(mapPatrolForDashboardList);
+                    .map((patrol, index) => mapPatrolForDashboardList(patrol, index, zoneLookup, areaLookup));
             }
             if (!cancelled) {
                 setPatrolListItems(patrolRows);
@@ -231,6 +340,10 @@ const DashboardPage = () => {
                         zones.forEach((z) => {
                             sawAnyRiskRow = true;
                             const L = String(z?.riskLevel || '').toUpperCase();
+                            const zoneId = normalizeLookupId(z?.zoneId || z?.zone || z?._id || z?.id);
+                            if (zoneId) {
+                                riskByZoneId[zoneId] = L || 'UNASSIGNED';
+                            }
                             if (L === 'LOW') safe += 1;
                             else if (L === 'CRITICAL' || L === 'HIGH' || L === 'MEDIUM') elevated += 1;
                             else unassigned += 1;
@@ -248,32 +361,90 @@ const DashboardPage = () => {
             let sortedMovementsRaw = [];
             if (!cancelled) {
                 if (movementsResult.status === 'fulfilled') {
-                    const raw = movementsResult.value?.data || [];
+                    const raw = Array.isArray(movementsResult.value?.data)
+                        ? movementsResult.value.data
+                        : Array.isArray(movementsResult.value)
+                          ? movementsResult.value
+                          : [];
                     sortedMovementsRaw = [...raw].sort((a, b) => {
                         const ta = new Date(b?.timestamp || b?.createdAt || 0).getTime();
                         const tb = new Date(a?.timestamp || a?.createdAt || 0).getTime();
                         return ta - tb;
                     });
-                    setRecentMovements(sortedMovementsRaw.slice(0, 3).map(mapMovementForRecentList));
+                    setRecentMovements(
+                        sortedMovementsRaw
+                            .slice(0, 3)
+                            .map((move, index) => mapMovementForRecentList(move, index, zoneLookup, areaLookup, zoneAreaLookup))
+                    );
+
+                    const riskCounts = {
+                        CRITICAL: 0,
+                        HIGH: 0,
+                        MEDIUM: 0,
+                        LOW: 0,
+                    };
+                    sortedMovementsRaw.forEach((move) => {
+                        const zoneId = normalizeLookupId(move?.zoneId || move?.zone);
+                        const riskLevel = String(riskByZoneId[zoneId] || '').toUpperCase();
+                        if (riskCounts[riskLevel] !== undefined) {
+                            riskCounts[riskLevel] += 1;
+                        }
+                    });
+                    const totalRisk = Object.values(riskCounts).reduce((sum, v) => sum + v, 0);
+                    if (totalRisk === 0) {
+                        setMovementBars([]);
+                    } else {
+                        setMovementBars([
+                            { label: 'Critical', value: riskCounts.CRITICAL, color: '#E63946' },
+                            { label: 'High', value: riskCounts.HIGH, color: '#f76707' },
+                            { label: 'Medium', value: riskCounts.MEDIUM, color: '#fab005' },
+                            { label: 'Low', value: riskCounts.LOW, color: '#2a5a45' },
+                        ]);
+                    }
                 } else {
                     setRecentMovements([]);
+                    setMovementBars([]);
                 }
 
                 if (incidentsResult.status === 'fulfilled') {
-                    const list = incidentsResult.value;
-                    setRecentIncident(Array.isArray(list) && list.length > 0 ? list[0] : null);
+                    const list = Array.isArray(incidentsResult.value) ? incidentsResult.value : [];
+                    const enriched = list.map((incident) => {
+                        const zoneId = normalizeLookupId(incident?.zone?.id || incident?.zoneId);
+                        const areaId =
+                            normalizeLookupId(incident?.protectedArea?.id || incident?.protectedAreaId) ||
+                            zoneAreaLookup[zoneId] ||
+                            '';
+                        const zoneName =
+                            incident?.zone?.name && !/unknown/i.test(incident.zone.name)
+                                ? incident.zone.name
+                                : zoneLookup[zoneId] || 'Unknown zone';
+                        const areaName =
+                            incident?.protectedArea?.name && !/unknown/i.test(incident.protectedArea.name)
+                                ? incident.protectedArea.name
+                                : areaLookup[areaId] || 'Unknown area';
+                        return {
+                            ...incident,
+                            zone: { ...(incident.zone || {}), name: zoneName },
+                            protectedArea: { ...(incident.protectedArea || {}), name: areaName },
+                        };
+                    });
+                    setRecentIncident(enriched.length > 0 ? enriched[0] : null);
+
+                    const severityCounts = { LOW: 0, MEDIUM: 0, HIGH: 0, CRITICAL: 0 };
+                    enriched.forEach((incident) => {
+                        const sev = String(incident?.severity || 'LOW').toUpperCase();
+                        if (severityCounts[sev] !== undefined) severityCounts[sev] += 1;
+                    });
+                    setIncidentBars([
+                        { label: 'Low', value: severityCounts.LOW, color: '#2a5a45' },
+                        { label: 'Medium', value: severityCounts.MEDIUM, color: '#fab005' },
+                        { label: 'High', value: severityCounts.HIGH, color: '#f76707' },
+                        { label: 'Critical', value: severityCounts.CRITICAL, color: '#E63946' },
+                    ]);
                 } else {
                     setRecentIncident(null);
+                    setIncidentBars([]);
                 }
-
-                setLiveMapMovements(
-                    sortedMovementsRaw.slice(0, 10).map((m, i) => ({
-                        id: String(m.id || m._id || m.tagId || `m-${i}`),
-                        tagId: m.tagId != null ? String(m.tagId) : '—',
-                        lat: Number(m.lat ?? m.latitude),
-                        lng: Number(m.lng ?? m.longitude),
-                    }))
-                );
             }
 
             const overviewRequests = [
@@ -309,20 +480,41 @@ const DashboardPage = () => {
         };
 
         loadOverview();
+        intervalId = setInterval(loadOverview, 30000);
         return () => {
             cancelled = true;
+            if (intervalId) clearInterval(intervalId);
         };
     }, []);
 
     const protectedTrend =
         overview.areaCount === 0
             ? 'No protected areas yet'
-            : `${formatInt(overview.zoneCount)} Zones Active · ${formatInt(overview.areaCount)} areas`;
+            : `${formatInt(overview.zoneCount)} Zones Active - ${formatInt(overview.areaCount)} areas`;
 
     const patrolTrend =
         overview.patrolTotal === 0
             ? 'No patrols scheduled'
-            : `${formatInt(overview.patrolTotal)} in system · ${formatInt(overview.activePatrols)} in progress`;
+            : `${formatInt(overview.patrolTotal)} in system - ${formatInt(overview.activePatrols)} in progress`;
+
+    const alertSeverityLabel = latestAlert?.severity
+        ? String(latestAlert.severity).toUpperCase()
+        : '';
+    const alertTitle = latestAlert
+        ? `${alertSeverityLabel || 'New'} Alert`
+        : 'No Alerts';
+    const alertType = latestAlert
+        ? latestAlert.type === 'INCIDENT'
+            ? 'Incident Alert'
+            : 'Movement Alert'
+        : 'All clear';
+    const alertLocation = latestAlert
+        ? `${latestAlert.zoneName || 'Unknown zone'} - ${latestAlert.protectedAreaName || 'Unknown area'}`
+        : 'No active alerts';
+    const alertTime = latestAlert?.createdAt
+        ? formatRelativeTimeShort(latestAlert.createdAt)
+        : '--';
+    const alertActionLabel = latestAlert ? 'View Alert' : 'View Alerts';
 
     return (
         <div className="flex flex-col gap-3">
@@ -344,7 +536,6 @@ const DashboardPage = () => {
                     >
                         <Plus size={14} /> <span>Log Incident</span>
                     </Link>
-                    
                 </div>
             </div>
 
@@ -357,29 +548,29 @@ const DashboardPage = () => {
             <div className="grid grid-cols-4 gap-3">
                 <StatsCard
                     title="Protected Areas"
-                    value={statsLoading ? '—' : formatInt(overview.totalHectares)}
+                    value={statsLoading ? '--' : formatInt(overview.totalHectares)}
                     unit="ha"
                     icon={TreePine}
-                    trend={statsLoading ? 'Loading…' : protectedTrend}
+                    trend={statsLoading ? 'Loading...' : protectedTrend}
                     isDark={true}
                 />
                 <StatsCard
                     title="Tracked Animals"
-                    value={statsLoading ? '—' : formatInt(overview.animalTotal)}
+                    value={statsLoading ? '--' : formatInt(overview.animalTotal)}
                     icon={Cat}
-                    trend={statsLoading ? 'Loading…' : 'In wildlife registry'}
+                    trend={statsLoading ? 'Loading...' : 'In wildlife registry'}
                 />
                 <StatsCard
                     title="Active Patrols"
-                    value={statsLoading ? '—' : formatInt(overview.activePatrols)}
+                    value={statsLoading ? '--' : formatInt(overview.activePatrols)}
                     icon={Compass}
-                    trend={statsLoading ? 'Loading…' : patrolTrend}
+                    trend={statsLoading ? 'Loading...' : patrolTrend}
                 />
                 <StatsCard
                     title="Pending Alerts"
-                    value={statsLoading ? '—' : formatInt(overview.pendingAlerts)}
+                    value={statsLoading ? '--' : formatInt(overview.pendingAlerts)}
                     icon={ShieldAlert}
-                    trend={statsLoading ? 'Loading…' : overview.pendingAlerts > 0 ? 'Requires review' : 'All clear'}
+                    trend={statsLoading ? 'Loading...' : overview.pendingAlerts > 0 ? 'Requires review' : 'All clear'}
                     trendColor={
                         statsLoading
                             ? 'text-[#868e96]'
@@ -393,22 +584,46 @@ const DashboardPage = () => {
             {statsLoading && (
                 <div className="flex items-center gap-2 text-[12px] text-text-gray -mt-1">
                     <LoaderCircle className="h-3.5 w-3.5 animate-spin" aria-hidden />
-                    <span>Refreshing metrics from the server…</span>
+                    <span>Refreshing metrics from the server...</span>
                 </div>
             )}
 
             <div className="grid grid-cols-3 gap-3">
-                <LiveMap movements={liveMapMovements} loading={statsLoading} />
-                <div className="flex flex-col gap-3 col-span-1">
-                    <AlertCard
-                        title="Critical Alert"
-                        type="Perimeter Breach"
-                        location="Zone C (North Edge)"
-                        time="12 mins ago"
-                        actionLabel="Dispatch Patrol"
-                    />
+                <BarChartCard
+                    title="Movement Risk Overview"
+                    subtitle="Latest movements by risk tier"
+                    items={movementBars}
+                    loading={statsLoading}
+                    emptyLabel="No movement logs yet."
+                />
+                <BarChartCard
+                    title="Incident Severity"
+                    subtitle="Reported incidents by severity"
+                    items={incidentBars}
+                    loading={statsLoading}
+                    emptyLabel="No incidents reported yet."
+                />
+                <BarChartCard
+                    title="Patrol Status"
+                    subtitle="Current patrol activity"
+                    items={patrolBars}
+                    loading={statsLoading}
+                    emptyLabel="No patrols scheduled yet."
+                />
+            </div>
+
+            <div className="grid grid-cols-3 gap-3">
+                <div className="col-span-2">
                     <RecentMovements movements={recentMovements} loading={statsLoading} />
                 </div>
+                <AlertCard
+                    title={statsLoading ? 'Loading Alerts' : alertTitle}
+                    type={statsLoading ? 'Fetching latest alerts' : alertType}
+                    location={statsLoading ? 'Please wait' : alertLocation}
+                    time={statsLoading ? '--' : alertTime}
+                    actionLabel={alertActionLabel}
+                    actionTo="/dashboard/alerts"
+                />
             </div>
 
             <div className="grid grid-cols-3 gap-3">
@@ -429,7 +644,7 @@ const DashboardPage = () => {
                     description={
                         recentIncident
                             ? recentIncident.description?.trim() ||
-                              `${recentIncident.zone?.name || 'Unknown zone'} · ${recentIncident.protectedArea?.name || 'Unknown area'}`
+                              `${recentIncident.zone?.name || 'Unknown zone'} - ${recentIncident.protectedArea?.name || 'Unknown area'}`
                             : ''
                     }
                     time={

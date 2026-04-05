@@ -6,6 +6,7 @@ import { Activity, MapPinned, Info, AlertTriangle } from 'lucide-react';
 import { fetchProtectedAreas, fetchZonesByProtectedArea, fetchRiskMapByProtectedArea } from '../../risk-map/api/riskMapApi';
 import { getLiveMovements } from '../api/movementsApi';
 import { MAP_STYLE } from '../../map/mapConfig';
+import { getSpeciesIcon } from '../../animals/utils/speciesIcons';
 
 const riskLevelStyles = {
   CRITICAL: { color: '#E63946', pulse: 'rgba(230,57,70,0.5)', label: 'Critical Risk' },
@@ -79,19 +80,6 @@ const isPointInsideGeometry = (point, geometry) => {
   }
 
   return false;
-};
-
-// Map species to emoji/icon
-const speciesIcons = {
-  elephant: '🐘',
-  tiger: '🐅',
-  leopard: '🐆',
-  bear: '🐻',
-  deer: '🦌',
-  boar: '🐗',
-  monkey: '🐒',
-  peacock: '🦚',
-  default: '🐾'
 };
 
 const TelemetryMap = ({ selectedAreaId }) => {
@@ -307,8 +295,7 @@ const TelemetryMap = ({ selectedAreaId }) => {
         {enrichedMovements.map((mv) => {
           const style = riskLevelStyles[mv.resolvedRiskLevel] || riskLevelStyles.LOW;
           const animal = mv.animalDetails || {};
-          const species = (animal.species || 'default').toLowerCase();
-          const icon = speciesIcons[species] || speciesIcons.default;
+          const icon = getSpeciesIcon(animal.species);
 
           return (
             <Marker
@@ -327,10 +314,9 @@ const TelemetryMap = ({ selectedAreaId }) => {
                   style={{ backgroundColor: style.pulse }}
                 />
                 <div 
-                  className="relative w-11 h-11 rounded-full border-[2.5px] border-white flex items-center justify-center shadow-[0_4px_12px_rgba(0,0,0,0.22)] transform transition-transform"
-                  style={{ backgroundColor: style.color }}
+                  className="relative w-11 h-11 rounded-full border-[2.5px] border-white flex items-center justify-center shadow-[0_4px_12px_rgba(0,0,0,0.22)] transform transition-transform bg-white"
                 >
-                  <span className="text-xl filter drop-shadow-sm pointer-events-none">{icon}</span>
+                  <img src={icon} alt="Animal icon" className="w-8 h-8" />
                 </div>
               </div>
             </Marker>
@@ -360,10 +346,9 @@ const TelemetryMap = ({ selectedAreaId }) => {
             <div className="p-4 min-w-[240px]">
               <div className="flex items-center gap-4 border-b border-border-light pb-4 mb-4">
                 <div 
-                  className="w-12 h-12 rounded-2xl flex items-center justify-center text-3xl shadow-premium border border-border-light"
-                  style={{ backgroundColor: (riskLevelStyles[selectedAnimal.resolvedRiskLevel] || riskLevelStyles.LOW).color + '15' }}
+                  className="w-12 h-12 rounded-2xl flex items-center justify-center shadow-premium border border-border-light bg-white"
                 >
-                  {speciesIcons[selectedAnimal.animalDetails?.species?.toLowerCase()] || speciesIcons.default}
+                  <img src={getSpeciesIcon(selectedAnimal.animalDetails?.species)} alt="Animal icon" className="w-9 h-9" />
                 </div>
                 <div>
                   <h4 className="font-bold text-primary-dark text-lg leading-tight tracking-tight">{selectedAnimal.animalDetails?.tagId || selectedAnimal.tagId}</h4>
@@ -412,7 +397,7 @@ const TelemetryMap = ({ selectedAreaId }) => {
                <span className="text-[10px] font-bold text-text-gray uppercase tracking-widest">Sectors</span>
              </div>
              <div className="flex items-center gap-2">
-               <span className="text-lg">🦍</span>
+               <img src={getSpeciesIcon()} alt="Animal icon" className="w-4 h-4" />
                <span className="text-[10px] font-bold text-text-gray uppercase tracking-widest">Flora</span>
              </div>
           </div>

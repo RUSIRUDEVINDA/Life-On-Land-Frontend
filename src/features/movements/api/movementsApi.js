@@ -67,8 +67,9 @@ export const getMovements = async (params = {}) => {
     return { data: items, pagination: normalizePagination(payload, items) };
 };
 
-export const getMovementSummary = async () => {
-    const payload = await api('/movements/summary');
+export const getMovementSummary = async (params = {}) => {
+    const query = toQueryString(params);
+    const payload = await api(`/movements/summary${query ? `?${query}` : ''}`);
     const data = Array.isArray(payload)
         ? payload
         : Array.isArray(payload?.data)
