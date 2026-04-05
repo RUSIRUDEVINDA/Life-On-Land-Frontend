@@ -189,7 +189,7 @@ const RangerDashboardPage = () => {
                                     <AlertTriangle size={14} />
                                 </span>
                             </div>
-                            <p className="text-[24px] font-bold leading-none">{hotspotZone}</p>
+                            <p className="text-[24px] font-bold leading-none">Wildlife Risk Map</p>
                             <p className="mt-1 text-[11px] opacity-75">Open wildlife risk map</p>
                         </Link>
                         <Link
