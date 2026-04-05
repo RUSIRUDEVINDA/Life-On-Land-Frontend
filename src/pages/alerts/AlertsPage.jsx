@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { ArrowUpRight, LoaderCircle } from 'lucide-react';
-import { fetchAlerts } from '../../features/alerts/api/alertsApi';
+import { fetchAlerts, updateAlertStatus } from '../../features/alerts/api/alertsApi';
 import AlertsTable from '../../features/alerts/components/AlertsTable';
 
 const AlertsPage = () => {
@@ -36,6 +36,16 @@ const AlertsPage = () => {
                     ? ' If you just cloned the repo, run npm install and reload the page.'
                     : '';
             window.alert(`Could not generate the PDF. Please try again.${hint}`);
+        }
+    };
+
+    const handleUpdateStatus = async (id, newStatus) => {
+        try {
+            await updateAlertStatus(id, { status: newStatus });
+            const data = await fetchAlerts();
+            setAlerts(data);
+        } catch (err) {
+            window.alert('Failed to update alert status: ' + err.message);
         }
     };
 
@@ -95,6 +105,7 @@ const AlertsPage = () => {
                         onSearchTermChange={setSearchTerm}
                         severityFilter={severityFilter}
                         onSeverityFilterChange={setSeverityFilter}
+                        onUpdateStatus={handleUpdateStatus}
                     />
                 )}
             </div>
