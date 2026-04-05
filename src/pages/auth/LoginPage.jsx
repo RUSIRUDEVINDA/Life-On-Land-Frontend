@@ -1,11 +1,14 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { getDefaultDashboardPathByRole, getStoredUser } from '../../utils/auth';
+import {
+    mapBackendFieldErrors,
+    validateLoginFields,
+} from '../../utils/authFormValidation';
 
 const DEFAULT_API_URL = 'http://localhost:5001';
 const getApiBaseUrl = () => {
     if (import.meta.env.DEV) {
-        // In dev, route through Vite proxy to avoid CORS issues.
         return '';
     }
 
@@ -13,7 +16,6 @@ const getApiBaseUrl = () => {
 };
 
 const extractToken = (payload) => {
-    // Look for JWT in common response structures
     return (
         payload?.token ||
         payload?.accessToken ||
@@ -26,14 +28,28 @@ const extractToken = (payload) => {
     );
 };
 
+const inputClass = (hasError) =>
+    `px-5 py-4 bg-bg-soft border rounded-xl text-[15px] transition-all duration-300 focus:bg-white focus:ring-4 outline-none ${
+        hasError
+            ? 'border-[#E63946]/55 ring-1 ring-[#E63946]/20 focus:border-[#E63946] focus:ring-[#E63946]/25'
+            : 'border-border-light focus:border-primary-medium focus:ring-primary-medium/20'
+    }`;
+
+const FieldError = ({ id, message }) =>
+    message ? (
+        <p id={id} className="mt-1 text-[12px] font-medium text-[#a4161a]" role="alert">
+            {message}
+        </p>
+    ) : null;
+
 const LoginPage = () => {
     const navigate = useNavigate();
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [submitting, setSubmitting] = useState(false);
-    const [error, setError] = useState('');
+    const [fieldErrors, setFieldErrors] = useState({});
+    const [formError, setFormError] = useState('');
 
-    // Redirect if already logged in
     React.useEffect(() => {
         const token = localStorage.getItem('token');
         const user = getStoredUser();
@@ -42,11 +58,27 @@ const LoginPage = () => {
         }
     }, [navigate]);
 
+    const clearField = (key) => {
+        setFieldErrors((prev) => {
+            const next = { ...prev };
+            delete next[key];
+            return next;
+        });
+        setFormError('');
+    };
+
     const handleSubmit = async (e) => {
         e.preventDefault();
-        setError('');
-        setSubmitting(true);
+        setFormError('');
+        setFieldErrors({});
 
+        const clientErrors = validateLoginFields({ email, password });
+        if (Object.keys(clientErrors).length > 0) {
+            setFieldErrors(clientErrors);
+            return;
+        }
+
+        setSubmitting(true);
         try {
             const response = await fetch(`${getApiBaseUrl()}/api/auth/login`, {
                 method: 'POST',
@@ -61,7 +93,19 @@ const LoginPage = () => {
             const payload = await response.json().catch(() => ({}));
 
             if (!response.ok) {
-                throw new Error(payload?.message || payload?.error || `Login failed (${response.status})`);
+                const mapped = mapBackendFieldErrors(payload);
+                if (Object.keys(mapped).length > 0) {
+                    setFieldErrors(mapped);
+                    setFormError('');
+                    return;
+                }
+                setFormError(
+                    payload?.message ||
+                        payload?.error ||
+                        (typeof payload?.error === 'string' ? payload.error : '') ||
+                        `Login failed (${response.status})`
+                );
+                return;
             }
 
             const token = extractToken(payload);
@@ -78,16 +122,14 @@ const LoginPage = () => {
 
                 navigate(getDefaultDashboardPathByRole(userData?.role));
             } else {
-                setError('Login succeeded but session data was missing. Please contact support.');
+                setFormError('Login succeeded but session data was missing. Please contact support.');
             }
         } catch (requestError) {
-            setError(requestError.message || 'Failed to login');
+            setFormError(requestError.message || 'Failed to login');
         } finally {
             setSubmitting(false);
         }
     };
-
-
 
     return (
         <div className="relative min-h-screen flex items-center justify-center bg-bg-soft overflow-hidden">
@@ -97,46 +139,73 @@ const LoginPage = () => {
                     <p className="text-text-gray text-[15px]">Sign in to continue to EcoTrack</p>
                 </div>
 
-                <form onSubmit={handleSubmit} className="flex flex-col gap-5">
+                <form noValidate onSubmit={handleSubmit} className="flex flex-col gap-5">
                     <div className="flex flex-col gap-2">
-                        <label htmlFor="email" className="text-sm font-semibold text-primary">Email</label>
+                        <label htmlFor="email" className="text-sm font-semibold text-primary">
+                            Email
+                        </label>
                         <input
                             type="email"
                             id="email"
-                            className="px-5 py-4 bg-bg-soft border border-border-light rounded-xl text-[15px] transition-all duration-300 focus:bg-white focus:border-primary-medium focus:ring-4 focus:ring-primary-medium/20 outline-none"
+                            autoComplete="email"
+                            className={inputClass(Boolean(fieldErrors.email))}
                             placeholder="hello@ecotrack.com"
                             value={email}
-                            onChange={(e) => setEmail(e.target.value)}
-                            required
+                            onChange={(e) => {
+                                setEmail(e.target.value);
+                                clearField('email');
+                            }}
+                            aria-invalid={Boolean(fieldErrors.email)}
+                            aria-describedby={fieldErrors.email ? 'login-email-error' : undefined}
                         />
+                        <FieldError id="login-email-error" message={fieldErrors.email} />
                     </div>
 
                     <div className="flex flex-col gap-2">
-                        <label htmlFor="password" className="text-sm font-semibold text-primary">Password</label>
+                        <label htmlFor="password" className="text-sm font-semibold text-primary">
+                            Password
+                        </label>
                         <input
                             type="password"
                             id="password"
-                            className="px-5 py-4 bg-bg-soft border border-border-light rounded-xl text-[15px] transition-all duration-300 focus:bg-white focus:border-primary-medium focus:ring-4 focus:ring-primary-medium/20 outline-none"
+                            autoComplete="current-password"
+                            className={inputClass(Boolean(fieldErrors.password))}
                             placeholder="••••••••"
                             value={password}
-                            onChange={(e) => setPassword(e.target.value)}
-                            required
+                            onChange={(e) => {
+                                setPassword(e.target.value);
+                                clearField('password');
+                            }}
+                            aria-invalid={Boolean(fieldErrors.password)}
+                            aria-describedby={fieldErrors.password ? 'login-password-error' : undefined}
                         />
+                        <FieldError id="login-password-error" message={fieldErrors.password} />
                     </div>
 
-                    <button type="submit" className="mt-4 p-4 bg-primary text-white rounded-xl text-base font-semibold transition-all duration-200 shadow-[0_4px_12px_rgba(42,90,69,0.2)] hover:bg-primary-dark hover:-translate-y-0.5 hover:shadow-[0_6px_16px_rgba(42,90,69,0.3)] active:translate-y-0">
+                    <button
+                        type="submit"
+                        className="mt-4 p-4 bg-primary text-white rounded-xl text-base font-semibold transition-all duration-200 shadow-[0_4px_12px_rgba(42,90,69,0.2)] hover:bg-primary-dark hover:-translate-y-0.5 hover:shadow-[0_6px_16px_rgba(42,90,69,0.3)] active:translate-y-0"
+                    >
                         {submitting ? 'Signing In...' : 'Sign In'}
                     </button>
                 </form>
 
-                {error && (
+                {formError ? (
                     <div className="mt-4 rounded-xl border border-[#E63946]/30 bg-[#fff5f5] px-4 py-3 text-[13px] text-[#a4161a]">
-                        {error}
+                        {formError}
                     </div>
-                )}
+                ) : null}
 
                 <div className="mt-8 text-center text-[15px] text-text-gray">
-                    <p>Don't have an account? <Link to="/register" className="text-primary font-semibold transition-colors duration-200 hover:text-primary-medium">Sign up</Link></p>
+                    <p>
+                        Don&apos;t have an account?{' '}
+                        <Link
+                            to="/register"
+                            className="text-primary font-semibold transition-colors duration-200 hover:text-primary-medium"
+                        >
+                            Sign up
+                        </Link>
+                    </p>
                 </div>
             </div>
 
@@ -150,4 +219,3 @@ const LoginPage = () => {
 };
 
 export default LoginPage;
-
