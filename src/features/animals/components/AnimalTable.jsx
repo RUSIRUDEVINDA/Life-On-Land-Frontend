@@ -1,7 +1,8 @@
 import React from 'react';
 import { Search, Edit, Trash2, Tag, AlertCircle } from 'lucide-react';
+import { getSpeciesIcon } from '../utils/speciesIcons';
 
-const AnimalTable = ({ animals, loading, error, onDelete, onEdit }) => {
+const AnimalTable = ({ animals, loading, error, onDelete, onEdit, onSelect, selectedTagId }) => {
     const getStatusStyle = (status) => {
         switch (status) {
             case 'ACTIVE': return 'bg-emerald-100 text-emerald-700';
@@ -66,14 +67,25 @@ const AnimalTable = ({ animals, loading, error, onDelete, onEdit }) => {
                     {animals.map((animal, index) => (
                         <tr
                             key={animal.tagId}
-                            className="group hover:bg-bg-soft/40 transition-all duration-300"
+                            className={`group hover:bg-bg-soft/40 transition-all duration-300 ${
+                                selectedTagId === animal.tagId ? 'bg-primary-light/20' : ''
+                            }`}
                             style={{ animationDelay: `${index * 50}ms` }}
                         >
                             <td className="px-6 py-3.5">
                                 <div className="flex gap-3 items-center">
-                                    <div className="w-9 h-9 rounded-[14px] bg-primary text-white flex items-center justify-center font-bold text-[12px] shadow-sm transform group-hover:scale-105 transition-transform duration-300">
-                                        {animal.species.substring(0, 2).toUpperCase()}
-                                    </div>
+                                    <button
+                                        type="button"
+                                        onClick={() => onSelect?.(animal)}
+                                        className="w-10 h-10 rounded-full bg-white border border-border-light flex items-center justify-center shadow-sm transform group-hover:scale-105 transition-transform duration-300"
+                                        title="View details"
+                                    >
+                                        <img
+                                            src={getSpeciesIcon(animal.species)}
+                                            alt="Animal icon"
+                                            className="w-8 h-8"
+                                        />
+                                    </button>
                                     <div className="flex flex-col">
                                         <span className="text-[14px] font-bold text-primary-dark tracking-tight">{animal.species}</span>
                                         <span className="text-[11px] font-mono font-bold text-primary-medium flex items-center gap-1.5 opacity-80">
