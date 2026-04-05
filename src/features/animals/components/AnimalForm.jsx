@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Save, AlertCircle, Loader2 } from 'lucide-react';
+import { X, Save, AlertCircle, Loader2, Check } from 'lucide-react';
 import api from '../../../utils/api';
 import { getAnimalById, createAnimal, updateAnimal } from '../api/animalsApi';
 
@@ -240,8 +240,8 @@ const AnimalForm = ({ tagId, onClose, onSuccess }) => {
                             checked={formData.endemicToSriLanka}
                             onChange={handleChange}
                         />
-                        <div className="w-5 h-5 border border-border-light rounded flex items-center justify-center peer-checked:border-primary peer-checked:bg-primary transition-all pointer-events-none">
-                            <Save size={12} className="text-white opacity-0 peer-checked:opacity-100 transition-opacity" />
+                        <div className="w-5 h-5 border border-border-light rounded flex items-center justify-center peer-checked:border-emerald-500 peer-checked:bg-emerald-500 peer-checked:[&>svg]:opacity-100 transition-all pointer-events-none">
+                            <Check size={12} className="text-white opacity-0 transition-opacity" />
                         </div>
                     </div>
                     <label htmlFor="endemic" className="text-[12px] font-medium text-primary-dark cursor-pointer select-none">Confirmed endemic species to Sri Lanka</label>
