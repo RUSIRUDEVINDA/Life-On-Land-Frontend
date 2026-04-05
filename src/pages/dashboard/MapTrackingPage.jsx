@@ -1,12 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { fetchProtectedAreas } from '../../features/risk-map/api/riskMapApi';
+import { getLiveMovements } from '../../features/movements/api/movementsApi';
+import { fetchAlerts } from '../../features/alerts/api/alertsApi';
 import TelemetryMap from '../../features/movements/components/TelemetryMap';
 import { Map, Activity, Layers, Bell } from 'lucide-react';
 
 const MapTrackingPage = () => {
     const [areas, setAreas] = useState([]);
     const [selectedAreaId, setSelectedAreaId] = useState('');
+    const [movements, setMovements] = useState([]);
+    const [areaAlerts, setAreaAlerts] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [statsLoading, setStatsLoading] = useState(false);
 
     useEffect(() => {
         const loadAreas = async () => {
@@ -16,7 +21,6 @@ const MapTrackingPage = () => {
                 if (data && data.length > 0) {
                     setSelectedAreaId(data[0].id);
                 }
-
             } catch (err) {
                 console.error('Failed to load areas for mapping:', err);
             } finally {
@@ -25,6 +29,29 @@ const MapTrackingPage = () => {
         };
         loadAreas();
     }, []);
+
+    const fetchAreaStats = async (areaId) => {
+        setStatsLoading(true);
+        try {
+            const movementParams = areaId ? { protectedAreaId: areaId } : {};
+            const [movs, alts] = await Promise.all([
+                getLiveMovements(movementParams),
+                fetchAlerts({ limit: 5 })
+            ]);
+            setMovements(movs || []);
+            setAreaAlerts(alts || []);
+        } catch (err) {
+            console.error('Failed to fetch area stats:', err);
+        } finally {
+            setStatsLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        fetchAreaStats(selectedAreaId);
+        const interval = setInterval(() => fetchAreaStats(selectedAreaId), 10000);
+        return () => clearInterval(interval);
+    }, [selectedAreaId]);
 
     return (
         <div className="flex flex-col gap-6 animate-enter pb-6">
@@ -36,8 +63,8 @@ const MapTrackingPage = () => {
                     <div>
                         <h1 className="text-[24px] font-bold text-primary-dark tracking-tight leading-none">Geospatial Telemetry</h1>
                         <p className="text-text-gray text-[13px] font-medium mt-1 inline-flex items-center gap-2">
-                            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                            Real-time animal movement visualization
+                            <span className={`w-2 h-2 rounded-full ${statsLoading ? 'bg-amber-500' : 'bg-emerald-500'} animate-pulse`}></span>
+                            {statsLoading ? 'Syncing...' : 'Real-time animal movement visualization'}
                         </p>
                     </div>
                 </div>
@@ -87,7 +114,7 @@ const MapTrackingPage = () => {
                             </div>
                             <div className="flex items-center justify-between">
                                 <span className="text-[13px] text-primary-light/80">Active Trackers</span>
-                                <span className="text-[13px] font-bold">28 Active</span>
+                                <span className="text-[13px] font-bold">{movements.length} Active</span>
                             </div>
                             <div className="flex items-center justify-between">
                                 <span className="text-[13px] text-primary-light/80">Latency</span>
@@ -102,18 +129,23 @@ const MapTrackingPage = () => {
                     <div className="bg-white rounded-[28px] p-6 border border-border-light shadow-premium flex flex-col gap-5">
                        <h3 className="text-[15px] font-bold text-primary-dark">Intelligence Insights</h3>
                        <div className="space-y-4">
-                           <div className="p-4 bg-bg-soft rounded-2xl border border-border-light/50">
-                               <p className="text-[11px] font-bold text-primary-medium uppercase tracking-wider">Movement Pattern</p>
-                               <p className="text-[13px] text-primary-dark font-medium mt-1 leading-relaxed">
-                                   Elevated movement detected in Buffer Zone B. Potential migration start.
-                               </p>
-                           </div>
-                           <div className="p-4 bg-red-50 rounded-2xl border border-red-100">
-                               <p className="text-[11px] font-bold text-red-600 uppercase tracking-wider">Alert Indicator</p>
-                               <p className="text-[13px] text-primary-dark font-medium mt-1 leading-relaxed">
-                                   Tag #ELE-942 approaching Core Sanctuary boundary.
-                               </p>
-                           </div>
+                           {areaAlerts.length > 0 ? (
+                               areaAlerts.slice(0, 2).map((alert, idx) => (
+                                   <div key={idx} className={`p-4 rounded-2xl border ${alert.severity === 'CRITICAL' ? 'bg-red-50 border-red-100' : 'bg-bg-soft border-border-light/50'}`}>
+                                       <p className={`text-[11px] font-bold uppercase tracking-wider ${alert.severity === 'CRITICAL' ? 'text-red-600' : 'text-primary-medium'}`}>
+                                           {alert.type || 'System Intel'}
+                                       </p>
+                                       <p className="text-[13px] text-primary-dark font-medium mt-1 leading-relaxed">
+                                           {alert.description}
+                                       </p>
+                                   </div>
+                               ))
+                           ) : (
+                               <div className="p-10 bg-bg-soft rounded-2xl border border-dashed border-border-light flex flex-col items-center text-center gap-2">
+                                   <Activity size={20} className="text-primary-medium opacity-20" />
+                                   <p className="text-[12px] font-bold text-primary-dark opacity-40 uppercase tracking-tighter">No Active Intel</p>
+                               </div>
+                           )}
                        </div>
                     </div>
                 </aside>

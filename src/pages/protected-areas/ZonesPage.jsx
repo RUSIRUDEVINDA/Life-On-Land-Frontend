@@ -230,6 +230,8 @@ const ZonesPage = () => {
                 setEditingZone(null);
               }}
               isSubmitting={saving}
+              parentArea={selectedArea}
+              existingZones={zones}
             />
           </div>
         )}

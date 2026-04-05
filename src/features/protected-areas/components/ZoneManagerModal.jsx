@@ -5,6 +5,7 @@ import ConfirmDialog from '../../../components/common/ConfirmDialog';
 import Alert from '../../../components/common/Alert';
 import ProtectedAreaMap from './ProtectedAreaMap';
 import { protectedAreaService } from '../../../services/protectedAreaService';
+import { geometriesOverlap } from '../utils/geometryMetrics';
 
 const zoneTypeStyles = {
   CORE: {
@@ -34,6 +35,12 @@ const normalizeZoneType = (value) => {
   if (normalized.includes('EDGE')) return 'EDGE';
 
   return 'EDGE';
+};
+
+const formatZoneStatus = (value) => {
+  const normalized = String(value || '').trim().toUpperCase();
+  if (!normalized) return 'ACTIVE';
+  return normalized.replaceAll('_', ' ');
 };
 
 const ZoneManagerModal = ({ area, open, onClose }) => {
@@ -78,6 +85,20 @@ const ZoneManagerModal = ({ area, open, onClose }) => {
     setError('');
 
     try {
+      const conflictZone = zones.find((zone) => {
+        const zoneId = String(zone?.id || zone?._id || '');
+        const editingId = String(editingZone?.id || editingZone?._id || '');
+        if (zoneId && editingId && zoneId === editingId) return false;
+
+        const zoneGeometry = zone?.geometry || zone?.raw?.geometry || zone?.raw?.geoJson || zone?.raw?.polygon;
+        return geometriesOverlap(payload.geometry, zoneGeometry);
+      });
+
+      if (conflictZone) {
+        setError(`Zone overlaps with "${conflictZone.name || 'Unnamed Zone'}". Adjust boundaries before saving.`);
+        return;
+      }
+
       if (editingZone?.id) {
         await protectedAreaService.updateZone(area.id, editingZone.id, payload);
       } else {
@@ -151,6 +172,8 @@ const ZoneManagerModal = ({ area, open, onClose }) => {
             <ZoneForm
               initialData={editingZone}
               onSubmit={handleSaveZone}
+              parentArea={area}
+              existingZones={zones}
               onCancel={() => {
                 setShowForm(false);
                 setEditingZone(null);
@@ -165,7 +188,7 @@ const ZoneManagerModal = ({ area, open, onClose }) => {
             <div className="grid gap-6 lg:grid-cols-[1.55fr_1fr]">
               <section>
                 <h3 className="mb-3 text-[17px] font-semibold text-primary-dark">Map View</h3>
-                <ProtectedAreaMap areas={[area]} zones={zones} />
+                <ProtectedAreaMap areas={[area]} zones={zones} dottedAreaBoundary={showForm} />
               </section>
 
               <section className="min-h-[320px]">
@@ -180,6 +203,7 @@ const ZoneManagerModal = ({ area, open, onClose }) => {
                   {zones.map((zone) => {
                     const zoneType = normalizeZoneType(zone.zoneType);
                     const style = zoneTypeStyles[zoneType] || zoneTypeStyles.EDGE;
+                    const zoneStatus = formatZoneStatus(zone.status);
 
                     return (
                       <article key={zone.id} className={`rounded-xl border bg-white p-5 ${style.border}`}>
@@ -190,13 +214,13 @@ const ZoneManagerModal = ({ area, open, onClose }) => {
                             {zoneType}
                           </span>
                           <span className="rounded-md bg-primary-light/35 px-3 py-1 text-[12px] font-semibold text-primary-dark">
-                            ACTIVE
+                            {zoneStatus}
                           </span>
                         </div>
 
                         <p className="mt-3 text-[16px] text-primary-dark/85">
                           <span className="font-semibold text-primary-dark">Area Size:</span>{' '}
-                          {zone.areaSize ? `${zone.areaSize} km2` : '-'}
+                          {zone.areaSize ? `${zone.areaSize} ha` : '-'}
                         </p>
 
                         <div className="mt-4 flex flex-wrap items-center gap-2">

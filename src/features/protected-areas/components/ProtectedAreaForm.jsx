@@ -1,12 +1,31 @@
-import React, { useState } from 'react';
+import { useEffect, useState } from 'react';
+import GeometryDrawEditor from './GeometryDrawEditor';
+import { geometryAreaKm2, parseGeometryInput, toFeature } from '../utils/geometryMetrics';
 
 const areaTypes = [
   { value: 'NATIONAL_PARK', label: 'National Park' },
   { value: 'FOREST_RESERVE', label: 'Forest Reserve' },
   { value: 'SAFARI_AREA', label: 'Safari Area' },
+  { value: 'WILDLIFE_SANCTUARY', label: 'Wildlife Sanctuary' },
+  { value: 'MARINE_PARK', label: 'Marine Park' },
+  { value: 'OTHER', label: 'Other' },
 ];
 
-const normalizeTypeValue = (value) => String(value || '').trim().toUpperCase().replace(/\s+/g, '_');
+const normalizeAreaType = (value) => {
+  const normalized = String(value || '')
+    .trim()
+    .toUpperCase()
+    .replace(/[\s-]+/g, '_');
+
+  if (normalized.includes('NATIONAL') && normalized.includes('PARK')) return 'NATIONAL_PARK';
+  if (normalized.includes('FOREST') && normalized.includes('RESERVE')) return 'FOREST_RESERVE';
+  if (normalized.includes('SAFARI')) return 'SAFARI_AREA';
+  if (normalized.includes('WILDLIFE') && normalized.includes('SANCTUARY')) return 'WILDLIFE_SANCTUARY';
+  if (normalized.includes('MARINE') && normalized.includes('PARK')) return 'MARINE_PARK';
+  if (normalized === 'OTHER') return 'OTHER';
+
+  return normalized;
+};
 
 const geometryPlaceholder = `{
   "type": "Polygon",
@@ -27,44 +46,76 @@ const ProtectedAreaForm = ({
   onCancel,
   isSubmitting = false,
 }) => {
-  const [prevInitialData, setPrevInitialData] = useState(initialData);
-
-  const [name, setName] = useState(initialData?.name || '');
-  const [areaType, setAreaType] = useState(normalizeTypeValue(initialData?.areaType || initialData?.type || ''));
-  const [district, setDistrict] = useState(initialData?.district || '');
-  const [description, setDescription] = useState(initialData?.description || '');
-  const [areaSize, setAreaSize] = useState(initialData?.areaSize ? String(initialData.areaSize) : '');
-  const [status, setStatus] = useState(initialData?.status || 'ACTIVE');
-  const [geometryText, setGeometryText] = useState(initialData?.geometry ? JSON.stringify(initialData.geometry, null, 2) : '');
-  const [geometryMode, setGeometryMode] = useState('manual');
+  const [name, setName] = useState('');
+  const [areaType, setAreaType] = useState('');
+  const [district, setDistrict] = useState('');
+  const [description, setDescription] = useState('');
+  const [areaSize, setAreaSize] = useState('');
+  const [status, setStatus] = useState('ACTIVE');
+  const [geometryText, setGeometryText] = useState('');
+  const [geometryMode, setGeometryMode] = useState('draw');
   const [error, setError] = useState('');
 
-  if (initialData !== prevInitialData) {
-    setPrevInitialData(initialData);
-    setName(initialData?.name || '');
-    setAreaType(normalizeTypeValue(initialData?.areaType || initialData?.type || ''));
-    setDistrict(initialData?.district || '');
-    setDescription(initialData?.description || '');
-    setAreaSize(initialData?.areaSize ? String(initialData.areaSize) : '');
-    setStatus(initialData?.status || 'ACTIVE');
-    setGeometryText(initialData?.geometry ? JSON.stringify(initialData.geometry, null, 2) : '');
-    setGeometryMode('manual');
+  const syncGeometryAndArea = (nextGeometryText) => {
+    setGeometryText(nextGeometryText);
+
+    const parsed = parseGeometryInput(nextGeometryText);
+    if (!parsed) return;
+
+    const computedKm2 = geometryAreaKm2(parsed);
+    if (computedKm2) {
+      setAreaSize(computedKm2);
+    }
+  };
+
+  useEffect(() => {
+    if (!initialData) {
+      setName('');
+      setAreaType('');
+      setDistrict('');
+      setDescription('');
+      setAreaSize('');
+      setStatus('ACTIVE');
+      setGeometryText('');
+      setGeometryMode('draw');
+      setError('');
+      return;
+    }
+
+    setName(initialData.name || '');
+    setAreaType(normalizeAreaType(initialData.areaType || initialData.type || ''));
+    setDistrict(initialData.district || '');
+    setDescription(initialData.description || '');
+    setAreaSize(initialData.areaSize ? String(initialData.areaSize) : '');
+    setStatus(initialData.status || 'ACTIVE');
+    setGeometryText(initialData.geometry ? JSON.stringify(initialData.geometry, null, 2) : '');
+    setGeometryMode('draw');
     setError('');
-  }
+  }, [initialData]);
 
   const handleSubmit = (event) => {
     event.preventDefault();
     setError('');
 
     let geometry = null;
-    if (geometryText.trim()) {
-      try {
-        geometry = JSON.parse(geometryText);
-      } catch {
-        setError('Polygon coordinates must be valid JSON GeoJSON.');
-        return;
-      }
+    if (!geometryText.trim()) {
+      setError('Please draw or paste a valid polygon geometry.');
+      return;
     }
+
+    const parsedGeometry = parseGeometryInput(geometryText);
+    if (!parsedGeometry) {
+      setError('Polygon coordinates must be valid JSON GeoJSON.');
+      return;
+    }
+
+    const geometryFeature = toFeature(parsedGeometry);
+    if (!geometryFeature?.geometry) {
+      setError('Geometry must include a valid GeoJSON Polygon or MultiPolygon.');
+      return;
+    }
+
+    geometry = geometryFeature.geometry;
 
     if (geometry?.type === 'Feature') {
       geometry = geometry.geometry || null;
@@ -82,7 +133,7 @@ const ProtectedAreaForm = ({
 
     onSubmit({
       name: name.trim(),
-      areaType: normalizeTypeValue(areaType),
+      areaType: normalizeAreaType(areaType),
       district: district.trim(),
       description: description.trim(),
       status: status.trim(),
@@ -194,12 +245,12 @@ const ProtectedAreaForm = ({
               <div className="flex flex-wrap items-center gap-2">
                 <button
                   type="button"
-                  onClick={() => setGeometryMode('manual')}
+                  onClick={() => setGeometryMode('draw')}
                   className={`rounded-xl px-5 py-2 text-[13px] font-semibold transition ${
-                    geometryMode === 'manual' ? 'bg-primary-light/40 text-primary-dark' : 'bg-bg-soft text-text-gray hover:bg-primary-light/25'
+                    geometryMode === 'draw' ? 'bg-primary-light/40 text-primary-dark' : 'bg-bg-soft text-text-gray hover:bg-primary-light/25'
                   }`}
                 >
-                  Manual Entry
+                  Draw On Map
                 </button>
                 <button
                   type="button"
@@ -211,6 +262,25 @@ const ProtectedAreaForm = ({
                   JSON Paste
                 </button>
               </div>
+
+              {geometryMode === 'draw' && (
+                <GeometryDrawEditor
+                  value={geometryText}
+                  onChange={(geometry) => syncGeometryAndArea(geometry ? JSON.stringify(geometry, null, 2) : '')}
+                />
+              )}
+
+              {geometryMode === 'draw' && (
+                <div className="space-y-1.5">
+                  <p className="text-[12px] font-semibold text-text-gray">Auto-filled GeoJSON (from drawing)</p>
+                  <textarea
+                    value={geometryText}
+                    readOnly
+                    rows={6}
+                    className="w-full rounded-xl border border-border-light bg-bg-soft px-4 py-3 font-mono text-[12px] text-primary-dark"
+                  />
+                </div>
+              )}
 
               {geometryMode === 'json' && (
                 <div className="rounded-xl border border-primary-light bg-primary-light/20 px-5 py-4 text-primary-dark">
@@ -226,14 +296,15 @@ const ProtectedAreaForm = ({
                 </div>
               )}
 
-              <textarea
-                value={geometryText}
-                onChange={(event) => setGeometryText(event.target.value)}
-                rows={10}
-                required
-                className="w-full rounded-xl border border-border-light bg-bg-soft px-5 py-4 font-mono text-[14px] text-primary-dark outline-none transition focus:border-primary-medium"
-                placeholder={geometryPlaceholder}
-              />
+              {geometryMode === 'json' && (
+                <textarea
+                  value={geometryText}
+                  onChange={(event) => syncGeometryAndArea(event.target.value)}
+                  rows={10}
+                  className="w-full rounded-xl border border-border-light bg-bg-soft px-5 py-4 font-mono text-[14px] text-primary-dark outline-none transition focus:border-primary-medium"
+                  placeholder={geometryPlaceholder}
+                />
+              )}
             </section>
 
             {error && <p className="text-[15px] font-semibold text-danger-medium">{error}</p>}
