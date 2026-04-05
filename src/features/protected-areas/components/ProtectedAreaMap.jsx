@@ -78,7 +78,18 @@ const FitBounds = ({ features }) => {
   return null;
 };
 
-const ProtectedAreaMap = ({ areas = [], zones = [] }) => {
+const ProtectedAreaMap = ({ areas = [], zones = [], dottedAreaBoundary = false }) => {
+  const areaPathStyle = useMemo(() => {
+    if (!dottedAreaBoundary) return areaStyle;
+
+    return {
+      ...areaStyle,
+      dashArray: '8 6',
+      fillOpacity: 0.05,
+      opacity: 0.95,
+    };
+  }, [dottedAreaBoundary]);
+
   const mappedAreas = useMemo(() => {
     return areas
       .map((area) => {
@@ -131,7 +142,7 @@ const ProtectedAreaMap = ({ areas = [], zones = [] }) => {
         />
 
         {mappedAreas.map((item) => (
-          <GeoJSON key={`area-${item.id}`} data={item.feature} pathOptions={areaStyle}>
+          <GeoJSON key={`area-${item.id}`} data={item.feature} pathOptions={areaPathStyle}>
             <Tooltip sticky>
               <div className="text-xs">
                 <p className="font-semibold">{item.name}</p>

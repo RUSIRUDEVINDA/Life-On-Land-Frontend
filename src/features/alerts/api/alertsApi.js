@@ -1,3 +1,5 @@
+import { throwIfUpstreamError } from '../../../utils/upstreamUnavailableMessage';
+
 const DEFAULT_API_URL = 'http://localhost:5001';
 
 const getApiBaseUrl = () => {
@@ -58,6 +60,7 @@ const requestJson = async (path, options = {}) => {
     }
 
     if (!response.ok) {
+        throwIfUpstreamError(response);
         const backendMessage = payload?.message || payload?.error || payload?.details || `Request failed (${response.status})`;
         if (response.status === 401) {
             throw new Error('Unauthorized. Please login again to continue.');

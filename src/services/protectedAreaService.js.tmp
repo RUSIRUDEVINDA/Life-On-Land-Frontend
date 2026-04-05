@@ -238,8 +238,12 @@ export const protectedAreaService = {
 
   async createProtectedArea(input) {
     try {
+
       const payloadToSend = buildAreaPayload(input);
       const response = await apiClient.post('/api/protected-areas', payloadToSend);
+
+      const response = await apiClient.post('/api/protected-areas', toAreaPayload(input));
+
       const payload = unwrap(response.data);
       const item = payload?.protectedArea || payload?.area || payload?.data || payload;
       return normalizeArea(item);
@@ -250,8 +254,12 @@ export const protectedAreaService = {
 
   async updateProtectedArea(areaId, input) {
     try {
-const payloadToSend = buildAreaPayload(input);
+
+      const payloadToSend = buildAreaPayload(input);
       const response = await apiClient.put(`/api/protected-areas/${areaId}`, payloadToSend);
+
+      const response = await apiClient.put(`/api/protected-areas/${areaId}`, toAreaPayload(input));
+
       const payload = unwrap(response.data);
       const item = payload?.protectedArea || payload?.area || payload?.data || payload;
       return normalizeArea(item);
@@ -334,4 +342,3 @@ const payloadToSend = buildAreaPayload(input);
     }
   },
 };
-

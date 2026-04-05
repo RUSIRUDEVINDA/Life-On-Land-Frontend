@@ -1,3 +1,5 @@
+import { throwIfUpstreamError } from './upstreamUnavailableMessage';
+
 const getBaseUrl = () => {
     if (import.meta.env.DEV) {
         return '/api';
@@ -34,6 +36,7 @@ const api = async (endpoint, options = {}) => {
         const data = await response.json().catch(() => ({}));
 
         if (!response.ok) {
+            throwIfUpstreamError(response);
             throw new Error(data.message || data.error || `Error: ${response.status}`);
         }
 
