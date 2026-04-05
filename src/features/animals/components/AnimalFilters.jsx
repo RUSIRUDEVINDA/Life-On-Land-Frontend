@@ -1,7 +1,16 @@
 import React from 'react';
 import { Search, Filter } from 'lucide-react';
 
-const AnimalFilters = ({ search, onSearchChange, status, onStatusChange, species, onSpeciesChange }) => {
+const AnimalFilters = ({
+    search,
+    onSearchChange,
+    status,
+    onStatusChange,
+    species,
+    onSpeciesChange,
+    pageSize,
+    onPageSizeChange,
+}) => {
     return (
         <div className="p-4 border-b border-border-light flex flex-wrap gap-4 items-center justify-between bg-white/50 backdrop-blur-sm">
             <div className="relative w-full max-w-xs group">
@@ -15,7 +24,7 @@ const AnimalFilters = ({ search, onSearchChange, status, onStatusChange, species
                 />
             </div>
 
-            <div className="flex gap-3">
+            <div className="flex flex-wrap items-center gap-3">
                 <div className="flex items-center gap-2 px-3 py-2 bg-bg-soft border border-border-light rounded-[14px] transition-all duration-300 focus-within:bg-white focus-within:border-primary-medium">
                     <Filter size={14} className="text-text-gray" />
                     <select
@@ -29,6 +38,23 @@ const AnimalFilters = ({ search, onSearchChange, status, onStatusChange, species
                         <option value="DECEASED">Deceased</option>
                     </select>
                 </div>
+                {typeof pageSize === 'number' && onPageSizeChange ? (
+                    <div className="flex items-center gap-2 text-[12px] text-text-gray">
+                        <span className="font-medium">Show</span>
+                        <select
+                            value={pageSize}
+                            onChange={(e) => onPageSizeChange(Number(e.target.value))}
+                            className="rounded-xl border border-border-light bg-white px-3 py-1.5 text-[12px] font-semibold text-primary-dark outline-none transition focus:border-primary-medium"
+                        >
+                            {[10, 20, 30].map((n) => (
+                                <option key={n} value={n}>
+                                    {n}
+                                </option>
+                            ))}
+                        </select>
+                        <span className="font-medium">per page</span>
+                    </div>
+                ) : null}
             </div>
         </div>
     );

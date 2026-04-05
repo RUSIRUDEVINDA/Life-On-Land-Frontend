@@ -1,11 +1,14 @@
-import React, { useState, useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { ClipboardList, Search, Filter } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import ListPaginationFooter from '../../../components/common/ListPaginationFooter';
 
 const PatrolsTable = ({ patrols }) => {
     const navigate = useNavigate();
     const [searchTerm, setSearchTerm] = useState('');
     const [statusFilter, setStatusFilter] = useState('ALL');
+    const [pageSize, setPageSize] = useState(10);
+    const [currentPage, setCurrentPage] = useState(1);
 
     const filteredPatrols = useMemo(() => {
         return patrols.filter(patrol => {
@@ -15,9 +18,21 @@ const PatrolsTable = ({ patrols }) => {
         });
     }, [patrols, searchTerm, statusFilter]);
 
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [searchTerm, statusFilter, pageSize]);
+
+    const totalPages = Math.max(1, Math.ceil(filteredPatrols.length / pageSize));
+    const safePage = Math.min(currentPage, totalPages);
+
+    const paginatedPatrols = useMemo(() => {
+        const start = (safePage - 1) * pageSize;
+        return filteredPatrols.slice(start, start + pageSize);
+    }, [filteredPatrols, safePage, pageSize]);
+
     return (
         <div className="bg-white rounded-[24px] border border-border-light shadow-premium overflow-hidden">
-            <div className="p-4 border-b border-border-light flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-bg-soft/20">
+            <div className="p-4 border-b border-border-light flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between bg-bg-soft/20">
                 <div className="relative w-full xl:max-w-[320px]">
                     <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
                         <Search size={16} className="text-text-gray" />
@@ -31,7 +46,7 @@ const PatrolsTable = ({ patrols }) => {
                     />
                 </div>
 
-                <div className="flex items-center gap-2 w-full sm:w-auto">
+                <div className="flex flex-wrap items-center gap-3 w-full lg:w-auto">
                     <div className="relative w-full sm:w-auto">
                         <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                             <Filter size={14} className="text-text-gray" />
@@ -52,6 +67,21 @@ const PatrolsTable = ({ patrols }) => {
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                             </svg>
                         </div>
+                    </div>
+                    <div className="flex items-center gap-2 text-[12px] text-text-gray">
+                        <span className="font-medium">Show</span>
+                        <select
+                            value={pageSize}
+                            onChange={(e) => setPageSize(Number(e.target.value))}
+                            className="rounded-xl border border-border-light bg-white px-3 py-1.5 text-[12px] font-semibold text-primary-dark outline-none transition focus:border-primary-medium"
+                        >
+                            {[10, 20, 30].map((n) => (
+                                <option key={n} value={n}>
+                                    {n}
+                                </option>
+                            ))}
+                        </select>
+                        <span className="font-medium">per page</span>
                     </div>
                 </div>
             </div>
@@ -85,7 +115,7 @@ const PatrolsTable = ({ patrols }) => {
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-border-light">
-                            {filteredPatrols.map((patrol, index) => (
+                            {paginatedPatrols.map((patrol, index) => (
                                 <tr
                                     key={patrol._id || patrol.id}
                                     onClick={() => navigate(`/dashboard/patrols/${patrol._id || patrol.id}`)}
@@ -130,6 +160,18 @@ const PatrolsTable = ({ patrols }) => {
                     </table>
                 )}
             </div>
+
+            {filteredPatrols.length > 0 && (
+                <div className="border-t border-border-light px-5 py-3">
+                    <ListPaginationFooter
+                        totalItems={filteredPatrols.length}
+                        pageSize={pageSize}
+                        currentPage={currentPage}
+                        onPageChange={setCurrentPage}
+                        countSuffix="patrols"
+                    />
+                </div>
+            )}
         </div>
     );
 };

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { ArrowUpRight, LoaderCircle } from 'lucide-react';
 import { fetchAlerts } from '../../features/alerts/api/alertsApi';
 import AlertsTable from '../../features/alerts/components/AlertsTable';
@@ -7,6 +7,37 @@ const AlertsPage = () => {
     const [alerts, setAlerts] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
+    const [searchTerm, setSearchTerm] = useState('');
+    const [severityFilter, setSeverityFilter] = useState('ALL');
+
+    const filteredAlerts = useMemo(() => {
+        return alerts.filter((alert) => {
+            const searchString = `${alert.type || ''} ${alert.description || ''}`.toLowerCase();
+            const matchesSearch = searchString.includes(searchTerm.toLowerCase());
+            const matchesSeverity = severityFilter === 'ALL' || alert.severity === severityFilter;
+            return matchesSearch && matchesSeverity;
+        });
+    }, [alerts, searchTerm, severityFilter]);
+
+    const handleExportQueue = async () => {
+        try {
+            const { exportAlertsQueueToPdf } = await import('../../features/alerts/utils/exportAlertsQueuePdf');
+            const result = exportAlertsQueueToPdf(filteredAlerts, {
+                severity: severityFilter,
+                searchTerm,
+            });
+            if (!result.ok) {
+                window.alert(result.message);
+            }
+        } catch (err) {
+            console.error('PDF export failed:', err);
+            const hint =
+                err?.message && /Failed to fetch dynamically imported module|Loading chunk/i.test(err.message)
+                    ? ' If you just cloned the repo, run npm install and reload the page.'
+                    : '';
+            window.alert(`Could not generate the PDF. Please try again.${hint}`);
+        }
+    };
 
     useEffect(() => {
         const loadAlerts = async () => {
@@ -34,9 +65,14 @@ const AlertsPage = () => {
                 </div>
 
                 <div className="flex flex-wrap gap-2">
-                    <button className="inline-flex items-center gap-2 rounded-2xl border border-primary-medium px-4 py-3 text-[13px] font-semibold text-primary-dark transition hover:bg-primary-light/10">
+                    <button
+                        type="button"
+                        onClick={handleExportQueue}
+                        disabled={loading || alerts.length === 0}
+                        className="inline-flex items-center gap-2 rounded-2xl border border-primary-medium px-4 py-3 text-[13px] font-semibold text-primary-dark transition hover:bg-primary-light/10 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
                         <ArrowUpRight size={15} />
-                        Export
+                        Export Queue
                     </button>
                 </div>
             </div>
@@ -52,7 +88,14 @@ const AlertsPage = () => {
                         <p>{error}</p>
                     </div>
                 ) : (
-                    <AlertsTable alerts={alerts} />
+                    <AlertsTable
+                        alerts={alerts}
+                        filteredAlerts={filteredAlerts}
+                        searchTerm={searchTerm}
+                        onSearchTermChange={setSearchTerm}
+                        severityFilter={severityFilter}
+                        onSeverityFilterChange={setSeverityFilter}
+                    />
                 )}
             </div>
         </div>
