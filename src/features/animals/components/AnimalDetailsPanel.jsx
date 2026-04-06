@@ -34,9 +34,9 @@ const AnimalDetailsPanel = ({ animal }) => {
             <div className="flex items-center gap-4">
                 <div className="w-14 h-14 rounded-full bg-white border border-border-light flex items-center justify-center shadow-sm">
                     <img
-                        src={getSpeciesIcon(animal.species)}
+                        src={animal.photo || getSpeciesIcon(animal.species)}
                         alt="Animal icon"
-                        className="w-10 h-10"
+                        className={`w-10 h-10 ${animal.photo ? 'rounded-full object-cover' : ''}`}
                     />
                 </div>
                 <div className="flex flex-col">

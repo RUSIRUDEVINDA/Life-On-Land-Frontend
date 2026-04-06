@@ -9,9 +9,10 @@ const getBaseUrl = () => {
 
 const api = async (endpoint, options = {}) => {
     const token = localStorage.getItem('token');
+    const isFormData = options.body instanceof FormData;
     const headers = {
-        'Content-Type': 'application/json',
         ...(token && { 'Authorization': `Bearer ${token}` }),
+        ...(!isFormData && { 'Content-Type': 'application/json' }),
         ...options.headers,
     };
 

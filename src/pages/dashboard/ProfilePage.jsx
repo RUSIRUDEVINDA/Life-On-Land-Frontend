@@ -16,6 +16,7 @@ const createFormState = (profile) => ({
     email: profile?.email || '',
     phone: profile?.phone || '',
     role: profile?.role || 'RANGER',
+    profilePhoto: null,
 });
 
 const getInitials = (name = '') =>
@@ -75,10 +76,13 @@ const ProfilePage = () => {
     const roleStyle = ROLE_VISUAL[roleKey];
 
     const editableFields = useMemo(
-        () => (isAdmin ? ['name', 'email', 'phone', 'role'] : ['name', 'phone']),
+        () => (isAdmin ? ['name', 'email', 'phone', 'role', 'profilePhoto'] : ['name', 'phone', 'profilePhoto']),
         [isAdmin]
     );
-    const hasChanges = editableFields.some((field) => String(form[field] || '') !== String(initialForm[field] || ''));
+    const hasChanges = editableFields.some((field) => {
+        if (field === 'profilePhoto') return !!form.profilePhoto;
+        return String(form[field] || '') !== String(initialForm[field] || '');
+    });
 
     const memberSinceLabel = useMemo(() => {
         if (!profile?.createdAt) return null;
@@ -92,8 +96,8 @@ const ProfilePage = () => {
     }, [profile?.createdAt]);
 
     const handleChange = (field) => (event) => {
-        const value = event.target.value;
-        setForm((previous) => ({ ...previous, [field]: value }));
+        const { value, type, files } = event.target;
+        setForm((previous) => ({ ...previous, [field]: type === 'file' ? files[0] : value }));
         setSuccess('');
     };
 
@@ -109,19 +113,31 @@ const ProfilePage = () => {
         setError('');
         setSuccess('');
 
-        const payload = {
-            name: form.name.trim(),
-            phone: form.phone.trim(),
-            ...(isAdmin
-                ? {
-                      email: form.email.trim(),
-                      role: String(form.role || 'RANGER').trim().toUpperCase(),
-                  }
-                : {}),
-        };
+        const hasPhoto = Boolean(form.profilePhoto);
+        let data;
+
+        if (hasPhoto) {
+            data = new FormData();
+            data.append('name', form.name.trim());
+            data.append('phone', form.phone.trim());
+            data.append('profilePhoto', form.profilePhoto);
+            if (isAdmin) {
+                data.append('email', form.email.trim());
+                data.append('role', String(form.role || 'RANGER').trim().toUpperCase());
+            }
+        } else {
+            data = {
+                name: form.name.trim(),
+                phone: form.phone.trim(),
+            };
+            if (isAdmin) {
+                data.email = form.email.trim();
+                data.role = String(form.role || 'RANGER').trim().toUpperCase();
+            }
+        }
 
         try {
-            const updatedProfile = await updateMyProfile(payload);
+            const updatedProfile = await updateMyProfile(data);
             const nextForm = createFormState(updatedProfile);
             setProfile(updatedProfile);
             setForm(nextForm);
@@ -206,9 +222,12 @@ const ProfilePage = () => {
                     <div className="pointer-events-none mb-5 h-1 w-full rounded-full bg-gradient-to-r from-primary-medium via-emerald-400 to-cyan-500 opacity-90" />
                     <div className="flex flex-col items-center text-center">
                         <div
-                            className={`relative mb-4 flex h-[5.5rem] w-[5.5rem] items-center justify-center rounded-2xl bg-gradient-to-br text-[26px] font-bold text-white shadow-lg ring-4 ${roleStyle.ring} ${roleStyle.gradient}`}
+                            className={`relative mb-4 flex h-[5.5rem] w-[5.5rem] items-center justify-center rounded-2xl text-[26px] font-bold text-white shadow-lg ring-4 ${roleStyle.ring} ${!profile?.profilePhoto ? roleStyle.gradient : ''}`}
                         >
-                            {getInitials(form.name)}
+                            {profile?.profilePhoto ? (
+                                <img src={profile.profilePhoto} alt="Profile" className="w-full h-full rounded-2xl object-cover" />
+                            ) : getInitials(form.name)}
+
                             <span className="absolute -bottom-1 -right-1 flex h-9 w-9 items-center justify-center rounded-full border-[3px] border-white bg-primary-dark text-white shadow-md">
                                 <BadgeCheck size={16} strokeWidth={2.5} />
                             </span>
@@ -263,7 +282,25 @@ const ProfilePage = () => {
                     )}
 
                     <div className="grid gap-5 md:grid-cols-2">
+                        <label className="group rounded-2xl border border-border-light bg-gradient-to-br from-white to-primary-light/10 p-4 transition hover:border-primary-medium/40 hover:shadow-sm md:col-span-2">
+                            <div className="mb-3 flex items-center gap-3">
+                                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary-light/30 text-primary-dark">
+                                    <Sparkles size={18} strokeWidth={2} />
+                                </span>
+                                <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-text-gray">
+                                    Update Profile Photo
+                                </p>
+                            </div>
+                            <input
+                                type="file"
+                                accept="image/*"
+                                onChange={handleChange('profilePhoto')}
+                                className="w-full rounded-xl border border-border-light bg-white px-3.5 py-2 text-[13px] font-medium text-primary-dark outline-none transition file:mr-4 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-[11px] file:font-bold file:bg-primary/10 file:text-primary hover:file:bg-primary/20 file:cursor-pointer"
+                            />
+                        </label>
+
                         <label className="group rounded-2xl border border-border-light bg-gradient-to-br from-white to-emerald-50/40 p-4 transition hover:border-emerald-300/60 hover:shadow-sm">
+
                             <div className="mb-3 flex items-center gap-3">
                                 <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-100 text-emerald-800">
                                     <UserRound size={18} strokeWidth={2} />
