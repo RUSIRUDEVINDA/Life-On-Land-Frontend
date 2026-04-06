@@ -44,6 +44,8 @@ const RegisterPage = () => {
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
     const [role, setRole] = useState('RANGER');
+    const [profilePhoto, setProfilePhoto] = useState(null);
+
     const [submitting, setSubmitting] = useState(false);
     const [fieldErrors, setFieldErrors] = useState({});
     const [formError, setFormError] = useState('');
@@ -76,18 +78,23 @@ const RegisterPage = () => {
 
         setSubmitting(true);
         try {
+            const formData = new FormData();
+            formData.append('name', name.trim());
+            formData.append('phone', phone.replace(/\D/g, ''));
+            formData.append('email', email.trim());
+            formData.append('password', password);
+            formData.append('role', role);
+            if (profilePhoto) {
+                formData.append('profilePhoto', profilePhoto);
+            }
+
             const response = await fetch(`${getApiBaseUrl()}/api/auth/register`, {
                 method: 'POST',
                 credentials: 'include',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    name: name.trim(),
-                    phone: phone.replace(/\D/g, ''),
-                    email: email.trim(),
-                    password,
-                    role,
-                }),
+                // Content-Type header is omitted so the browser sets it to multipart/form-data with boundary
+                body: formData,
             });
+
 
             const payload = await response.json().catch(() => ({}));
             if (!response.ok) {
@@ -115,9 +122,11 @@ const RegisterPage = () => {
                         email: payload.email || payload?.data?.email || email.trim(),
                         phone: payload.phone || payload?.data?.phone || phone.trim(),
                         role: payload.role || payload?.data?.role || 'RANGER',
+                        profilePhoto: payload.profilePhoto || payload?.data?.profilePhoto || null,
                     })
                 );
             }
+
 
             navigate(getDefaultDashboardPathByRole(payload?.role || payload?.data?.role || 'RANGER'));
         } catch (requestError) {
@@ -221,6 +230,23 @@ const RegisterPage = () => {
                         </select>
                         <FieldError id="register-role-error" message={fieldErrors.role} />
                     </div>
+
+                    <div className="flex flex-col gap-2">
+                        <label htmlFor="profilePhoto" className="text-sm font-semibold text-primary">
+                            Profile Photo (Optional)
+                        </label>
+                        <input
+                            type="file"
+                            id="profilePhoto"
+                            accept="image/*"
+                            className={inputClass(false)}
+                            onChange={(e) => {
+                                setProfilePhoto(e.target.files[0]);
+                                clearField('profilePhoto');
+                            }}
+                        />
+                    </div>
+
 
                     <div className="flex flex-col gap-2">
                         <label htmlFor="password" className="text-sm font-semibold text-primary">
