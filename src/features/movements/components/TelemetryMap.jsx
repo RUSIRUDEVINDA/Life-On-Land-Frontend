@@ -27,6 +27,61 @@ const normalizeRiskLevel = (value) => {
   return riskLevelStyles[normalized] ? normalized : 'LOW';
 };
 
+const normalizeStatus = (value) => String(value || '').trim().toUpperCase();
+
+const resolveZoneName = (movement, resolvedZone, riskInfo) => {
+  const riskName =
+    riskInfo?.zoneName ||
+    riskInfo?.zone?.name ||
+    riskInfo?.zoneTitle ||
+    riskInfo?.zoneLabel;
+  const zoneName =
+    resolvedZone?.name ||
+    resolvedZone?.title ||
+    resolvedZone?.zoneName ||
+    resolvedZone?.label;
+  const movementZoneName =
+    movement?.zoneName ||
+    movement?.zone?.name ||
+    movement?.zone?.title ||
+    movement?.zone?.zoneName ||
+    movement?.zoneLabel ||
+    movement?.zoneTitle;
+  const areaName =
+    movement?.protectedAreaName ||
+    movement?.protectedArea?.name ||
+    movement?.protectedArea?.title;
+  return riskName || zoneName || movementZoneName || areaName || 'Unknown Zone';
+};
+
+const resolveZoneType = (movement, resolvedZone) =>
+  resolvedZone?.zoneType ||
+  resolvedZone?.type ||
+  movement?.zoneType ||
+  movement?.zone?.zoneType ||
+  movement?.zone?.type ||
+  '';
+
+const getMovementAnimalStatus = (movement) =>
+  movement?.animalDetails?.status ??
+  movement?.animalStatus ??
+  movement?.trackingStatus ??
+  movement?.monitoringStatus ??
+  movement?.status ??
+  movement?.animal?.status ??
+  movement?.animal?.monitoringStatus;
+
+const isDeceasedMovement = (movement) =>
+  normalizeStatus(getMovementAnimalStatus(movement)) === 'DECEASED';
+
+const getMovementAreaId = (movement) =>
+  normalizeId(
+    movement?.protectedAreaId ||
+      movement?.protectedArea?._id ||
+      movement?.protectedArea?.id ||
+      movement?.protectedArea
+  );
+
 const getMovementCoordinates = (movement) => {
   const lng = Number(movement?.lng ?? movement?.longitude);
   const lat = Number(movement?.lat ?? movement?.latitude);
@@ -150,12 +205,25 @@ const TelemetryMap = ({ selectedAreaId }) => {
     try {
       const params = selectedAreaId ? { protectedAreaId: selectedAreaId } : {};
       const data = await getLiveMovements(params);
+      const areaId = normalizeId(selectedAreaId);
+      const rows = Array.isArray(data)
+        ? data.filter((mv) => {
+          if (isDeceasedMovement(mv)) return false;
+          if (!areaId) return true;
+          const movementAreaId = getMovementAreaId(mv);
+          if (movementAreaId) return movementAreaId === areaId;
+          if (zones.length === 0) return false;
+          const coords = getMovementCoordinates(mv);
+          if (!coords) return false;
+          return zones.some((zone) => isPointInsideGeometry(coords, zone?.geometry));
+        })
+        : [];
       console.log(`[MAP-DEBUG] Received ${data?.length || 0} movements for area: ${selectedAreaId}`, data);
-      setMovements(data || []);
+      setMovements(rows);
     } catch (err) {
       console.error('Failed to load live movements:', err);
     }
-  }, [selectedAreaId]);
+  }, [selectedAreaId, zones]);
 
   useEffect(() => {
     loadAreaData(selectedAreaId);
@@ -166,6 +234,16 @@ const TelemetryMap = ({ selectedAreaId }) => {
     const interval = setInterval(loadMovements, 5000);
     return () => clearInterval(interval);
   }, [loadMovements]);
+
+  useEffect(() => {
+    if (!selectedAnimal) return;
+    const selectedId = selectedAnimal?._id || selectedAnimal?.id || selectedAnimal?.tagId;
+    if (!selectedId) return;
+    const stillPresent = movements.some(
+      (mv) => (mv?._id || mv?.id || mv?.tagId) === selectedId
+    );
+    if (!stillPresent) setSelectedAnimal(null);
+  }, [movements, selectedAnimal]);
 
   // Handle bounds fitting
   useEffect(() => {
@@ -212,8 +290,6 @@ const TelemetryMap = ({ selectedAreaId }) => {
         const resolvedZone = containingZone || zonesById[movementZoneId] || null;
         const resolvedZoneId = normalizeId(resolvedZone?._id || resolvedZone?.id || movementZoneId);
         const riskInfo = riskData[resolvedZoneId] || riskData[movementZoneId] || null;
-        const fallbackZoneName = movement?.zoneName || movement?.zone?.name || '';
-        const fallbackZoneType = movement?.zoneType || movement?.zone?.zoneType || '';
         const resolvedRiskLevel = normalizeRiskLevel(riskInfo?.riskLevel || movement?.riskLevel);
 
         return {
@@ -221,8 +297,8 @@ const TelemetryMap = ({ selectedAreaId }) => {
           lng: coordinates.lng,
           lat: coordinates.lat,
           resolvedZoneId,
-          resolvedZoneName: riskInfo?.zoneName || resolvedZone?.name || fallbackZoneName || 'N/A',
-          resolvedZoneType: resolvedZone?.zoneType || fallbackZoneType || '',
+          resolvedZoneName: resolveZoneName(movement, resolvedZone, riskInfo),
+          resolvedZoneType: resolveZoneType(movement, resolvedZone),
           resolvedRiskLevel,
         };
       })
