@@ -7,12 +7,11 @@ import {
     MapPin,
     Pencil,
     Search,
-    X,
+    X
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import ListPaginationFooter from '../../components/common/ListPaginationFooter';
 import {
-    deleteIncident,
     fetchIncidentsByReporter,
     updateIncident,
     fetchProtectedAreas,
@@ -27,6 +26,12 @@ import {
     compressImage,
     evidenceStringsToImageItems,
 } from '../../features/incidents/utils/incidentEvidenceImages';
+import {
+    MAX_INCIDENT_DESCRIPTION_LENGTH,
+    MAX_INCIDENT_NOTES_LENGTH,
+    MIN_INCIDENT_DESCRIPTION_LENGTH,
+    hasInvalidControlChars,
+} from '../../features/incidents/utils/incidentFormValidation';
 
 const STATUS_STYLES = {
     REPORTED: 'bg-[#e7f5ff] text-[#1864ab] border-[#74c0fc]/40',
@@ -40,17 +45,11 @@ const STATUS_STYLES = {
 const SEVERITY_OPTIONS = ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW'];
 const INCIDENT_TYPES = ['POACHING', 'ILLEGAL_LOGGING', 'WILDLIFE_TRADE', 'HABITAT_DESTRUCTION', 'OTHER'];
 
-/** Matches report form: description must be at least this many trimmed characters. */
-const MIN_INCIDENT_DESCRIPTION_LENGTH = 10;
-
 const formatTypeLabel = (t) =>
     String(t || '')
         .split('_')
         .map((w) => (w ? w.charAt(0) + w.slice(1).toLowerCase() : ''))
         .join(' ');
-
-/** Disallow ASCII control characters except tab (0x09) and newline (0x0A). */
-const INVALID_TEXT_CHAR_REGEX = /[\x00-\x08\x0B\x0C\x0E-\x1F]/;
 
 const validateEditIncidentForm = (form) => {
     const errors = {};
@@ -70,8 +69,10 @@ const validateEditIncidentForm = (form) => {
         errors.incidentDate = 'Incident date and time is required.';
     }
     const rawDesc = form.description ?? '';
-    if (INVALID_TEXT_CHAR_REGEX.test(rawDesc)) {
+    if (hasInvalidControlChars(rawDesc)) {
         errors.description = 'Description contains invalid characters that cannot be saved.';
+    } else if (rawDesc.length > MAX_INCIDENT_DESCRIPTION_LENGTH) {
+        errors.description = `Description cannot exceed ${MAX_INCIDENT_DESCRIPTION_LENGTH.toLocaleString()} characters (currently ${rawDesc.length.toLocaleString()}).`;
     } else {
         const desc = rawDesc.trim();
         if (desc.length === 0) {
@@ -81,8 +82,10 @@ const validateEditIncidentForm = (form) => {
         }
     }
     const notes = form.notes ?? '';
-    if (INVALID_TEXT_CHAR_REGEX.test(notes)) {
+    if (hasInvalidControlChars(notes)) {
         errors.notes = 'Notes contain invalid characters that cannot be saved.';
+    } else if (notes.length > MAX_INCIDENT_NOTES_LENGTH) {
+        errors.notes = `Notes cannot exceed ${MAX_INCIDENT_NOTES_LENGTH.toLocaleString()} characters (currently ${notes.length.toLocaleString()}).`;
     }
     return errors;
 };
@@ -114,7 +117,6 @@ const RangerMyIncidentsPage = () => {
     const [editNotice, setEditNotice] = useState('');
     const [editFieldErrors, setEditFieldErrors] = useState({});
     const [savingId, setSavingId] = useState('');
-    const [deletingId, setDeletingId] = useState('');
     const [editingId, setEditingId] = useState('');
     const [searchQuery, setSearchQuery] = useState('');
     const [pageSize, setPageSize] = useState(10);
@@ -323,10 +325,12 @@ const RangerMyIncidentsPage = () => {
             }));
             setEditEvidenceImages((previous) => [...previous, ...newImages]);
             setEditFieldErrors((prev) => ({ ...prev, evidence: '' }));
-        } catch {
+        } catch (processError) {
             setEditFieldErrors((prev) => ({
                 ...prev,
-                evidence: 'Failed to process one or more image files. Please try different images.',
+                evidence:
+                    processError?.message ||
+                    'Failed to process one or more image files. Please try different images.',
             }));
         }
 
@@ -378,24 +382,6 @@ const RangerMyIncidentsPage = () => {
             setEditNotice(requestError.message || 'Failed to update incident.');
         } finally {
             setSavingId('');
-        }
-    };
-
-    const handleDelete = async (incidentId) => {
-        if (!incidentId) return;
-        const confirmed = window.confirm('Delete this incident permanently? This action cannot be undone.');
-        if (!confirmed) return;
-
-        setDeletingId(incidentId);
-        setActionNotice('');
-        try {
-            await deleteIncident(incidentId);
-            setIncidents((previous) => previous.filter((item) => item._id !== incidentId));
-            if (editingId === incidentId) cancelEdit();
-        } catch (requestError) {
-            setActionNotice(requestError.message || 'Failed to delete incident.');
-        } finally {
-            setDeletingId('');
         }
     };
 

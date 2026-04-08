@@ -96,6 +96,10 @@ const MovementsPage = () => {
         () => enrichMovementRows(movData?.data || []),
         [movData, enrichMovementRows]
     );
+    const totalLogs = useMemo(
+        () => Math.max(Number(pagination.total) || 0, movements.length),
+        [pagination.total, movements.length]
+    );
 
     const totalCount = movData?.pagination?.total || 0;
 
@@ -177,7 +181,12 @@ const MovementsPage = () => {
                 </div>
             </div>
 
-            <MovementStats movements={displayMovements} summary={summary} />
+            <MovementStats
+                movements={displayMovements}
+                summary={summary}
+                totalLogs={totalLogs}
+                timeRangeHours={timeRangeHours}
+            />
 
             <div className="grid grid-cols-3 gap-6">
                 <div className="col-span-2 bg-white rounded-[24px] border border-border-light shadow-premium overflow-hidden flex flex-col transition-all duration-500">

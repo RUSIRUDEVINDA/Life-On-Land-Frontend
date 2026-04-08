@@ -127,7 +127,7 @@ const AlertDescription = ({ alert, compact = false }) => {
     }
 
     if (isMovement) {
-        const { tagId, species, riskLevel, location } = parseMovementDescription(alert.description);
+        const { tagId, species, location } = parseMovementDescription(alert.description);
         const displayTagId = tagId || null;
         const displaySpecies = species || null;
         const displayLocation = location || alert.zoneName || alert.protectedAreaName;
