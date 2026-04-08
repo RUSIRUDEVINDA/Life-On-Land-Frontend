@@ -223,6 +223,7 @@ const ZonesPage = () => {
         {showForm && (
           <div className="mt-4">
             <ZoneForm
+              key={editingZone?.id || editingZone?._id || 'new-zone'}
               initialData={editingZone}
               onSubmit={handleSaveZone}
               onCancel={() => {

@@ -97,12 +97,6 @@ const RangerDashboardPage = () => {
         [assignedPatrols]
     );
 
-    const movementLogCount = useMemo(() => {
-        if (typeof movementSummary?.pagination?.total === 'number') return movementSummary.pagination.total;
-        if (Array.isArray(movementSummary?.data)) return movementSummary.data.length;
-        return 0;
-    }, [movementSummary]);
-
     const hotspotZone = useMemo(() => {
         const first = Array.isArray(movementSummary?.data) ? movementSummary.data[0] : null;
         return first?.zoneDetails?.name || first?._id || 'Hotspot detected';
