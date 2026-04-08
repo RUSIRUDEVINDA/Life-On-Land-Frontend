@@ -103,6 +103,12 @@ const RiskMapTelemetry = ({
         [riskPoints, selectedZoneId]
     );
 
+    const selectedRiskStyle = useMemo(() => {
+        if (!selectedPoint) return riskLevelStyles.LOW;
+        const level = String(selectedPoint.riskLevel || 'LOW').toUpperCase();
+        return riskLevelStyles[level] || riskLevelStyles.LOW;
+    }, [selectedPoint]);
+
     const onMapClick = useCallback(
         (evt) => {
             const feature = evt.features?.[0];
@@ -113,7 +119,7 @@ const RiskMapTelemetry = ({
     );
 
     return (
-        <div className={wrapperClassName || defaultWrapperClass}>
+        <div className={`risk-map-shell ${wrapperClassName || defaultWrapperClass}`}>
             {loading && (
                 <div className="absolute inset-0 z-[1000] flex items-center justify-center bg-white/40 backdrop-blur-sm">
                     <div className="flex animate-enter items-center gap-4 rounded-3xl bg-white px-8 py-5 shadow-[0_12px_44px_rgba(0,0,0,0.1)] transition-all">
@@ -214,44 +220,110 @@ const RiskMapTelemetry = ({
                         anchor="bottom"
                         onClose={() => onSelectZone('')}
                         closeButton
-                        offset={12}
+                        offset={10}
+                        maxWidth="none"
                     >
-                        <div className="min-w-[220px] max-w-[280px] p-3">
-                            <h4 className="text-[14px] font-bold text-primary-dark">{selectedPoint.name}</h4>
-                            <p className="mt-0.5 text-[11px] font-semibold text-primary-medium">
-                                {selectedPoint.riskLevel} risk
-                            </p>
-                            <div className="mt-3 space-y-1.5 text-[11px] text-text-gray">
-                                <p>
-                                    Incidents:{' '}
-                                    <span className="font-semibold text-primary-dark">{selectedPoint.incidentCount}</span>
-                                </p>
-                                <p>
-                                    Avg severity:{' '}
-                                    <span className="font-semibold text-primary-dark">{selectedPoint.averageSeverity}</span>
-                                </p>
-                                <p>
-                                    Weather:{' '}
-                                    <span className="font-semibold text-primary-dark">{selectedPoint.weatherCondition}</span>
-                                </p>
-                               
-                                <p className="flex items-center gap-1">
-                                    <MapPinned size={12} className="shrink-0" />
+                        <div className="w-[min(92vw,260px)] shrink-0 overflow-hidden rounded-xl border border-border-light bg-white shadow-[0_12px_40px_rgba(23,54,43,0.12)]">
+                            <div
+                                className="h-0.5 w-full"
+                                style={{
+                                    background: `linear-gradient(90deg, ${selectedRiskStyle.color}, ${selectedRiskStyle.color}99)`,
+                                }}
+                            />
+                            <div className="px-3 pb-3 pt-2 pr-9">
+                                <div className="flex items-start justify-between gap-2">
+                                    <h4 className="min-w-0 flex-1 text-[13px] font-bold leading-snug tracking-tight text-primary-dark">
+                                        {selectedPoint.name}
+                                    </h4>
+                                    <span
+                                        className="shrink-0 rounded-full border px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.08em]"
+                                        style={{
+                                            color: selectedRiskStyle.color,
+                                            backgroundColor: `${selectedRiskStyle.color}14`,
+                                            borderColor: `${selectedRiskStyle.color}40`,
+                                        }}
+                                    >
+                                        {String(selectedPoint.riskLevel || 'LOW').toUpperCase()}
+                                    </span>
+                                </div>
+
+                                <dl className="mt-2 space-y-0 rounded-lg border border-border-light/80 bg-gradient-to-b from-bg-soft/80 to-white px-2.5 py-2">
+                                    <div className="flex items-baseline justify-between gap-2 border-b border-border-light/70 py-1.5 first:pt-0 last:border-b-0 last:pb-0">
+                                        <dt className="text-[9px] font-semibold uppercase tracking-[0.12em] text-text-gray">
+                                            Incidents
+                                        </dt>
+                                        <dd className="text-[13px] font-bold tabular-nums text-primary-dark">
+                                            {selectedPoint.incidentCount}
+                                        </dd>
+                                    </div>
+                                    <div className="flex items-baseline justify-between gap-2 border-b border-border-light/70 py-1.5 first:pt-0 last:border-b-0 last:pb-0">
+                                        <dt className="text-[9px] font-semibold uppercase tracking-[0.12em] text-text-gray">
+                                            Weather
+                                        </dt>
+                                        <dd className="text-right text-[12px] font-semibold leading-snug text-primary-dark">
+                                            {selectedPoint.weatherCondition}
+                                        </dd>
+                                    </div>
+                                    <div className="flex items-baseline justify-between gap-2 py-1.5 first:pt-0 last:border-b-0 last:pb-0">
+                                        <dt className="text-[9px] font-semibold uppercase tracking-[0.12em] text-text-gray">
+                                            Avg severity
+                                        </dt>
+                                        <dd className="text-[12px] font-semibold text-primary-dark">
+                                            {selectedPoint.averageSeverity}
+                                        </dd>
+                                    </div>
+                                </dl>
+
+                                <p className="mt-2 flex items-center gap-1 text-[9px] font-medium tabular-nums text-text-gray">
+                                    <MapPinned size={11} className="shrink-0 text-primary-medium/70" strokeWidth={2} />
                                     {selectedPoint.lat.toFixed(4)}, {selectedPoint.lng.toFixed(4)}
                                 </p>
-                            </div>
-                            <div className="mt-3 grid grid-cols-2 gap-1.5 text-[10px] font-semibold">
-                                <div className="rounded-lg bg-[#fff5f5] px-1 py-1 text-center text-[#c92a2a]">
-                                    CRITICAL:{selectedPoint.severityBreakdown?.critical ?? 0}
-                                </div>
-                                <div className="rounded-lg bg-[#fff4e6] px-1 py-1 text-center text-[#d9480f]">
-                                    HIGH:{selectedPoint.severityBreakdown?.high ?? 0}
-                                </div> 
-                                <div className="rounded-lg bg-[#fff9db] px-1 py-1 text-center text-[#a07900]">
-                                    MEDIUM:{selectedPoint.severityBreakdown?.medium ?? 0}
-                                </div>
-                                <div className="rounded-lg bg-[#ebfbee] px-1 py-1 text-center text-[#2b8a3e]">
-                                    LOW:{selectedPoint.severityBreakdown?.low ?? 0}
+
+                                <div className="mt-2 grid grid-cols-2 gap-1">
+                                    {[
+                                        {
+                                            key: 'critical',
+                                            label: 'Crit.',
+                                            count: selectedPoint.severityBreakdown?.critical ?? 0,
+                                            box: 'border-[#fecaca] bg-[#fff5f5]',
+                                            text: 'text-[#b91c1c]',
+                                        },
+                                        {
+                                            key: 'high',
+                                            label: 'High',
+                                            count: selectedPoint.severityBreakdown?.high ?? 0,
+                                            box: 'border-[#fed7aa] bg-[#fff7ed]',
+                                            text: 'text-[#c2410c]',
+                                        },
+                                        {
+                                            key: 'medium',
+                                            label: 'Med.',
+                                            count: selectedPoint.severityBreakdown?.medium ?? 0,
+                                            box: 'border-[#fde68a] bg-[#fffbeb]',
+                                            text: 'text-[#b45309]',
+                                        },
+                                        {
+                                            key: 'low',
+                                            label: 'Low',
+                                            count: selectedPoint.severityBreakdown?.low ?? 0,
+                                            box: 'border-[#bbf7d0] bg-[#f0fdf4]',
+                                            text: 'text-[#166534]',
+                                        },
+                                    ].map((row) => (
+                                        <div
+                                            key={row.key}
+                                            className={`flex min-w-0 flex-col items-center rounded-lg border px-1 py-1.5 ${row.box}`}
+                                        >
+                                            <span
+                                                className={`text-[8px] font-bold uppercase tracking-wider ${row.text} opacity-90`}
+                                            >
+                                                {row.label}
+                                            </span>
+                                            <span className={`mt-0.5 text-[12px] font-bold tabular-nums leading-none ${row.text}`}>
+                                                {row.count}
+                                            </span>
+                                        </div>
+                                    ))}
                                 </div>
                             </div>
                         </div>

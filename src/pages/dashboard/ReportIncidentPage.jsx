@@ -24,6 +24,12 @@ import {
     MAX_IMAGES,
     compressImage,
 } from '../../features/incidents/utils/incidentEvidenceImages';
+import {
+    MAX_INCIDENT_DESCRIPTION_LENGTH,
+    MAX_INCIDENT_NOTES_LENGTH,
+    MIN_INCIDENT_DESCRIPTION_LENGTH,
+    validateReportIncidentForm,
+} from '../../features/incidents/utils/incidentFormValidation';
 import { getUserRole } from '../../utils/auth';
 
 const incidentTypes = ['POACHING', 'ILLEGAL_LOGGING', 'WILDLIFE_TRADE', 'HABITAT_DESTRUCTION', 'OTHER'];
@@ -41,6 +47,13 @@ const FieldLabel = ({ children, required: isRequired }) => (
         {isRequired ? <span className="text-[#E63946]">*</span> : null}
     </span>
 );
+
+const FieldError = ({ id, message }) =>
+    message ? (
+        <p id={id} className="mt-1.5 text-[12px] font-medium text-[#a4161a]" role="alert">
+            {message}
+        </p>
+    ) : null;
 
 const FormSection = ({ step, title, description, children }) => (
     <section className="rounded-[28px] border border-border-light bg-white p-6 shadow-[0_4px_24px_rgba(23,54,43,0.06)] sm:p-8">
@@ -87,6 +100,7 @@ const ReportIncidentPage = () => {
     const [loadingAreas, setLoadingAreas] = useState(true);
     const [loadingZones, setLoadingZones] = useState(false);
     const [submitting, setSubmitting] = useState(false);
+    const [attemptedSubmit, setAttemptedSubmit] = useState(false);
     const [error, setError] = useState('');
     const [success, setSuccess] = useState('');
 
@@ -147,16 +161,19 @@ const ReportIncidentPage = () => {
 
     const nowDateTimeLocal = useMemo(() => toDateTimeLocal(new Date().toISOString()), []);
 
+    const formErrors = useMemo(() => validateReportIncidentForm(formData), [formData]);
+
+    const visibleErrors = useMemo(() => {
+        if (attemptedSubmit) return formErrors;
+        const out = {};
+        if (formErrors.description) out.description = formErrors.description;
+        if (formErrors.notes) out.notes = formErrors.notes;
+        return out;
+    }, [formErrors, attemptedSubmit]);
+
     const canSubmit = useMemo(
-        () =>
-            formData.type &&
-            formData.description.trim().length >= 10 &&
-            formData.protectedAreaId &&
-            formData.zoneId &&
-            formData.incidentDate &&
-            formData.severity &&
-            !submitting,
-        [formData, submitting]
+        () => Object.keys(formErrors).length === 0 && !submitting,
+        [formErrors, submitting]
     );
 
     const handleChange = (field) => (event) => {
@@ -266,8 +283,11 @@ const ReportIncidentPage = () => {
                 dataUrl: dataUrls[index],
             }));
             setEvidenceImages((previous) => [...previous, ...newImages]);
-        } catch {
-            setError('Failed to process one or more image files. Please try different images.');
+        } catch (processError) {
+            setError(
+                processError?.message ||
+                    'Failed to process one or more image files. Please try different images.'
+            );
         }
 
         event.target.value = '';
@@ -282,9 +302,10 @@ const ReportIncidentPage = () => {
         event.preventDefault();
         setError('');
         setSuccess('');
+        setAttemptedSubmit(true);
 
-        if (!canSubmit) {
-            setError('Please complete all fields with valid values before submitting.');
+        if (Object.keys(formErrors).length > 0) {
+            setError('Please fix the highlighted fields before submitting.');
             return;
         }
 
@@ -314,6 +335,9 @@ const ReportIncidentPage = () => {
 
     const inputClass =
         'rounded-2xl border border-border-light bg-bg-soft px-4 py-3.5 text-[14px] text-primary-dark outline-none transition focus:border-primary-medium focus:bg-white focus:ring-2 focus:ring-primary-medium/20';
+
+    const fieldRing = (hasError) =>
+        hasError ? 'border-[#E63946]/60 ring-2 ring-[#E63946]/20 focus:border-[#E63946] focus:ring-[#E63946]/25' : '';
 
     const incidentsHub = incidentsHubPath();
     const incidentsHubLabel = getUserRole() === 'RANGER' ? 'My incidents' : 'Incident center';
@@ -380,7 +404,7 @@ const ReportIncidentPage = () => {
                     </p>
                 </div>
 
-                <form onSubmit={handleSubmit} className="flex flex-col gap-6">
+                <form noValidate onSubmit={handleSubmit} className="flex flex-col gap-6">
                     <FormSection
                         step={1}
                         title="Classification"
@@ -392,7 +416,9 @@ const ReportIncidentPage = () => {
                                 <select
                                     value={formData.type}
                                     onChange={handleChange('type')}
-                                    className={inputClass}
+                                    className={`${inputClass} ${fieldRing(!!visibleErrors.type)}`}
+                                    aria-invalid={!!visibleErrors.type}
+                                    aria-describedby={visibleErrors.type ? 'report-incident-type-error' : undefined}
                                 >
                                     <option value="">Select type</option>
                                     {incidentTypes.map((option) => (
@@ -401,6 +427,7 @@ const ReportIncidentPage = () => {
                                         </option>
                                     ))}
                                 </select>
+                                <FieldError id="report-incident-type-error" message={visibleErrors.type} />
                             </label>
 
                             <label className="flex flex-col gap-2">
@@ -408,7 +435,9 @@ const ReportIncidentPage = () => {
                                 <select
                                     value={formData.severity}
                                     onChange={handleChange('severity')}
-                                    className={inputClass}
+                                    className={`${inputClass} ${fieldRing(!!visibleErrors.severity)}`}
+                                    aria-invalid={!!visibleErrors.severity}
+                                    aria-describedby={visibleErrors.severity ? 'report-incident-severity-error' : undefined}
                                 >
                                     <option value="">Select severity</option>
                                     {severityLevels.map((option) => (
@@ -417,6 +446,7 @@ const ReportIncidentPage = () => {
                                         </option>
                                     ))}
                                 </select>
+                                <FieldError id="report-incident-severity-error" message={visibleErrors.severity} />
                             </label>
                         </div>
                     </FormSection>
@@ -433,7 +463,11 @@ const ReportIncidentPage = () => {
                                     value={formData.protectedAreaId}
                                     onChange={handleChange('protectedAreaId')}
                                     disabled={loadingAreas}
-                                    className={`${inputClass} disabled:cursor-not-allowed disabled:opacity-70`}
+                                    className={`${inputClass} disabled:cursor-not-allowed disabled:opacity-70 ${fieldRing(!!visibleErrors.protectedAreaId)}`}
+                                    aria-invalid={!!visibleErrors.protectedAreaId}
+                                    aria-describedby={
+                                        visibleErrors.protectedAreaId ? 'report-incident-area-error' : undefined
+                                    }
                                 >
                                     <option value="">{loadingAreas ? 'Loading areas…' : 'Select protected area'}</option>
                                     {areas.map((area) => (
@@ -442,6 +476,7 @@ const ReportIncidentPage = () => {
                                         </option>
                                     ))}
                                 </select>
+                                <FieldError id="report-incident-area-error" message={visibleErrors.protectedAreaId} />
                             </label>
 
                             <label className="flex flex-col gap-2">
@@ -450,7 +485,9 @@ const ReportIncidentPage = () => {
                                     value={formData.zoneId}
                                     onChange={handleChange('zoneId')}
                                     disabled={!formData.protectedAreaId || loadingZones}
-                                    className={`${inputClass} disabled:cursor-not-allowed disabled:opacity-70`}
+                                    className={`${inputClass} disabled:cursor-not-allowed disabled:opacity-70 ${fieldRing(!!visibleErrors.zoneId)}`}
+                                    aria-invalid={!!visibleErrors.zoneId}
+                                    aria-describedby={visibleErrors.zoneId ? 'report-incident-zone-error' : undefined}
                                 >
                                     <option value="">
                                         {!formData.protectedAreaId
@@ -465,6 +502,7 @@ const ReportIncidentPage = () => {
                                         </option>
                                     ))}
                                 </select>
+                                <FieldError id="report-incident-zone-error" message={visibleErrors.zoneId} />
                             </label>
 
                             <label className="flex flex-col gap-2 md:col-span-2">
@@ -474,8 +512,13 @@ const ReportIncidentPage = () => {
                                     value={formData.incidentDate}
                                     max={nowDateTimeLocal}
                                     onChange={handleChange('incidentDate')}
-                                    className={inputClass}
+                                    className={`${inputClass} ${fieldRing(!!visibleErrors.incidentDate)}`}
+                                    aria-invalid={!!visibleErrors.incidentDate}
+                                    aria-describedby={
+                                        visibleErrors.incidentDate ? 'report-incident-datetime-error' : undefined
+                                    }
                                 />
+                                <FieldError id="report-incident-datetime-error" message={visibleErrors.incidentDate} />
                             </label>
                         </div>
                     </FormSection>
@@ -612,17 +655,39 @@ const ReportIncidentPage = () => {
                         description="Describe what happened, attach photos if safe to do so, and add any extra notes for investigators."
                     >
                     <label className="flex flex-col gap-2">
-                        <FieldLabel required>Description</FieldLabel>
+                        <div className="flex flex-wrap items-end justify-between gap-2">
+                            <FieldLabel required>Description</FieldLabel>
+                            <span
+                                className={`text-[11px] font-semibold tabular-nums ${
+                                    formData.description.length > MAX_INCIDENT_DESCRIPTION_LENGTH
+                                        ? 'text-[#a4161a]'
+                                        : formData.description.trim().length > 0 &&
+                                            formData.description.trim().length < MIN_INCIDENT_DESCRIPTION_LENGTH
+                                          ? 'text-[#a4161a]'
+                                          : 'text-text-gray'
+                                }`}
+                            >
+                                {formData.description.length.toLocaleString()} /{' '}
+                                {MAX_INCIDENT_DESCRIPTION_LENGTH.toLocaleString()}
+                            </span>
+                        </div>
                         <textarea
                             rows={6}
                             value={formData.description}
                             onChange={handleChange('description')}
                             placeholder="Describe what happened, location clues, and any immediate safety concerns."
-                            className={`${inputClass} min-h-[140px] resize-y`}
+                            className={`${inputClass} min-h-[140px] resize-y ${fieldRing(!!visibleErrors.description)}`}
+                            aria-invalid={!!visibleErrors.description}
+                            aria-describedby={
+                                visibleErrors.description ? 'report-incident-description-error' : undefined
+                            }
                         />
                         <span className="text-[11px] text-text-gray">
-                            Minimum 10 characters. Clear, actionable detail helps teams respond faster.
+                            Minimum {MIN_INCIDENT_DESCRIPTION_LENGTH} characters, up to{' '}
+                            {MAX_INCIDENT_DESCRIPTION_LENGTH.toLocaleString()}. Clear, actionable detail helps teams respond
+                            faster.
                         </span>
+                        <FieldError id="report-incident-description-error" message={visibleErrors.description} />
                     </label>
 
                     <div className="mt-5 flex flex-col gap-3">
@@ -682,19 +747,33 @@ const ReportIncidentPage = () => {
                         )}
 
                         <span className="text-[11px] text-text-gray">
-                            Upload up to {MAX_IMAGES} images (JPG, PNG, WebP, GIF). Images are stored as evidence with the incident.
+                            Upload up to {MAX_IMAGES} images (JPG, PNG, WebP, GIF). Files are resized and compressed before send so the report fits server limits.
                         </span>
                     </div>
 
                     <label className="mt-5 flex flex-col gap-2">
-                        <FieldLabel>Notes (optional)</FieldLabel>
+                        <div className="flex flex-wrap items-end justify-between gap-2">
+                            <FieldLabel>Notes (optional)</FieldLabel>
+                            <span
+                                className={`text-[11px] font-semibold tabular-nums ${
+                                    formData.notes.length > MAX_INCIDENT_NOTES_LENGTH
+                                        ? 'text-[#a4161a]'
+                                        : 'text-text-gray'
+                                }`}
+                            >
+                                {formData.notes.length.toLocaleString()} / {MAX_INCIDENT_NOTES_LENGTH.toLocaleString()}
+                            </span>
+                        </div>
                         <textarea
                             rows={3}
                             value={formData.notes}
                             onChange={handleChange('notes')}
                             placeholder="Any additional context for investigators."
-                            className={`${inputClass} resize-y`}
+                            className={`${inputClass} resize-y ${fieldRing(!!visibleErrors.notes)}`}
+                            aria-invalid={!!visibleErrors.notes}
+                            aria-describedby={visibleErrors.notes ? 'report-incident-notes-error' : undefined}
                         />
+                        <FieldError id="report-incident-notes-error" message={visibleErrors.notes} />
                     </label>
                     </FormSection>
 
@@ -716,7 +795,7 @@ const ReportIncidentPage = () => {
                             ? 'Submitting your report…'
                             : canSubmit
                               ? 'Ready to submit. After a successful save you will be taken back to your incident list.'
-                              : 'Complete all required fields (marked with *) to enable submission.'}
+                              : 'Complete all required fields (marked with *) and fix any validation messages above to enable submission.'}
                     </p>
                     <button
                         type="submit"

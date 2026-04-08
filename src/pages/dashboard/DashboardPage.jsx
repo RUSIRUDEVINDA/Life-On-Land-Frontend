@@ -109,6 +109,12 @@ const formatRelativeTimeShort = (value) => {
     return d.toLocaleDateString();
 };
 
+const formatIncidentDateTime = (value) => {
+    const d = value ? new Date(value) : null;
+    if (!d || Number.isNaN(d.getTime())) return '';
+    return new Intl.DateTimeFormat('en-GB', { dateStyle: 'medium', timeStyle: 'short' }).format(d);
+};
+
 const RECENT_MOVEMENT_SWATCHES = ['bg-[#fab005]', 'bg-primary-medium', 'bg-primary-light'];
 
 const mapMovementForRecentList = (move, index, zoneLookup = {}, areaLookup = {}, zoneAreaLookup = {}) => {
@@ -641,16 +647,21 @@ const DashboardPage = () => {
                             ? formatIncidentTypeTitle(recentIncident.type)
                             : ''
                     }
-                    description={
+                    description={recentIncident?.description?.trim() || ''}
+                    location={
                         recentIncident
-                            ? recentIncident.description?.trim() ||
-                              `${recentIncident.zone?.name || 'Unknown zone'} - ${recentIncident.protectedArea?.name || 'Unknown area'}`
+                            ? `${recentIncident.zone?.name || 'Unknown zone'} · ${recentIncident.protectedArea?.name || 'Unknown area'}`
                             : ''
                     }
+                    severity={recentIncident?.severity}
+                    status={recentIncident?.status}
                     time={
                         recentIncident
                             ? `Reported ${formatRelativeTimeShort(recentIncident.createdAt)}`
                             : ''
+                    }
+                    timeDetail={
+                        recentIncident ? formatIncidentDateTime(recentIncident.createdAt) : ''
                     }
                     incidentId={recentIncident?._id || ''}
                 />

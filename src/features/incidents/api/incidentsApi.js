@@ -110,6 +110,21 @@ const requestJson = async (path, options = {}) => {
     return payload;
 };
 
+const rethrowIfPayloadTooLarge = (error) => {
+    const m = String(error?.message || '').toLowerCase();
+    if (
+        m.includes('entity too large') ||
+        m.includes('payload too large') ||
+        m.includes('request failed (413)') ||
+        /\b413\b/.test(m)
+    ) {
+        throw new Error(
+            'The upload is too large for the server. Try fewer or smaller photos (they are compressed automatically), shorten the description, or ask an admin to increase the API body size limit.'
+        );
+    }
+    throw error;
+};
+
 const pickIncidentArray = (payload) => {
     if (Array.isArray(payload)) return payload;
     if (!payload || typeof payload !== 'object') return [];
@@ -420,11 +435,15 @@ export const updateIncident = async (incidentId, input) => {
         throw new Error('Incident id is required.');
     }
 
-    const payload = await requestJson(`/api/incidents/${incidentId}`, {
-        method: 'PUT',
-        body: JSON.stringify(input),
-    });
-    return payload;
+    try {
+        const payload = await requestJson(`/api/incidents/${incidentId}`, {
+            method: 'PUT',
+            body: JSON.stringify(input),
+        });
+        return payload;
+    } catch (error) {
+        rethrowIfPayloadTooLarge(error);
+    }
 };
 
 export const deleteIncident = async (incidentId) => {
@@ -439,10 +458,14 @@ export const deleteIncident = async (incidentId) => {
 };
 
 export const createIncident = async (input) => {
-    const payload = await requestJson('/api/incidents', {
-        method: 'POST',
-        body: JSON.stringify(input),
-    });
-    return payload;
+    try {
+        const payload = await requestJson('/api/incidents', {
+            method: 'POST',
+            body: JSON.stringify(input),
+        });
+        return payload;
+    } catch (error) {
+        rethrowIfPayloadTooLarge(error);
+    }
 };
 

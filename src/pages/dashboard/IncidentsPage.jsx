@@ -159,7 +159,7 @@ const IncidentsPage = () => {
             label: 'Total Reports',
             value: incidents.length,
             helper: 'Current queue',
-            tone: 'accent',
+            tone: 'subtle',
         },
         {
             label: 'Critical Cases',
@@ -173,14 +173,14 @@ const IncidentsPage = () => {
                 ['REPORTED', 'UNVERIFIED', 'INVESTIGATING', 'VERIFIED'].includes(incident.status)
             ).length,
             helper: 'Needs action',
-            tone: 'default',
+            tone: 'subtle',
         },
         {
             label: 'Resolved',
             value: incidents.filter((incident) => String(incident.status || '').toUpperCase() === 'RESOLVED')
                 .length,
             helper: 'Closed safely',
-            tone: 'subtle',
+            tone: 'default',
         },
     ];
 

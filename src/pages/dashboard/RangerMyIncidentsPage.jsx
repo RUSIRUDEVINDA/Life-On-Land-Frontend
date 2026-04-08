@@ -26,6 +26,12 @@ import {
     compressImage,
     evidenceStringsToImageItems,
 } from '../../features/incidents/utils/incidentEvidenceImages';
+import {
+    MAX_INCIDENT_DESCRIPTION_LENGTH,
+    MAX_INCIDENT_NOTES_LENGTH,
+    MIN_INCIDENT_DESCRIPTION_LENGTH,
+    hasInvalidControlChars,
+} from '../../features/incidents/utils/incidentFormValidation';
 
 const STATUS_STYLES = {
     REPORTED: 'bg-[#e7f5ff] text-[#1864ab] border-[#74c0fc]/40',
@@ -39,25 +45,11 @@ const STATUS_STYLES = {
 const SEVERITY_OPTIONS = ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW'];
 const INCIDENT_TYPES = ['POACHING', 'ILLEGAL_LOGGING', 'WILDLIFE_TRADE', 'HABITAT_DESTRUCTION', 'OTHER'];
 
-/** Matches report form: description must be at least this many trimmed characters. */
-const MIN_INCIDENT_DESCRIPTION_LENGTH = 10;
-
 const formatTypeLabel = (t) =>
     String(t || '')
         .split('_')
         .map((w) => (w ? w.charAt(0) + w.slice(1).toLowerCase() : ''))
         .join(' ');
-
-const hasInvalidControlChars = (value) => {
-    const text = String(value ?? '');
-    for (let i = 0; i < text.length; i += 1) {
-        const code = text.charCodeAt(i);
-        if ((code >= 0 && code <= 8) || code === 11 || code === 12 || (code >= 14 && code <= 31)) {
-            return true;
-        }
-    }
-    return false;
-};
 
 const validateEditIncidentForm = (form) => {
     const errors = {};
@@ -79,6 +71,8 @@ const validateEditIncidentForm = (form) => {
     const rawDesc = form.description ?? '';
     if (hasInvalidControlChars(rawDesc)) {
         errors.description = 'Description contains invalid characters that cannot be saved.';
+    } else if (rawDesc.length > MAX_INCIDENT_DESCRIPTION_LENGTH) {
+        errors.description = `Description cannot exceed ${MAX_INCIDENT_DESCRIPTION_LENGTH.toLocaleString()} characters (currently ${rawDesc.length.toLocaleString()}).`;
     } else {
         const desc = rawDesc.trim();
         if (desc.length === 0) {
@@ -90,6 +84,8 @@ const validateEditIncidentForm = (form) => {
     const notes = form.notes ?? '';
     if (hasInvalidControlChars(notes)) {
         errors.notes = 'Notes contain invalid characters that cannot be saved.';
+    } else if (notes.length > MAX_INCIDENT_NOTES_LENGTH) {
+        errors.notes = `Notes cannot exceed ${MAX_INCIDENT_NOTES_LENGTH.toLocaleString()} characters (currently ${notes.length.toLocaleString()}).`;
     }
     return errors;
 };
@@ -329,10 +325,12 @@ const RangerMyIncidentsPage = () => {
             }));
             setEditEvidenceImages((previous) => [...previous, ...newImages]);
             setEditFieldErrors((prev) => ({ ...prev, evidence: '' }));
-        } catch {
+        } catch (processError) {
             setEditFieldErrors((prev) => ({
                 ...prev,
-                evidence: 'Failed to process one or more image files. Please try different images.',
+                evidence:
+                    processError?.message ||
+                    'Failed to process one or more image files. Please try different images.',
             }));
         }
 
