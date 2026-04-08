@@ -32,16 +32,16 @@ const AnimalDetailsPanel = ({ animal }) => {
     return (
         <div className="bg-white rounded-3xl border border-border-light shadow-premium p-6 h-full">
             <div className="flex items-center gap-4">
-                <div className="w-14 h-14 rounded-full bg-white border border-border-light flex items-center justify-center shadow-sm">
+                <div className="w-20 h-20 rounded-full bg-white border border-border-light flex items-center justify-center shadow-sm overflow-hidden">
                     <img
-                        src={getSpeciesIcon(animal.species)}
+                        src={animal.photo || getSpeciesIcon(animal.species)}
                         alt="Animal icon"
-                        className="w-10 h-10"
+                        className={`w-16 h-16 ${animal.photo ? 'w-full h-full object-cover' : ''}`}
                     />
                 </div>
                 <div className="flex flex-col">
-                    <span className="text-[16px] font-bold text-primary-dark">{animal.species || 'Unknown Species'}</span>
-                    <span className="text-[12px] font-mono font-bold text-primary-medium">{animal.tagId || 'Unknown Tag'}</span>
+                    <span className="text-[18px] font-bold text-primary-dark leading-tight">{animal.species || 'Unknown Species'}</span>
+                    <span className="text-[12px] font-mono font-bold text-primary-medium mt-1">{animal.tagId || 'Unknown Tag'}</span>
                 </div>
             </div>
 

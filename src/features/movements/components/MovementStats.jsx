@@ -1,9 +1,13 @@
 import React from 'react';
 import { Zap, Activity, Clock } from 'lucide-react';
 
-const MovementStats = ({ movements = [], summary }) => {
-    const totalLogs = summary?.pagination?.total || 0;
-    const activeTrackers = new Set(movements.map(m => m.tagId)).size;
+const MovementStats = ({ movements = [], summary, totalLogs, timeRangeHours }) => {
+    const summaryTotal = summary?.pagination?.total || 0;
+    const resolvedTotal =
+        Number.isFinite(totalLogs) && totalLogs >= 0 ? totalLogs : summaryTotal;
+    const activeTrackers = new Set(movements.map((m) => m.tagId)).size;
+    const hours = Number(timeRangeHours);
+    const rangeLabel = Number.isFinite(hours) && hours > 0 ? `Last ${hours}h` : 'Recent';
 
     const stats = [
         {
@@ -15,8 +19,8 @@ const MovementStats = ({ movements = [], summary }) => {
         },
         {
             label: 'Total Logs',
-            val: totalLogs.toLocaleString(),
-            change: 'Last 24h',
+            val: resolvedTotal.toLocaleString(),
+            change: rangeLabel,
             icon: <Activity size={16} />,
             color: 'primary'
         },

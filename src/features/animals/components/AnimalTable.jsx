@@ -81,10 +81,11 @@ const AnimalTable = ({ animals, loading, error, onDelete, onEdit, onSelect, sele
                                         title="View details"
                                     >
                                         <img
-                                            src={getSpeciesIcon(animal.species)}
+                                            src={animal.photo || getSpeciesIcon(animal.species)}
                                             alt="Animal icon"
-                                            className="w-8 h-8"
+                                            className={`w-8 h-8 ${animal.photo ? 'rounded-full object-cover' : ''}`}
                                         />
+
                                     </button>
                                     <div className="flex flex-col">
                                         <span className="text-[14px] font-bold text-primary-dark tracking-tight">{animal.species}</span>
