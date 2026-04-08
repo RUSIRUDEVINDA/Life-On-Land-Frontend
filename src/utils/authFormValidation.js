@@ -1,5 +1,13 @@
-/** ASCII control characters except tab/newline (not used in auth fields). */
-export const INVALID_CTRL_REGEX = /[\x00-\x08\x0B\x0C\x0E-\x1F]/;
+export const hasInvalidControlChars = (value) => {
+    const text = String(value ?? '');
+    for (let i = 0; i < text.length; i += 1) {
+        const code = text.charCodeAt(i);
+        if ((code >= 0 && code <= 8) || code === 11 || code === 12 || (code >= 14 && code <= 31)) {
+            return true;
+        }
+    }
+    return false;
+};
 
 const EMAIL_REGEX =
     /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/;
@@ -73,7 +81,7 @@ export function validateLoginFields({ email, password }) {
 
     if (!em) {
         errors.email = 'Email is required.';
-    } else if (INVALID_CTRL_REGEX.test(email)) {
+    } else if (hasInvalidControlChars(email)) {
         errors.email = 'Email contains invalid characters that cannot be used.';
     } else if (em.length > MAX_EMAIL_LEN) {
         errors.email = 'Email can only contain 250 characters.';
@@ -84,7 +92,7 @@ export function validateLoginFields({ email, password }) {
     const pw = String(password ?? '');
     if (!pw) {
         errors.password = 'Password is required.';
-    } else if (INVALID_CTRL_REGEX.test(pw)) {
+    } else if (hasInvalidControlChars(pw)) {
         errors.password = 'Password contains invalid characters that cannot be used.';
     } else if (pw.length > MAX_PASSWORD_LEN) {
         errors.password = 'Password is too long.';
@@ -106,7 +114,7 @@ export function validateRegisterFields({ name, phone, email, password, confirmPa
 
     if (!n) {
         errors.name = 'Full name is required.';
-    } else if (INVALID_CTRL_REGEX.test(name)) {
+    } else if (hasInvalidControlChars(name)) {
         errors.name = 'Name contains invalid characters that cannot be used.';
     } else if (n.length > MAX_NAME_LEN) {
         errors.name = 'Full name can only contain 100 characters.';
@@ -118,7 +126,7 @@ export function validateRegisterFields({ name, phone, email, password, confirmPa
 
     if (!ph) {
         errors.phone = 'Phone number is required.';
-    } else if (INVALID_CTRL_REGEX.test(phone)) {
+    } else if (hasInvalidControlChars(phone)) {
         errors.phone = 'Phone contains invalid characters that cannot be used.';
     } else if (!PHONE_ALLOWED_CHARS_REGEX.test(ph)) {
         errors.phone = 'Phone number can only include digits, spaces, hyphens, parentheses, or +.';
@@ -133,7 +141,7 @@ export function validateRegisterFields({ name, phone, email, password, confirmPa
 
     if (!em) {
         errors.email = 'Email is required.';
-    } else if (INVALID_CTRL_REGEX.test(email)) {
+    } else if (hasInvalidControlChars(email)) {
         errors.email = 'Email contains invalid characters that cannot be used.';
     } else if (em.length > MAX_EMAIL_LEN) {
         errors.email = 'Email can only contain 250 characters.';
@@ -143,7 +151,7 @@ export function validateRegisterFields({ name, phone, email, password, confirmPa
 
     if (!pw) {
         errors.password = 'Password is required.';
-    } else if (INVALID_CTRL_REGEX.test(pw)) {
+    } else if (hasInvalidControlChars(pw)) {
         errors.password = 'Password contains invalid characters that cannot be used.';
     } else if (pw.length < MIN_PASSWORD_LEN) {
         errors.password = `Password must be at least ${MIN_PASSWORD_LEN} characters.`;

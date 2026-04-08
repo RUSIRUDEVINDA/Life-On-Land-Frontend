@@ -11,7 +11,6 @@ const MapTrackingPage = () => {
     const [selectedAreaId, setSelectedAreaId] = useState('');
     const [movements, setMovements] = useState([]);
     const [areaAlerts, setAreaAlerts] = useState([]);
-    const [loading, setLoading] = useState(true);
     const [statsLoading, setStatsLoading] = useState(false);
 
     useEffect(() => {
@@ -24,8 +23,6 @@ const MapTrackingPage = () => {
                 }
             } catch (err) {
                 console.error('Failed to load areas for mapping:', err);
-            } finally {
-                setLoading(false);
             }
         };
         loadAreas();

@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { ArrowUpRight, CalendarClock, FilePlus2, LoaderCircle, ShieldAlert, Trash2 } from 'lucide-react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
 import IncidentMetricCard from '../../features/incidents/components/IncidentMetricCard';
 import IncidentFilters from '../../features/incidents/components/IncidentFilters';
 import IncidentList from '../../features/incidents/components/IncidentList';
@@ -20,7 +20,6 @@ const formatDate = (value) =>
     }).format(new Date(value));
 
 const IncidentsPage = () => {
-    const navigate = useNavigate();
     const [searchParams] = useSearchParams();
     const [incidents, setIncidents] = useState([]);
     const [loading, setLoading] = useState(true);
