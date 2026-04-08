@@ -35,3 +35,43 @@
     z-index: 400 !important;
 }
 .animal-popup .mapboxgl-popup-content { background: transparent; border: none; box-shadow: none; padding: 0; }
+
+/* Risk map (MapLibre): popups must not be clipped by wrapper overflow; round tiles only */
+.risk-map-shell .maplibregl-map {
+    overflow: visible !important;
+    border-radius: 28px;
+}
+.risk-map-shell .maplibregl-canvas-container {
+    border-radius: 28px;
+    overflow: hidden;
+}
+
+.risk-map-shell .maplibregl-popup-content {
+    padding: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    border-radius: 0 !important;
+    max-width: min(92vw, 280px) !important;
+    max-height: min(48vh, 320px) !important;
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+}
+
+.risk-map-shell .maplibregl-popup {
+    z-index: 3;
+}
+
+.risk-map-shell .maplibregl-popup-close-button {
+    width: 28px;
+    height: 28px;
+    font-size: 18px;
+    line-height: 26px;
+    color: #17362b;
+    right: 4px;
+    top: 4px;
+    z-index: 2;
+    border-radius: 8px;
+}
+.risk-map-shell .maplibregl-popup-close-button:hover {
+    background-color: rgba(23, 54, 43, 0.08);
+}
