@@ -1,12 +1,12 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { ArrowUpRight, LoaderCircle } from 'lucide-react';
-import { fetchAlerts, updateAlertStatus } from '../../features/alerts/api/alertsApi';
+import { useAlerts, useUpdateAlertStatus } from '../../features/alerts/hooks/useAlerts';
 import AlertsTable from '../../features/alerts/components/AlertsTable';
 
 const AlertsPage = () => {
-    const [alerts, setAlerts] = useState([]);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState(null);
+    const { data: alerts = [], isLoading: loading, error: queryError } = useAlerts();
+    const statusMutation = useUpdateAlertStatus();
+
     const [searchTerm, setSearchTerm] = useState('');
     const [severityFilter, setSeverityFilter] = useState('ALL');
 
@@ -31,38 +31,19 @@ const AlertsPage = () => {
             }
         } catch (err) {
             console.error('PDF export failed:', err);
-            const hint =
-                err?.message && /Failed to fetch dynamically imported module|Loading chunk/i.test(err.message)
-                    ? ' If you just cloned the repo, run npm install and reload the page.'
-                    : '';
-            window.alert(`Could not generate the PDF. Please try again.${hint}`);
+            window.alert('Could not generate the PDF. Please try again.');
         }
     };
 
     const handleUpdateStatus = async (id, newStatus) => {
         try {
-            await updateAlertStatus(id, { status: newStatus });
-            const data = await fetchAlerts();
-            setAlerts(data);
+            await statusMutation.mutateAsync({ id, status: newStatus });
         } catch (err) {
             window.alert('Failed to update alert status: ' + err.message);
         }
     };
 
-    useEffect(() => {
-        const loadAlerts = async () => {
-            try {
-                const data = await fetchAlerts();
-                setAlerts(data);
-            } catch (err) {
-                setError(err.message || 'Failed to load alerts');
-            } finally {
-                setLoading(false);
-            }
-        };
-
-        loadAlerts();
-    }, []);
+    const error = queryError?.message;
 
     return (
         <div className="flex flex-col gap-6">

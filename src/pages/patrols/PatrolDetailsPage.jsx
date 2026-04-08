@@ -18,7 +18,7 @@ import {
     ChevronLeft,
     Target
 } from 'lucide-react';
-import { fetchPatrolById, addCheckIn, updatePatrol, deleteCheckIn } from '../../features/patrols/api/patrolsApi';
+import { usePatrol, useAddCheckIn, useUpdatePatrolStatus, useDeleteCheckIn } from '../../features/patrols/hooks/usePatrols';
 import { getUserRole } from '../../utils/auth';
 import PatrolTitle from '../../features/patrols/components/PatrolTitle';
 
@@ -36,27 +36,12 @@ const PatrolDetailsPage = () => {
     const isAdmin = userRole === 'ADMIN';
     const isRanger = userRole === 'RANGER';
 
-    const [patrol, setPatrol] = useState(null);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState(null);
-    const [submitting, setSubmitting] = useState(false);
+    const { data: patrol, isLoading: loading, error: queryError } = usePatrol(id);
+    const checkInMutation = useAddCheckIn(id);
+    const statusMutation = useUpdatePatrolStatus(id);
+    const deleteCheckInMutation = useDeleteCheckIn(id);
+
     const [checkInNote, setCheckInNote] = useState('');
-    const [updatingStatus, setUpdatingStatus] = useState(false);
-
-    useEffect(() => {
-        const loadPatrol = async () => {
-            try {
-                const data = await fetchPatrolById(id);
-                setPatrol(data);
-            } catch (err) {
-                setError(err.message || 'Failed to load patrol details');
-            } finally {
-                setLoading(false);
-            }
-        };
-
-        loadPatrol();
-    }, [id]);
 
     const findCurrentLocation = () => {
         return new Promise((resolve) => {
@@ -82,36 +67,26 @@ const PatrolDetailsPage = () => {
         e.preventDefault();
         if (!isRanger) return;
 
-        setSubmitting(true);
         try {
             const location = await findCurrentLocation();
-            await addCheckIn(id, {
+            await checkInMutation.mutateAsync({
                 location,
                 note: checkInNote,
                 timestamp: new Date().toISOString()
             });
 
-            const updatedPatrol = await fetchPatrolById(id);
-            setPatrol(updatedPatrol);
             setCheckInNote('');
         } catch (err) {
             alert('Failed to submit check-in: ' + err.message);
-        } finally {
-            setSubmitting(false);
         }
     };
 
     const handleStatusUpdate = async (newStatus) => {
         if (!isAdmin) return;
-        setUpdatingStatus(true);
         try {
-            await updatePatrol(id, { status: newStatus });
-            const updatedPatrol = await fetchPatrolById(id);
-            setPatrol(updatedPatrol);
+            await statusMutation.mutateAsync({ status: newStatus });
         } catch (err) {
             alert('Failed to update status: ' + err.message);
-        } finally {
-            setUpdatingStatus(false);
         }
     };
 
@@ -120,13 +95,15 @@ const PatrolDetailsPage = () => {
         if (!window.confirm('Are you certain you want to redact this permanent log?')) return;
 
         try {
-            await deleteCheckIn(id, checkInId);
-            const updatedPatrol = await fetchPatrolById(id);
-            setPatrol(updatedPatrol);
+            await deleteCheckInMutation.mutateAsync(checkInId);
         } catch (err) {
             alert('Failed to delete check-in: ' + err.message);
         }
     };
+
+    const error = queryError?.message;
+    const submitting = checkInMutation.isPending;
+    const updatingStatus = statusMutation.isPending;
 
     if (loading) {
         return (

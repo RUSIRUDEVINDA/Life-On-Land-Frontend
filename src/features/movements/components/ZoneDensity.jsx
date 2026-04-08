@@ -60,7 +60,7 @@ const ZoneDensity = ({ summary, zoneLookup = {}, areaLookup = {} }) => {
                         </div>
                     )}
                 </div>
-                <button className="mt-1 w-full py-3 text-[11px] font-black text-primary uppercase tracking-widest border border-primary/20 rounded-xl hover:bg-primary-light transition-all active:scale-95">Analytics</button>
+                
             </div>
         </div>
     );

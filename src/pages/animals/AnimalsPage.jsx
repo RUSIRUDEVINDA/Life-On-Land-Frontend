@@ -1,23 +1,19 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Plus } from 'lucide-react';
 import Modal from '../../components/common/Modal';
 import ListPaginationFooter from '../../components/common/ListPaginationFooter';
-import { getAnimals, deleteAnimal } from '../../features/animals/api/animalsApi';
+import { useAnimals, useDeleteAnimal } from '../../features/animals/hooks/useAnimals';
 import AnimalFilters from '../../features/animals/components/AnimalFilters';
 import AnimalTable from '../../features/animals/components/AnimalTable';
 import AnimalForm from '../../features/animals/components/AnimalForm';
 import AnimalDetailsPanel from '../../features/animals/components/AnimalDetailsPanel';
 
 const AnimalsPage = () => {
-    const [animals, setAnimals] = useState([]);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState(null);
     const [search, setSearch] = useState('');
     const [debouncedSearch, setDebouncedSearch] = useState('');
     const [filters, setFilters] = useState({ status: '', species: '' });
-    const [pagination, setPagination] = useState({ page: 1, limit: 10, total: 0, pages: 1 });
+    const [pagination, setPagination] = useState({ page: 1, limit: 10 });
     const [selectedAnimal, setSelectedAnimal] = useState(null);
-
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [selectedTagId, setSelectedTagId] = useState(null);
 
@@ -32,28 +28,19 @@ const AnimalsPage = () => {
         setPagination(prev => ({ ...prev, page: 1 }));
     }, [debouncedSearch, filters]);
 
-    const fetchAnimals = useCallback(async () => {
-        setLoading(true);
-        try {
-            const data = await getAnimals({
-                page: pagination.page,
-                limit: pagination.limit,
-                search: debouncedSearch,
-                status: filters.status,
-                species: filters.species
-            });
-            setAnimals(data.data || []);
-            setPagination(prev => ({ ...prev, ...data.pagination }));
-        } catch (err) {
-            setError(err.message);
-        } finally {
-            setLoading(false);
-        }
-    }, [pagination.page, pagination.limit, filters, debouncedSearch]);
+    const { data: aniData, isLoading: loading, error: queryError } = useAnimals({
+        page: pagination.page,
+        limit: pagination.limit,
+        search: debouncedSearch,
+        status: filters.status,
+        species: filters.species
+    });
 
-    useEffect(() => {
-        fetchAnimals();
-    }, [fetchAnimals]);
+    const deleteMutation = useDeleteAnimal();
+
+    const animals = aniData?.data || [];
+    const totalCount = aniData?.pagination?.total || 0;
+    const error = queryError?.message;
 
     useEffect(() => {
         if (!selectedAnimal) return;
@@ -68,8 +55,7 @@ const AnimalsPage = () => {
     const handleDelete = async (tagId) => {
         if (window.confirm(`Are you sure you want to delete animal ${tagId}?`)) {
             try {
-                await deleteAnimal(tagId);
-                fetchAnimals();
+                await deleteMutation.mutateAsync(tagId);
             } catch (err) {
                 alert(err.message);
             }
@@ -88,7 +74,8 @@ const AnimalsPage = () => {
 
     const handleFormSuccess = () => {
         setIsModalOpen(false);
-        fetchAnimals();
+        // React Query will handle the refetch via invalidation if the form also uses the mutation
+        // or we can manually invalidate here if needed.
     };
 
     return (
@@ -129,10 +116,10 @@ const AnimalsPage = () => {
                         selectedTagId={selectedAnimal?.tagId}
                     />
 
-                    {!loading && !error && pagination.total > 0 && (
+                    {!loading && !error && totalCount > 0 && (
                         <div className="border-t border-border-light bg-bg-soft/10 px-5 py-3">
                             <ListPaginationFooter
-                                totalItems={pagination.total}
+                                totalItems={totalCount}
                                 pageSize={pagination.limit}
                                 currentPage={pagination.page}
                                 onPageChange={(page) => setPagination((prev) => ({ ...prev, page }))}

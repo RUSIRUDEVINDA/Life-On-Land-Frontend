@@ -2,12 +2,15 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { ArrowUpRight, Calendar, Zap } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import ListPaginationFooter from '../../components/common/ListPaginationFooter';
-import { getMovements, getMovementSummary } from '../../features/movements/api/movementsApi';
 import MovementStats from '../../features/movements/components/MovementStats';
 import MovementFilters from '../../features/movements/components/MovementFilters';
 import MovementTable from '../../features/movements/components/MovementTable';
 import ZoneDensity from '../../features/movements/components/ZoneDensity';
-import { fetchProtectedAreas, fetchZonesByProtectedArea } from '../../features/incidents/api/incidentsApi';
+import { useQueries } from '@tanstack/react-query';
+import { useProtectedAreas } from '../../hooks/useProtectedAreas';
+import { useMovements, useMovementSummary } from '../../features/movements/hooks/useMovements';
+import { getMovements } from '../../features/movements/api/movementsApi';
+import { fetchZonesByProtectedArea } from '../../features/incidents/api/incidentsApi';
 
 const movementToIdString = (value) => {
     if (value == null) return '';
@@ -19,17 +22,12 @@ const movementToIdString = (value) => {
 const MOVEMENTS_EXPORT_PAGE_SIZE = 50;
 
 const MovementsPage = () => {
-    const [movements, setMovements] = useState([]);
-    const [summary, setSummary] = useState(null);
-    const [loading, setLoading] = useState(true);
-    const [exporting, setExporting] = useState(false);
     const [search, setSearch] = useState('');
     const [timeRangeHours, setTimeRangeHours] = useState(24);
-    const [pagination, setPagination] = useState({ page: 1, limit: 10, total: 0, pages: 1 });
-    const [areaLookup, setAreaLookup] = useState({});
-    const [zoneLookup, setZoneLookup] = useState({});
+    const [pagination, setPagination] = useState({ page: 1, limit: 10 });
+    const [exporting, setExporting] = useState(false);
 
-    const getDateRangeParams = useCallback(() => {
+    const dateRange = useMemo(() => {
         const hours = Number(timeRangeHours);
         if (!Number.isFinite(hours) || hours <= 0) return {};
         const now = new Date();
@@ -37,102 +35,75 @@ const MovementsPage = () => {
         return { from: from.toISOString(), to: now.toISOString() };
     }, [timeRangeHours]);
 
-    const fetchData = useCallback(async () => {
-        setLoading(true);
-        try {
-            const dateRange = getDateRangeParams();
-            const [movData, sumData] = await Promise.all([
-                getMovements({
-                    page: pagination.page,
-                    limit: pagination.limit,
-                    tagId: search,
-                    ...dateRange,
-                }),
-                getMovementSummary(dateRange),
-            ]);
+    const { data: movData, isLoading: movLoading } = useMovements({
+        page: pagination.page,
+        limit: pagination.limit,
+        tagId: search,
+        ...dateRange,
+    });
 
-            setMovements(movData?.data || []);
-            if (movData?.pagination) {
-                setPagination((prev) => ({ ...prev, ...movData.pagination }));
-            }
-            setSummary(sumData);
-        } catch (err) {
-            console.error('Failed to fetch movement data:', err);
-            setMovements([]);
-        } finally {
-            setLoading(false);
-        }
-    }, [pagination.page, pagination.limit, search, getDateRangeParams]);
+    const { data: summary, isLoading: sumLoading } = useMovementSummary(dateRange);
+    const { data: protectedAreas = [] } = useProtectedAreas();
 
-    useEffect(() => {
-        setPagination((prev) => ({ ...prev, page: 1 }));
-    }, [search, timeRangeHours]);
+    // Batch fetch zones for all areas
+    const zonesQueries = useQueries({
+        queries: protectedAreas.map(area => ({
+            queryKey: ['zones', area.id],
+            queryFn: () => fetchZonesByProtectedArea(area.id).catch(() => []),
+            enabled: !!area.id,
+        }))
+    });
 
-    useEffect(() => {
-        fetchData();
-    }, [fetchData]);
+    const loading = movLoading || sumLoading;
 
-    useEffect(() => {
-        const loadLookups = async () => {
-            try {
-                const protectedAreas = await fetchProtectedAreas();
-                const areaMap = {};
-                protectedAreas.forEach((area) => {
-                    if (area?.id) areaMap[area.id] = area.name || 'Unknown Area';
-                });
-                setAreaLookup(areaMap);
+    // Build Lookups from query data
+    const { areaLookup, zoneLookup } = useMemo(() => {
+        const areaMap = {};
+        const zoneMap = {};
 
-                const zoneLists = await Promise.all(
-                    protectedAreas.map((area) => fetchZonesByProtectedArea(area.id).catch(() => []))
-                );
-                const zoneMap = {};
-                zoneLists.flat().forEach((zone) => {
+        protectedAreas.forEach((area) => {
+            if (area?.id) areaMap[area.id] = area.name || 'Unknown Area';
+        });
+
+        zonesQueries.forEach(zq => {
+            if (zq.data) {
+                zq.data.forEach(zone => {
                     const id = movementToIdString(zone?._id || zone?.id);
                     if (!id) return;
                     zoneMap[id] = zone?.name || zone?.title || 'Unknown Zone';
                 });
-                setZoneLookup(zoneMap);
-            } catch (err) {
-                console.error('Failed to load area/zone lookups:', err);
             }
-        };
+        });
 
-        loadLookups();
-    }, []);
+        return { areaLookup: areaMap, zoneLookup: zoneMap };
+    }, [protectedAreas, zonesQueries]);
 
     const enrichMovementRows = useCallback(
         (raw) =>
             raw.map((move) => {
-                const protectedAreaId = movementToIdString(move?.protectedAreaId || move?.protectedArea);
-                const zoneId = movementToIdString(move?.zoneId || move?.zone);
+                const paId = movementToIdString(move?.protectedAreaId || move?.protectedArea);
+                const zId = movementToIdString(move?.zoneId || move?.zone);
                 return {
                     ...move,
-                    protectedAreaName:
-                        move?.protectedAreaName ||
-                        move?.protectedArea?.name ||
-                        areaLookup[protectedAreaId] ||
-                        'Unknown Protected Area',
-                    zoneName:
-                        move?.zoneName ||
-                        move?.zone?.name ||
-                        zoneLookup[zoneId] ||
-                        'Unknown Zone',
+                    protectedAreaName: move?.protectedAreaName || move?.protectedArea?.name || areaLookup[paId] || 'Unknown Protected Area',
+                    zoneName: move?.zoneName || move?.zone?.name || zoneLookup[zId] || 'Unknown Zone',
                 };
             }),
         [areaLookup, zoneLookup]
     );
 
     const displayMovements = useMemo(
-        () => enrichMovementRows(movements),
-        [movements, enrichMovementRows]
+        () => enrichMovementRows(movData?.data || []),
+        [movData, enrichMovementRows]
     );
 
+    const totalCount = movData?.pagination?.total || 0;
+
     const handleExportQueue = async () => {
-        if (pagination.total <= 0 && movements.length === 0) return;
+        if (!movData || totalCount <= 0) return;
         const tagId = search.trim();
         setExporting(true);
         try {
-            const dateRange = getDateRangeParams();
             const first = await getMovements({
                 page: 1,
                 limit: MOVEMENTS_EXPORT_PAGE_SIZE,
@@ -160,15 +131,15 @@ const MovementsPage = () => {
             }
         } catch (err) {
             console.error('Movements PDF export failed:', err);
-            const hint =
-                err?.message && /Failed to fetch dynamically imported module|Loading chunk/i.test(err.message)
-                    ? ' If you just cloned the repo, run npm install and reload the page.'
-                    : '';
-            window.alert(`Could not generate the PDF. Please try again.${hint}`);
+            window.alert('Could not generate the PDF. Please try again.');
         } finally {
             setExporting(false);
         }
     };
+
+    useEffect(() => {
+        setPagination((prev) => ({ ...prev, page: 1 }));
+    }, [search, timeRangeHours]);
 
     return (
         <div className="flex flex-col gap-8 animate-enter">
@@ -181,7 +152,7 @@ const MovementsPage = () => {
                     <button
                         type="button"
                         onClick={handleExportQueue}
-                        disabled={loading || exporting || (pagination.total <= 0 && movements.length === 0)}
+                        disabled={loading || exporting || totalCount === 0}
                         className="inline-flex items-center gap-2 rounded-xl border border-primary-medium bg-white px-4 py-2.5 text-[13px] font-bold text-primary-dark shadow-sm transition hover:bg-primary-light/10 disabled:cursor-not-allowed disabled:opacity-50"
                     >
                         <ArrowUpRight size={16} />
@@ -217,10 +188,10 @@ const MovementsPage = () => {
                         onPageSizeChange={(limit) => setPagination((prev) => ({ ...prev, limit, page: 1 }))}
                     />
                     <MovementTable movements={displayMovements} loading={loading} />
-                    {!loading && pagination.total > 0 && (
+                    {!loading && totalCount > 0 && (
                         <div className="border-t border-border-light px-5 py-3">
                             <ListPaginationFooter
-                                totalItems={pagination.total}
+                                totalItems={totalCount}
                                 pageSize={pagination.limit}
                                 currentPage={pagination.page}
                                 onPageChange={(page) => setPagination((prev) => ({ ...prev, page }))}

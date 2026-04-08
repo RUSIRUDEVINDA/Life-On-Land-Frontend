@@ -36,6 +36,17 @@ const getMovementCoordinates = (movement) => {
   return { lng, lat };
 };
 
+const getAnimalMarkerImage = (movement) => {
+  const animal = movement?.animalDetails || {};
+  const photo = animal.photo || movement?.photo || '';
+
+  return {
+    animal,
+    src: photo || getSpeciesIcon(animal.species),
+    hasPhoto: Boolean(photo),
+  };
+};
+
 const isPointInRing = (point, ring = []) => {
   let inside = false;
 
@@ -242,6 +253,8 @@ const TelemetryMap = ({ selectedAreaId }) => {
     };
   }, [zones, riskData, selectedAreaId]);
 
+  const popupImage = selectedAnimal ? getAnimalMarkerImage(selectedAnimal) : null;
+
   return (
     <div className="h-[65vh] w-full rounded-[28px] overflow-hidden border border-border-light shadow-premium relative bg-bg-soft group">
       {loading && (
@@ -294,8 +307,7 @@ const TelemetryMap = ({ selectedAreaId }) => {
 
         {enrichedMovements.map((mv) => {
           const style = riskLevelStyles[mv.resolvedRiskLevel] || riskLevelStyles.LOW;
-          const animal = mv.animalDetails || {};
-          const icon = getSpeciesIcon(animal.species);
+          const { animal, src: animalImage, hasPhoto: hasAnimalPhoto } = getAnimalMarkerImage(mv);
 
           return (
             <Marker
@@ -316,7 +328,11 @@ const TelemetryMap = ({ selectedAreaId }) => {
                 <div 
                   className="relative w-11 h-11 rounded-full border-[2.5px] border-white flex items-center justify-center shadow-[0_4px_12px_rgba(0,0,0,0.22)] transform transition-transform bg-white"
                 >
-                  <img src={icon} alt="Animal icon" className="w-8 h-8" />
+                  <img
+                    src={animalImage}
+                    alt={animal.species || 'Animal icon'}
+                    className={hasAnimalPhoto ? 'w-full h-full rounded-full object-cover' : 'w-8 h-8'}
+                  />
                 </div>
               </div>
             </Marker>
@@ -346,9 +362,13 @@ const TelemetryMap = ({ selectedAreaId }) => {
             <div className="p-4 min-w-[240px]">
               <div className="flex items-center gap-4 border-b border-border-light pb-4 mb-4">
                 <div 
-                  className="w-12 h-12 rounded-2xl flex items-center justify-center shadow-premium border border-border-light bg-white"
+                  className="w-12 h-12 rounded-2xl flex items-center justify-center shadow-premium border border-border-light bg-white overflow-hidden"
                 >
-                  <img src={getSpeciesIcon(selectedAnimal.animalDetails?.species)} alt="Animal icon" className="w-9 h-9" />
+                  <img
+                    src={popupImage?.src}
+                    alt={popupImage?.animal.species || 'Animal icon'}
+                    className={popupImage?.hasPhoto ? 'w-full h-full object-cover' : 'w-9 h-9'}
+                  />
                 </div>
                 <div>
                   <h4 className="font-bold text-primary-dark text-lg leading-tight tracking-tight">{selectedAnimal.animalDetails?.tagId || selectedAnimal.tagId}</h4>
