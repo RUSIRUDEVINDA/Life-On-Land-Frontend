@@ -1,16 +1,47 @@
-import React, { useState, useEffect } from 'react';
-import { fetchProtectedAreas } from '../../features/risk-map/api/riskMapApi';
+import React, { useState, useEffect, useMemo } from 'react';
+import { fetchProtectedAreas, fetchRiskMapByProtectedArea } from '../../features/risk-map/api/riskMapApi';
 import { getLiveMovements } from '../../features/movements/api/movementsApi';
-import { fetchAlerts } from '../../features/alerts/api/alertsApi';
 import TelemetryMap from '../../features/movements/components/TelemetryMap';
-import { Map, Activity, Layers, Bell } from 'lucide-react';
+import { Map, Activity, Layers, Bell, ShieldAlert, MapPin } from 'lucide-react';
+
+const normalizeStatus = (value) => String(value || '').trim().toUpperCase();
+const normalizeId = (value) => {
+    if (value && typeof value === 'object') {
+        return String(value._id || value.id || '');
+    }
+    return String(value || '');
+};
+
+const normalizeRiskLevel = (value) => String(value || '').trim().toUpperCase();
+
+const getMovementAnimalStatus = (movement) =>
+    movement?.animalDetails?.status ??
+    movement?.animalStatus ??
+    movement?.trackingStatus ??
+    movement?.monitoringStatus ??
+    movement?.status ??
+    movement?.animal?.status ??
+    movement?.animal?.monitoringStatus;
+
+const isDeceasedMovement = (movement) =>
+    normalizeStatus(getMovementAnimalStatus(movement)) === 'DECEASED';
+
+const getMovementAreaId = (movement) =>
+    normalizeId(
+        movement?.protectedAreaId ||
+        movement?.protectedArea?._id ||
+        movement?.protectedArea?.id ||
+        movement?.protectedArea
+    );
+
+const getMovementZoneId = (movement) =>
+    normalizeId(movement?.zoneId || movement?.zone?._id || movement?.zone?.id || movement?.zone);
 
 const MapTrackingPage = () => {
     const [areas, setAreas] = useState([]);
     const [selectedAreaId, setSelectedAreaId] = useState('');
     const [movements, setMovements] = useState([]);
-    const [areaAlerts, setAreaAlerts] = useState([]);
-    const [loading, setLoading] = useState(true);
+    const [zoneRiskLookup, setZoneRiskLookup] = useState({});
     const [statsLoading, setStatsLoading] = useState(false);
 
     useEffect(() => {
@@ -23,10 +54,9 @@ const MapTrackingPage = () => {
                 }
             } catch (err) {
                 console.error('Failed to load areas for mapping:', err);
-            } finally {
-                setLoading(false);
             }
         };
+
         loadAreas();
     }, []);
 
@@ -34,12 +64,17 @@ const MapTrackingPage = () => {
         setStatsLoading(true);
         try {
             const movementParams = areaId ? { protectedAreaId: areaId } : {};
-            const [movs, alts] = await Promise.all([
-                getLiveMovements(movementParams),
-                fetchAlerts({ limit: 5 })
-            ]);
-            setMovements(movs || []);
-            setAreaAlerts(alts || []);
+            const movs = await getLiveMovements(movementParams);
+            const normalizedAreaId = normalizeId(areaId);
+            const filteredMovements = Array.isArray(movs)
+                ? movs.filter((mv) => {
+                    if (isDeceasedMovement(mv)) return false;
+                    if (!normalizedAreaId) return true;
+                    const movementAreaId = getMovementAreaId(mv);
+                    return movementAreaId && movementAreaId === normalizedAreaId;
+                })
+                : [];
+            setMovements(filteredMovements);
         } catch (err) {
             console.error('Failed to fetch area stats:', err);
         } finally {
@@ -52,6 +87,62 @@ const MapTrackingPage = () => {
         const interval = setInterval(() => fetchAreaStats(selectedAreaId), 10000);
         return () => clearInterval(interval);
     }, [selectedAreaId]);
+
+    useEffect(() => {
+        const loadRiskMap = async () => {
+            if (!selectedAreaId) {
+                setZoneRiskLookup({});
+                return;
+            }
+            try {
+                const riskMap = await fetchRiskMapByProtectedArea(selectedAreaId);
+                const lookup = {};
+                (riskMap?.zones || []).forEach((zone) => {
+                    const zoneId = normalizeId(zone?.zoneId || zone?._id || zone?.id);
+                    if (!zoneId) return;
+                    lookup[zoneId] = {
+                        riskLevel: normalizeRiskLevel(zone?.riskLevel),
+                        zoneName: zone?.zoneName || zone?.name || zone?.title || zone?.zone?.name || '',
+                    };
+                });
+                setZoneRiskLookup(lookup);
+            } catch (err) {
+                console.error('Failed to load risk map:', err);
+                setZoneRiskLookup({});
+            }
+        };
+
+        loadRiskMap();
+    }, [selectedAreaId]);
+
+    const criticalMovements = useMemo(() => (
+        movements
+            .map((mv) => {
+                const zoneId = getMovementZoneId(mv);
+                const riskFromMovement = normalizeRiskLevel(mv?.riskLevel || mv?.risk);
+                const riskFromZone = zoneId ? normalizeRiskLevel(zoneRiskLookup[zoneId]?.riskLevel) : '';
+                const resolvedRisk = riskFromZone || riskFromMovement || 'LOW';
+                if (resolvedRisk !== 'CRITICAL') return null;
+
+                const tagId = mv?.tagId || mv?.animalDetails?.tagId || 'Unknown Tag';
+                const species = mv?.animalDetails?.species || mv?.species || '';
+                const zoneName =
+                    mv?.zoneName ||
+                    mv?.zone?.name ||
+                    zoneRiskLookup[zoneId]?.zoneName ||
+                    mv?.protectedAreaName ||
+                    mv?.protectedArea?.name ||
+                    'Unknown Zone';
+
+                return {
+                    id: mv?._id || mv?.id || `${tagId}-${mv?.timestamp || ''}`,
+                    tagId,
+                    species,
+                    zoneName,
+                };
+            })
+            .filter(Boolean)
+    ), [movements, zoneRiskLookup]);
 
     return (
         <div className="flex flex-col gap-6 animate-enter pb-6">
@@ -83,12 +174,12 @@ const MapTrackingPage = () => {
                         </select>
                         <Layers size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-primary-medium pointer-events-none" />
                         <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none transition-transform group-hover:translate-y-0.5 duration-300">
-                           <svg width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg">
-                               <path d="M2.5 4.5L6 8L9.5 4.5" stroke="#2A5A45" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                           </svg>
+                            <svg width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M2.5 4.5L6 8L9.5 4.5" stroke="#2A5A45" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                            </svg>
                         </div>
                     </div>
-                    
+
                     <button className="bg-primary-dark text-white p-3 rounded-2xl shadow-elevated hover:bg-black hover:scale-105 transition-all duration-300">
                         <Bell size={20} />
                     </button>
@@ -97,7 +188,7 @@ const MapTrackingPage = () => {
 
             <main className="grid grid-cols-1 lg:grid-cols-4 gap-6">
                 <section className="lg:col-span-3">
-                   <TelemetryMap selectedAreaId={selectedAreaId} />
+                    <TelemetryMap selectedAreaId={selectedAreaId} />
                 </section>
 
                 <aside className="flex flex-col gap-6">
@@ -121,32 +212,50 @@ const MapTrackingPage = () => {
                                 <span className="text-[13px] font-bold">142ms</span>
                             </div>
                         </div>
-                        <button className="w-full mt-6 py-3 bg-primary-medium/20 hover:bg-primary-medium/30 border border-primary-medium/30 rounded-xl text-[12px] font-bold transition-all duration-300">
-                            Download Log Bundle
-                        </button>
                     </div>
 
                     <div className="bg-white rounded-[28px] p-6 border border-border-light shadow-premium flex flex-col gap-5">
-                       <h3 className="text-[15px] font-bold text-primary-dark">Intelligence Insights</h3>
-                       <div className="space-y-4">
-                           {areaAlerts.length > 0 ? (
-                               areaAlerts.slice(0, 2).map((alert, idx) => (
-                                   <div key={idx} className={`p-4 rounded-2xl border ${alert.severity === 'CRITICAL' ? 'bg-red-50 border-red-100' : 'bg-bg-soft border-border-light/50'}`}>
-                                       <p className={`text-[11px] font-bold uppercase tracking-wider ${alert.severity === 'CRITICAL' ? 'text-red-600' : 'text-primary-medium'}`}>
-                                           {alert.type || 'System Intel'}
-                                       </p>
-                                       <p className="text-[13px] text-primary-dark font-medium mt-1 leading-relaxed">
-                                           {alert.description}
-                                       </p>
-                                   </div>
-                               ))
-                           ) : (
-                               <div className="p-10 bg-bg-soft rounded-2xl border border-dashed border-border-light flex flex-col items-center text-center gap-2">
-                                   <Activity size={20} className="text-primary-medium opacity-20" />
-                                   <p className="text-[12px] font-bold text-primary-dark opacity-40 uppercase tracking-tighter">No Active Intel</p>
-                               </div>
-                           )}
-                       </div>
+                        <h3 className="text-[15px] font-bold text-primary-dark">Intelligence Insights</h3>
+                        <div className="space-y-4">
+                            {criticalMovements.length > 0 ? (
+                                criticalMovements.slice(0, 2).map((movement) => (
+                                    <div
+                                        key={movement.id}
+                                        className="p-4 rounded-2xl border transition-all duration-200 bg-rose-50 border-rose-100"
+                                    >
+                                        <div className="flex items-center gap-2 mb-2">
+                                            <div className="w-5 h-5 rounded-md flex items-center justify-center flex-shrink-0 bg-rose-100">
+                                                <ShieldAlert size={11} className="text-rose-600" />
+                                            </div>
+                                            <span className="text-[10px] font-bold uppercase tracking-widest text-rose-600">
+                                                Critical Movement
+                                            </span>
+                                        </div>
+                                        <div className="flex items-center gap-1.5 flex-wrap">
+                                            <span className="inline-flex items-center gap-1 text-[12px] font-bold text-primary-dark bg-primary-light/20 px-2 py-0.5 rounded-full font-mono tracking-tight">
+                                                {movement.tagId}
+                                            </span>
+                                            {movement.species && (
+                                                <span className="text-[12px] font-semibold text-text-gray italic">
+                                                    {movement.species}
+                                                </span>
+                                            )}
+                                        </div>
+                                        {movement.zoneName && (
+                                            <span className="inline-flex items-center gap-1 text-[11px] font-medium text-text-gray mt-2">
+                                                <MapPin size={9} className="shrink-0 text-primary-medium" />
+                                                {movement.zoneName}
+                                            </span>
+                                        )}
+                                    </div>
+                                ))
+                            ) : (
+                                <div className="p-10 bg-bg-soft rounded-2xl border border-dashed border-border-light flex flex-col items-center text-center gap-2">
+                                    <Activity size={20} className="text-primary-medium opacity-20" />
+                                    <p className="text-[12px] font-bold text-primary-dark opacity-40 uppercase tracking-tighter">No Critical Movements</p>
+                                </div>
+                            )}
+                        </div>
                     </div>
                 </aside>
             </main>

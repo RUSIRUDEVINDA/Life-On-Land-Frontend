@@ -7,12 +7,11 @@ import {
     MapPin,
     Pencil,
     Search,
-    X,
+    X
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import ListPaginationFooter from '../../components/common/ListPaginationFooter';
 import {
-    deleteIncident,
     fetchIncidentsByReporter,
     updateIncident,
     fetchProtectedAreas,
@@ -49,8 +48,16 @@ const formatTypeLabel = (t) =>
         .map((w) => (w ? w.charAt(0) + w.slice(1).toLowerCase() : ''))
         .join(' ');
 
-/** Disallow ASCII control characters except tab (0x09) and newline (0x0A). */
-const INVALID_TEXT_CHAR_REGEX = /[\x00-\x08\x0B\x0C\x0E-\x1F]/;
+const hasInvalidControlChars = (value) => {
+    const text = String(value ?? '');
+    for (let i = 0; i < text.length; i += 1) {
+        const code = text.charCodeAt(i);
+        if ((code >= 0 && code <= 8) || code === 11 || code === 12 || (code >= 14 && code <= 31)) {
+            return true;
+        }
+    }
+    return false;
+};
 
 const validateEditIncidentForm = (form) => {
     const errors = {};
@@ -70,7 +77,7 @@ const validateEditIncidentForm = (form) => {
         errors.incidentDate = 'Incident date and time is required.';
     }
     const rawDesc = form.description ?? '';
-    if (INVALID_TEXT_CHAR_REGEX.test(rawDesc)) {
+    if (hasInvalidControlChars(rawDesc)) {
         errors.description = 'Description contains invalid characters that cannot be saved.';
     } else {
         const desc = rawDesc.trim();
@@ -81,7 +88,7 @@ const validateEditIncidentForm = (form) => {
         }
     }
     const notes = form.notes ?? '';
-    if (INVALID_TEXT_CHAR_REGEX.test(notes)) {
+    if (hasInvalidControlChars(notes)) {
         errors.notes = 'Notes contain invalid characters that cannot be saved.';
     }
     return errors;
@@ -114,7 +121,6 @@ const RangerMyIncidentsPage = () => {
     const [editNotice, setEditNotice] = useState('');
     const [editFieldErrors, setEditFieldErrors] = useState({});
     const [savingId, setSavingId] = useState('');
-    const [deletingId, setDeletingId] = useState('');
     const [editingId, setEditingId] = useState('');
     const [searchQuery, setSearchQuery] = useState('');
     const [pageSize, setPageSize] = useState(10);
@@ -378,24 +384,6 @@ const RangerMyIncidentsPage = () => {
             setEditNotice(requestError.message || 'Failed to update incident.');
         } finally {
             setSavingId('');
-        }
-    };
-
-    const handleDelete = async (incidentId) => {
-        if (!incidentId) return;
-        const confirmed = window.confirm('Delete this incident permanently? This action cannot be undone.');
-        if (!confirmed) return;
-
-        setDeletingId(incidentId);
-        setActionNotice('');
-        try {
-            await deleteIncident(incidentId);
-            setIncidents((previous) => previous.filter((item) => item._id !== incidentId));
-            if (editingId === incidentId) cancelEdit();
-        } catch (requestError) {
-            setActionNotice(requestError.message || 'Failed to delete incident.');
-        } finally {
-            setDeletingId('');
         }
     };
 

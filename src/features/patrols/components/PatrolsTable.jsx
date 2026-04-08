@@ -1,7 +1,8 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { ClipboardList, Search, Filter } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import ListPaginationFooter from '../../../components/common/ListPaginationFooter';
+import PatrolTitle from './PatrolTitle';
 
 const PatrolsTable = ({ patrols }) => {
     const navigate = useNavigate();
@@ -17,10 +18,6 @@ const PatrolsTable = ({ patrols }) => {
             return matchesSearch && matchesStatus;
         });
     }, [patrols, searchTerm, statusFilter]);
-
-    useEffect(() => {
-        setCurrentPage(1);
-    }, [searchTerm, statusFilter, pageSize]);
 
     const totalPages = Math.max(1, Math.ceil(filteredPatrols.length / pageSize));
     const safePage = Math.min(currentPage, totalPages);
@@ -41,7 +38,10 @@ const PatrolsTable = ({ patrols }) => {
                         type="text"
                         placeholder="Search patrols by title..."
                         value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
+                        onChange={(e) => {
+                            setCurrentPage(1);
+                            setSearchTerm(e.target.value);
+                        }}
                         className="w-full pl-10 pr-4 py-2.5 rounded-2xl border border-border-light bg-white text-[13px] text-primary-dark placeholder-text-gray focus:outline-none focus:border-primary-light focus:ring-2 focus:ring-primary-light/20 transition-all font-medium min-w-[280px]"
                     />
                 </div>
@@ -53,7 +53,10 @@ const PatrolsTable = ({ patrols }) => {
                         </div>
                         <select
                             value={statusFilter}
-                            onChange={(e) => setStatusFilter(e.target.value)}
+                            onChange={(e) => {
+                                setCurrentPage(1);
+                                setStatusFilter(e.target.value);
+                            }}
                             className="w-full sm:w-auto appearance-none pl-9 pr-8 py-2.5 rounded-2xl border border-border-light bg-white text-[13px] font-semibold text-primary-dark focus:outline-none focus:border-primary-light focus:ring-2 focus:ring-primary-light/20 cursor-pointer transition-all min-w-[160px]"
                         >
                             <option value="ALL">All Statuses</option>
@@ -72,7 +75,10 @@ const PatrolsTable = ({ patrols }) => {
                         <span className="font-medium">Show</span>
                         <select
                             value={pageSize}
-                            onChange={(e) => setPageSize(Number(e.target.value))}
+                            onChange={(e) => {
+                                setCurrentPage(1);
+                                setPageSize(Number(e.target.value));
+                            }}
                             className="rounded-xl border border-border-light bg-white px-3 py-1.5 text-[12px] font-semibold text-primary-dark outline-none transition focus:border-primary-medium"
                         >
                             {[10, 20, 30].map((n) => (
@@ -123,18 +129,16 @@ const PatrolsTable = ({ patrols }) => {
                                     style={{ animationDelay: `${index * 40}ms` }}
                                     title="Click to view patrol details and add check-ins"
                                 >
-                                    <td className="px-6 py-3.5">
+                                    <td className="px-6 py-4 xl:py-5">
                                         <div className="flex flex-col">
-                                            <span className="text-[13px] font-bold text-primary-dark tracking-tight max-w-[300px] xl:max-w-[400px] truncate group-hover:text-primary-medium transition-colors">
-                                                {patrol.title || 'Untitled Patrol'}
-                                            </span>
+                                            <PatrolTitle title={patrol.title} />
                                         </div>
                                     </td>
                                     <td className="px-6 py-3.5">
                                         <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider shadow-sm border border-black/5 ${patrol.status === 'IN_PROGRESS' ? 'bg-blue-100 text-blue-700' :
-                                                patrol.status === 'COMPLETED' ? 'bg-emerald-100 text-emerald-700' :
-                                                    patrol.status === 'CANCELLED' ? 'bg-rose-100 text-rose-700' :
-                                                        'bg-indigo-100 text-indigo-700'
+                                            patrol.status === 'COMPLETED' ? 'bg-emerald-100 text-emerald-700' :
+                                                patrol.status === 'CANCELLED' ? 'bg-rose-100 text-rose-700' :
+                                                    'bg-indigo-100 text-indigo-700'
                                             }`}>
                                             {patrol.status === 'IN_PROGRESS' && <span className="w-1.5 h-1.5 rounded-full bg-blue-500 opacity-70 animate-pulse"></span>}
                                             {patrol.status || 'PLANNED'}

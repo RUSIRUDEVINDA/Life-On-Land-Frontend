@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import { ChevronLeft, Info, AlertTriangle, Search, X, Calendar, Users, FileText, Target, MapPin } from 'lucide-react';
 import { createPatrol } from '../../features/patrols/api/patrolsApi';
+import PatrolTitle from '../../features/patrols/components/PatrolTitle';
 import { fetchProtectedAreas, fetchZonesByProtectedArea } from '../../features/incidents/api/incidentsApi';
 import { fetchAlerts } from '../../features/alerts/api/alertsApi';
 import { fetchRangers } from '../../features/users/api/usersApi';
@@ -233,8 +234,12 @@ const CreatePatrolPage = () => {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
                         <div className="col-span-1 md:col-span-2">
                             <label className="text-[11px] font-bold text-primary-medium/70 uppercase tracking-[0.1em] mb-2 block">Primary Objective / Alert Description</label>
-                            <div className="w-full px-5 py-4 bg-white/60 border border-border-light/60 rounded-xl text-[14px] text-primary-dark font-medium shadow-inner-sm text-opacity-90 leading-relaxed">
-                                {alertData?.description || 'Synchronizing with command center...'}
+                            <div className="w-full px-5 py-4 bg-white/60 border border-border-light/60 rounded-xl shadow-inner-sm text-opacity-90 leading-relaxed">
+                                {alertData?.description ? (
+                                    <PatrolTitle title={alertData.description} />
+                                ) : (
+                                    <span className="text-[14px] text-primary-dark font-medium italic">Synchronizing with command center...</span>
+                                )}
                             </div>
                         </div>
 

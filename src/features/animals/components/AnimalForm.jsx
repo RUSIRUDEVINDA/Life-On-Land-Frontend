@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Save, AlertCircle, Loader2 } from 'lucide-react';
+import { X, Save, AlertCircle, Loader2, Check } from 'lucide-react';
 import api from '../../../utils/api';
 import { getAnimalById, createAnimal, updateAnimal } from '../api/animalsApi';
 
@@ -13,7 +13,8 @@ const AnimalForm = ({ tagId, onClose, onSuccess }) => {
         protectedAreaId: '',
         zoneId: '',
         description: '',
-        endemicToSriLanka: false
+        endemicToSriLanka: false,
+        photo: null
     });
 
     const [areas, setAreas] = useState([]);
@@ -66,7 +67,8 @@ const AnimalForm = ({ tagId, onClose, onSuccess }) => {
                         protectedAreaId: animal.protectedAreaId || '',
                         zoneId: animal.zoneId || '',
                         description: animal.description || '',
-                        endemicToSriLanka: !!animal.endemicToSriLanka
+                        endemicToSriLanka: !!animal.endemicToSriLanka,
+                        photo: null
                     });
                 } catch (err) {
                     setError(err.message);
@@ -79,11 +81,15 @@ const AnimalForm = ({ tagId, onClose, onSuccess }) => {
     }, [tagId]);
 
     const handleChange = (e) => {
-        const { name, value, type, checked } = e.target;
-        setFormData(prev => ({
-            ...prev,
-            [name]: type === 'checkbox' ? checked : value
-        }));
+        const { name, value, type, checked, files } = e.target;
+        if (type === 'file') {
+            setFormData(prev => ({ ...prev, [name]: files[0] }));
+        } else {
+            setFormData(prev => ({
+                ...prev,
+                [name]: type === 'checkbox' ? checked : value
+            }));
+        }
     };
 
     const handleSubmit = async (e) => {
@@ -92,10 +98,25 @@ const AnimalForm = ({ tagId, onClose, onSuccess }) => {
         setError(null);
 
         try {
-            if (tagId) {
-                await updateAnimal(tagId, formData);
+            let payload;
+            if (formData.photo) {
+                // Use FormData for multipart requests
+                payload = new FormData();
+                Object.keys(formData).forEach(key => {
+                    if (formData[key] !== null && formData[key] !== undefined) {
+                        payload.append(key, formData[key]);
+                    }
+                });
             } else {
-                await createAnimal(formData);
+                // Use plain object for JSON requests
+                const { photo, ...rest } = formData;
+                payload = rest;
+            }
+
+            if (tagId) {
+                await updateAnimal(tagId, payload);
+            } else {
+                await createAnimal(payload);
             }
             onSuccess();
         } catch (err) {
@@ -218,16 +239,28 @@ const AnimalForm = ({ tagId, onClose, onSuccess }) => {
                     </div>
                 </div>
 
-                <div className="flex flex-col gap-1.5">
-                    <label className="text-[10px] font-semibold text-primary-medium tracking-[0.05em] uppercase ml-0.5 opacity-60">Observation Notes</label>
-                    <textarea
-                        name="description"
-                        rows="2"
-                        className="px-4 py-2.5 bg-bg-soft/40 border border-border-light rounded-xl text-[12px] font-medium outline-none focus:bg-white focus:border-primary-medium transition-all resize-none"
-                        placeholder="Detail physical markings or behavioral observations..."
-                        value={formData.description}
-                        onChange={handleChange}
-                    ></textarea>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                    <div className="flex flex-col gap-1.5">
+                        <label className="text-[10px] font-semibold text-primary-medium tracking-[0.05em] uppercase ml-0.5 opacity-60">Observation Notes</label>
+                        <textarea
+                            name="description"
+                            rows="2"
+                            className="px-4 py-2.5 bg-bg-soft/40 border border-border-light rounded-xl text-[12px] font-medium outline-none focus:bg-white focus:border-primary-medium transition-all resize-none"
+                            placeholder="Detail physical markings or behavioral observations..."
+                            value={formData.description}
+                            onChange={handleChange}
+                        ></textarea>
+                    </div>
+                    <div className="flex flex-col gap-1.5">
+                        <label className="text-[10px] font-semibold text-primary-medium tracking-[0.05em] uppercase ml-0.5 opacity-60">Animal Photograph</label>
+                        <input
+                            name="photo"
+                            type="file"
+                            accept="image/*"
+                            onChange={handleChange}
+                            className="px-4 py-2 bg-bg-soft/40 border border-border-light rounded-xl text-[12px] font-medium outline-none focus:bg-white focus:border-primary-medium transition-all file:mr-4 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-[11px] file:font-bold file:bg-primary/10 file:text-primary hover:file:bg-primary/20 file:cursor-pointer"
+                        />
+                    </div>
                 </div>
 
                 <div className="flex items-center gap-3 py-2 bg-bg-soft/20 px-4 rounded-xl border border-border-light/40 group hover:border-primary/20 transition-all">
@@ -240,8 +273,8 @@ const AnimalForm = ({ tagId, onClose, onSuccess }) => {
                             checked={formData.endemicToSriLanka}
                             onChange={handleChange}
                         />
-                        <div className="w-5 h-5 border border-border-light rounded flex items-center justify-center peer-checked:border-primary peer-checked:bg-primary transition-all pointer-events-none">
-                            <Save size={12} className="text-white opacity-0 peer-checked:opacity-100 transition-opacity" />
+                        <div className="w-5 h-5 border border-border-light rounded flex items-center justify-center peer-checked:border-emerald-500 peer-checked:bg-emerald-500 peer-checked:[&>svg]:opacity-100 transition-all pointer-events-none">
+                            <Check size={12} className="text-white opacity-0 transition-opacity" />
                         </div>
                     </div>
                     <label htmlFor="endemic" className="text-[12px] font-medium text-primary-dark cursor-pointer select-none">Confirmed endemic species to Sri Lanka</label>

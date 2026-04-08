@@ -22,32 +22,47 @@ const requestJson = async (path, options = {}) => {
     const url = `${getApiBaseUrl()}${path}`;
     const token = localStorage.getItem('token');
 
+    const isFormData = options.body instanceof FormData;
+
     const buildOptions = (withAuth) => ({
         credentials: 'include',
         ...options,
         headers: {
-            'Content-Type': 'application/json',
+            ...(!isFormData && { 'Content-Type': 'application/json' }),
             ...(withAuth ? getAuthHeaders() : {}),
             ...(options.headers || {}),
         },
     });
 
+
     let response = await fetch(url, buildOptions(true));
-    let payload = await response.json().catch(() => ({}));
+    const responseClone = response.clone();
+    let payload = await responseClone.json().catch(() => ({}));
+    let rawText = '';
 
     if (response.status === 401 && token) {
         localStorage.removeItem('token');
         response = await fetch(url, buildOptions(false));
-        payload = await response.json().catch(() => ({}));
+        const retryClone = response.clone();
+        payload = await retryClone.json().catch(() => ({}));
+        rawText = '';
     }
+    
 
     if (!response.ok) {
         throwIfUpstreamError(response);
         if (response.status === 401) {
             throw new Error('Unauthorized. Please login again to continue.');
         }
+        if (!rawText && Object.keys(payload || {}).length === 0) {
+            rawText = await response.text().catch(() => '');
+        }
         throw new Error(
-            payload?.message || payload?.error || payload?.details || `Request failed (${response.status})`
+            payload?.message ||
+                payload?.error ||
+                payload?.details ||
+                (rawText ? rawText.trim() : '') ||
+                `Request failed (${response.status})`
         );
     }
 
@@ -60,9 +75,11 @@ const normalizeUser = (raw) => ({
     email: raw?.email || '',
     phone: raw?.phone || '',
     role: raw?.role || 'RANGER',
+    profilePhoto: raw?.profilePhoto || null,
     createdAt: raw?.createdAt || null,
     updatedAt: raw?.updatedAt || null,
 });
+
 
 const syncStoredUser = (user) => {
     let current = null;
@@ -83,7 +100,9 @@ const syncStoredUser = (user) => {
         email: user.email || current?.email || '',
         phone: user.phone || current?.phone || '',
         role: user.role || current?.role || 'RANGER',
+        profilePhoto: user.profilePhoto || current?.profilePhoto || null,
     };
+
 
     localStorage.setItem('user', JSON.stringify(merged));
 
@@ -128,8 +147,9 @@ export const updateMyProfile = async (updates) => {
 
     const payload = await requestJson(`/api/users/${userId}`, {
         method: 'PATCH',
-        body: JSON.stringify(updates),
+        body: updates instanceof FormData ? updates : JSON.stringify(updates),
     });
+
 
     const user = normalizeUser(payload?.user || payload?.data || payload);
     syncStoredUser(user);
@@ -168,8 +188,9 @@ export const fetchRangers = async () => {
 export const updateUser = async (userId, data) => {
     const payload = await requestJson(`/api/users/${userId}`, {
         method: 'PUT',
-        body: JSON.stringify(data),
+        body: data instanceof FormData ? data : JSON.stringify(data),
     });
+
     return normalizeUser(payload?.user || payload?.data || payload);
 };
 

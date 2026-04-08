@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import GeometryDrawEditor from './GeometryDrawEditor';
 import { geometryAreaKm2, parseGeometryInput, toFeature } from '../utils/geometryMetrics';
 
@@ -40,21 +40,67 @@ const geometryPlaceholder = `{
   ]
 }`;
 
+const editingAreaStyle = {
+  color: '#1f6f54',
+  weight: 3,
+  dashArray: '8 6',
+  fillColor: '#8fb8a2',
+  fillOpacity: 0,
+  opacity: 1,
+};
+
+const getInitialAreaFormState = (initialData) => {
+  if (!initialData) {
+    return {
+      name: '',
+      areaType: '',
+      district: '',
+      description: '',
+      areaSize: '',
+      status: 'ACTIVE',
+      geometryText: '',
+      geometryMode: 'draw',
+      error: '',
+    };
+  }
+
+  const initialGeometryFeature = toFeature(
+    initialData.geometry ||
+    initialData.raw?.geometry ||
+    initialData.raw?.geoJson ||
+    initialData.raw?.polygon ||
+    null
+  );
+
+  return {
+    name: initialData.name || '',
+    areaType: normalizeAreaType(initialData.areaType || initialData.type || ''),
+    district: initialData.district || '',
+    description: initialData.description || '',
+    areaSize: initialData.areaSize ? String(initialData.areaSize) : '',
+    status: initialData.status || 'ACTIVE',
+    geometryText: initialGeometryFeature?.geometry ? JSON.stringify(initialGeometryFeature.geometry, null, 2) : '',
+    geometryMode: 'draw',
+    error: '',
+  };
+};
+
 const ProtectedAreaForm = ({
   initialData,
   onSubmit,
   onCancel,
   isSubmitting = false,
 }) => {
-  const [name, setName] = useState('');
-  const [areaType, setAreaType] = useState('');
-  const [district, setDistrict] = useState('');
-  const [description, setDescription] = useState('');
-  const [areaSize, setAreaSize] = useState('');
-  const [status, setStatus] = useState('ACTIVE');
-  const [geometryText, setGeometryText] = useState('');
-  const [geometryMode, setGeometryMode] = useState('draw');
-  const [error, setError] = useState('');
+  const initialFormState = getInitialAreaFormState(initialData);
+  const [name, setName] = useState(initialFormState.name);
+  const [areaType, setAreaType] = useState(initialFormState.areaType);
+  const [district, setDistrict] = useState(initialFormState.district);
+  const [description, setDescription] = useState(initialFormState.description);
+  const [areaSize, setAreaSize] = useState(initialFormState.areaSize);
+  const [status, setStatus] = useState(initialFormState.status);
+  const [geometryText, setGeometryText] = useState(initialFormState.geometryText);
+  const [geometryMode, setGeometryMode] = useState(initialFormState.geometryMode);
+  const [error, setError] = useState(initialFormState.error);
 
   const syncGeometryAndArea = (nextGeometryText) => {
     setGeometryText(nextGeometryText);
@@ -67,31 +113,6 @@ const ProtectedAreaForm = ({
       setAreaSize(computedKm2);
     }
   };
-
-  useEffect(() => {
-    if (!initialData) {
-      setName('');
-      setAreaType('');
-      setDistrict('');
-      setDescription('');
-      setAreaSize('');
-      setStatus('ACTIVE');
-      setGeometryText('');
-      setGeometryMode('draw');
-      setError('');
-      return;
-    }
-
-    setName(initialData.name || '');
-    setAreaType(normalizeAreaType(initialData.areaType || initialData.type || ''));
-    setDistrict(initialData.district || '');
-    setDescription(initialData.description || '');
-    setAreaSize(initialData.areaSize ? String(initialData.areaSize) : '');
-    setStatus(initialData.status || 'ACTIVE');
-    setGeometryText(initialData.geometry ? JSON.stringify(initialData.geometry, null, 2) : '');
-    setGeometryMode('draw');
-    setError('');
-  }, [initialData]);
 
   const handleSubmit = (event) => {
     event.preventDefault();
@@ -267,6 +288,9 @@ const ProtectedAreaForm = ({
                 <GeometryDrawEditor
                   value={geometryText}
                   onChange={(geometry) => syncGeometryAndArea(geometry ? JSON.stringify(geometry, null, 2) : '')}
+                  editableStyle={editingAreaStyle}
+                  showValueOutline
+                  valueOutlineStyle={editingAreaStyle}
                 />
               )}
 

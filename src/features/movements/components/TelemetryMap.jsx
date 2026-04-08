@@ -6,6 +6,7 @@ import { Activity, MapPinned, Info, AlertTriangle } from 'lucide-react';
 import { fetchProtectedAreas, fetchZonesByProtectedArea, fetchRiskMapByProtectedArea } from '../../risk-map/api/riskMapApi';
 import { getLiveMovements } from '../api/movementsApi';
 import { MAP_STYLE } from '../../map/mapConfig';
+import { getSpeciesIcon } from '../../animals/utils/speciesIcons';
 
 const riskLevelStyles = {
   CRITICAL: { color: '#E63946', pulse: 'rgba(230,57,70,0.5)', label: 'Critical Risk' },
@@ -26,6 +27,61 @@ const normalizeRiskLevel = (value) => {
   return riskLevelStyles[normalized] ? normalized : 'LOW';
 };
 
+const normalizeStatus = (value) => String(value || '').trim().toUpperCase();
+
+const resolveZoneName = (movement, resolvedZone, riskInfo) => {
+  const riskName =
+    riskInfo?.zoneName ||
+    riskInfo?.zone?.name ||
+    riskInfo?.zoneTitle ||
+    riskInfo?.zoneLabel;
+  const zoneName =
+    resolvedZone?.name ||
+    resolvedZone?.title ||
+    resolvedZone?.zoneName ||
+    resolvedZone?.label;
+  const movementZoneName =
+    movement?.zoneName ||
+    movement?.zone?.name ||
+    movement?.zone?.title ||
+    movement?.zone?.zoneName ||
+    movement?.zoneLabel ||
+    movement?.zoneTitle;
+  const areaName =
+    movement?.protectedAreaName ||
+    movement?.protectedArea?.name ||
+    movement?.protectedArea?.title;
+  return riskName || zoneName || movementZoneName || areaName || 'Unknown Zone';
+};
+
+const resolveZoneType = (movement, resolvedZone) =>
+  resolvedZone?.zoneType ||
+  resolvedZone?.type ||
+  movement?.zoneType ||
+  movement?.zone?.zoneType ||
+  movement?.zone?.type ||
+  '';
+
+const getMovementAnimalStatus = (movement) =>
+  movement?.animalDetails?.status ??
+  movement?.animalStatus ??
+  movement?.trackingStatus ??
+  movement?.monitoringStatus ??
+  movement?.status ??
+  movement?.animal?.status ??
+  movement?.animal?.monitoringStatus;
+
+const isDeceasedMovement = (movement) =>
+  normalizeStatus(getMovementAnimalStatus(movement)) === 'DECEASED';
+
+const getMovementAreaId = (movement) =>
+  normalizeId(
+    movement?.protectedAreaId ||
+      movement?.protectedArea?._id ||
+      movement?.protectedArea?.id ||
+      movement?.protectedArea
+  );
+
 const getMovementCoordinates = (movement) => {
   const lng = Number(movement?.lng ?? movement?.longitude);
   const lat = Number(movement?.lat ?? movement?.latitude);
@@ -33,6 +89,17 @@ const getMovementCoordinates = (movement) => {
   if (!Number.isFinite(lng) || !Number.isFinite(lat)) return null;
 
   return { lng, lat };
+};
+
+const getAnimalMarkerImage = (movement) => {
+  const animal = movement?.animalDetails || {};
+  const photo = animal.photo || movement?.photo || '';
+
+  return {
+    animal,
+    src: photo || getSpeciesIcon(animal.species),
+    hasPhoto: Boolean(photo),
+  };
 };
 
 const isPointInRing = (point, ring = []) => {
@@ -81,19 +148,6 @@ const isPointInsideGeometry = (point, geometry) => {
   return false;
 };
 
-// Map species to emoji/icon
-const speciesIcons = {
-  elephant: '🐘',
-  tiger: '🐅',
-  leopard: '🐆',
-  bear: '🐻',
-  deer: '🦌',
-  boar: '🐗',
-  monkey: '🐒',
-  peacock: '🦚',
-  default: '🐾'
-};
-
 const TelemetryMap = ({ selectedAreaId }) => {
   const mapRef = useRef(null);
   const [zones, setZones] = useState([]);
@@ -126,7 +180,7 @@ const TelemetryMap = ({ selectedAreaId }) => {
         fetchRiskMapByProtectedArea(areaId)
       ]);
       setZones(zonesData || []);
-      
+
       const riskMapLookup = {};
       if (riskMap.zones) {
         riskMap.zones.forEach(z => {
@@ -151,12 +205,25 @@ const TelemetryMap = ({ selectedAreaId }) => {
     try {
       const params = selectedAreaId ? { protectedAreaId: selectedAreaId } : {};
       const data = await getLiveMovements(params);
+      const areaId = normalizeId(selectedAreaId);
+      const rows = Array.isArray(data)
+        ? data.filter((mv) => {
+          if (isDeceasedMovement(mv)) return false;
+          if (!areaId) return true;
+          const movementAreaId = getMovementAreaId(mv);
+          if (movementAreaId) return movementAreaId === areaId;
+          if (zones.length === 0) return false;
+          const coords = getMovementCoordinates(mv);
+          if (!coords) return false;
+          return zones.some((zone) => isPointInsideGeometry(coords, zone?.geometry));
+        })
+        : [];
       console.log(`[MAP-DEBUG] Received ${data?.length || 0} movements for area: ${selectedAreaId}`, data);
-      setMovements(data || []);
+      setMovements(rows);
     } catch (err) {
       console.error('Failed to load live movements:', err);
     }
-  }, [selectedAreaId]);
+  }, [selectedAreaId, zones]);
 
   useEffect(() => {
     loadAreaData(selectedAreaId);
@@ -168,6 +235,16 @@ const TelemetryMap = ({ selectedAreaId }) => {
     return () => clearInterval(interval);
   }, [loadMovements]);
 
+  useEffect(() => {
+    if (!selectedAnimal) return;
+    const selectedId = selectedAnimal?._id || selectedAnimal?.id || selectedAnimal?.tagId;
+    if (!selectedId) return;
+    const stillPresent = movements.some(
+      (mv) => (mv?._id || mv?.id || mv?.tagId) === selectedId
+    );
+    if (!stillPresent) setSelectedAnimal(null);
+  }, [movements, selectedAnimal]);
+
   // Handle bounds fitting
   useEffect(() => {
     if (zones.length > 0 && mapRef.current) {
@@ -177,13 +254,13 @@ const TelemetryMap = ({ selectedAreaId }) => {
           z.geometry.coordinates[0].forEach(coord => allCoords.push(coord));
         }
       });
-      
+
       if (allCoords.length > 0) {
         const minLng = Math.min(...allCoords.map(c => c[0]));
         const maxLng = Math.max(...allCoords.map(c => c[0]));
         const minLat = Math.min(...allCoords.map(c => c[1]));
         const maxLat = Math.max(...allCoords.map(c => c[1]));
-        
+
         mapRef.current.fitBounds(
           [[minLng, minLat], [maxLng, maxLat]],
           { padding: 40, duration: 1000 }
@@ -213,8 +290,6 @@ const TelemetryMap = ({ selectedAreaId }) => {
         const resolvedZone = containingZone || zonesById[movementZoneId] || null;
         const resolvedZoneId = normalizeId(resolvedZone?._id || resolvedZone?.id || movementZoneId);
         const riskInfo = riskData[resolvedZoneId] || riskData[movementZoneId] || null;
-        const fallbackZoneName = movement?.zoneName || movement?.zone?.name || '';
-        const fallbackZoneType = movement?.zoneType || movement?.zone?.zoneType || '';
         const resolvedRiskLevel = normalizeRiskLevel(riskInfo?.riskLevel || movement?.riskLevel);
 
         return {
@@ -222,8 +297,8 @@ const TelemetryMap = ({ selectedAreaId }) => {
           lng: coordinates.lng,
           lat: coordinates.lat,
           resolvedZoneId,
-          resolvedZoneName: riskInfo?.zoneName || resolvedZone?.name || fallbackZoneName || 'N/A',
-          resolvedZoneType: resolvedZone?.zoneType || fallbackZoneType || '',
+          resolvedZoneName: resolveZoneName(movement, resolvedZone, riskInfo),
+          resolvedZoneType: resolveZoneType(movement, resolvedZone),
           resolvedRiskLevel,
         };
       })
@@ -235,24 +310,26 @@ const TelemetryMap = ({ selectedAreaId }) => {
     return {
       type: 'FeatureCollection',
       features: mapZones.map(zone => {
-      const zoneId = normalizeId(zone._id || zone.id);
-      const riskInfo = riskData[zoneId];
-      const riskLevel = normalizeRiskLevel(riskInfo?.riskLevel);
-      return {
-        type: 'Feature',
-        id: zone.id || zone._id,
-        geometry: zone.geometry,
-        properties: {
+        const zoneId = normalizeId(zone._id || zone.id);
+        const riskInfo = riskData[zoneId];
+        const riskLevel = normalizeRiskLevel(riskInfo?.riskLevel);
+        return {
+          type: 'Feature',
           id: zone.id || zone._id,
-          name: riskInfo?.zoneName || zone.name,
-          type: zone.zoneType,
-          riskLevel: riskLevel,
-          color: riskLevelStyles[riskLevel].color
-        }
-      };
+          geometry: zone.geometry,
+          properties: {
+            id: zone.id || zone._id,
+            name: riskInfo?.zoneName || zone.name,
+            type: zone.zoneType,
+            riskLevel: riskLevel,
+            color: riskLevelStyles[riskLevel].color
+          }
+        };
       })
     };
   }, [zones, riskData, selectedAreaId]);
+
+  const popupImage = selectedAnimal ? getAnimalMarkerImage(selectedAnimal) : null;
 
   return (
     <div className="h-[65vh] w-full rounded-[28px] overflow-hidden border border-border-light shadow-premium relative bg-bg-soft group">
@@ -274,8 +351,8 @@ const TelemetryMap = ({ selectedAreaId }) => {
         style={{ width: '100%', height: '100%' }}
         interactiveLayerIds={selectedAreaId ? ['zones-layer'] : []}
         onMouseEnter={evt => {
-           const feature = evt.features?.[0];
-           if (feature) setHoveredZone(feature.properties);
+          const feature = evt.features?.[0];
+          if (feature) setHoveredZone(feature.properties);
         }}
         onMouseLeave={() => setHoveredZone(null)}
       >
@@ -306,9 +383,7 @@ const TelemetryMap = ({ selectedAreaId }) => {
 
         {enrichedMovements.map((mv) => {
           const style = riskLevelStyles[mv.resolvedRiskLevel] || riskLevelStyles.LOW;
-          const animal = mv.animalDetails || {};
-          const species = (animal.species || 'default').toLowerCase();
-          const icon = speciesIcons[species] || speciesIcons.default;
+          const { animal, src: animalImage, hasPhoto: hasAnimalPhoto } = getAnimalMarkerImage(mv);
 
           return (
             <Marker
@@ -322,15 +397,18 @@ const TelemetryMap = ({ selectedAreaId }) => {
               }}
             >
               <div className="relative cursor-pointer transition-all hover:scale-110 drop-shadow-xl group/marker">
-                <div 
-                  className="absolute -inset-2.5 rounded-full animate-ping opacity-30" 
+                <div
+                  className="absolute -inset-2.5 rounded-full animate-ping opacity-30"
                   style={{ backgroundColor: style.pulse }}
                 />
-                <div 
-                  className="relative w-11 h-11 rounded-full border-[2.5px] border-white flex items-center justify-center shadow-[0_4px_12px_rgba(0,0,0,0.22)] transform transition-transform"
-                  style={{ backgroundColor: style.color }}
+                <div
+                  className="relative w-11 h-11 rounded-full border-[2.5px] border-white flex items-center justify-center shadow-[0_4px_12px_rgba(0,0,0,0.22)] transform transition-transform bg-white"
                 >
-                  <span className="text-xl filter drop-shadow-sm pointer-events-none">{icon}</span>
+                  <img
+                    src={animalImage}
+                    alt={animal.species || 'Animal icon'}
+                    className={hasAnimalPhoto ? 'w-full h-full rounded-full object-cover' : 'w-8 h-8'}
+                  />
                 </div>
               </div>
             </Marker>
@@ -341,8 +419,8 @@ const TelemetryMap = ({ selectedAreaId }) => {
           <div className="absolute top-5 left-5 z-[1001] bg-white/95 backdrop-blur-md px-5 py-3.5 rounded-2xl border border-border-light shadow-[0_8px_32px_rgba(42,90,69,0.12)] border-l-4" style={{ borderColor: hoveredZone.color }}>
             <p className="text-[13px] font-bold text-primary-dark leading-none">{hoveredZone.name}</p>
             <div className="flex items-center gap-2 mt-2">
-                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-primary-light/10 text-primary-dark opacity-70 uppercase tracking-widest">{hoveredZone.type}</span>
-                <span className="text-[10px] font-bold text-primary-medium uppercase tracking-tighter">{hoveredZone.riskLevel} Risk Activity</span>
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-primary-light/10 text-primary-dark opacity-70 uppercase tracking-widest">{hoveredZone.type}</span>
+              <span className="text-[10px] font-bold text-primary-medium uppercase tracking-tighter">{hoveredZone.riskLevel} Risk Activity</span>
             </div>
           </div>
         )}
@@ -359,11 +437,14 @@ const TelemetryMap = ({ selectedAreaId }) => {
           >
             <div className="p-4 min-w-[240px]">
               <div className="flex items-center gap-4 border-b border-border-light pb-4 mb-4">
-                <div 
-                  className="w-12 h-12 rounded-2xl flex items-center justify-center text-3xl shadow-premium border border-border-light"
-                  style={{ backgroundColor: (riskLevelStyles[selectedAnimal.resolvedRiskLevel] || riskLevelStyles.LOW).color + '15' }}
+                <div
+                  className="w-12 h-12 rounded-2xl flex items-center justify-center shadow-premium border border-border-light bg-white overflow-hidden"
                 >
-                  {speciesIcons[selectedAnimal.animalDetails?.species?.toLowerCase()] || speciesIcons.default}
+                  <img
+                    src={popupImage?.src}
+                    alt={popupImage?.animal.species || 'Animal icon'}
+                    className={popupImage?.hasPhoto ? 'w-full h-full object-cover' : 'w-9 h-9'}
+                  />
                 </div>
                 <div>
                   <h4 className="font-bold text-primary-dark text-lg leading-tight tracking-tight">{selectedAnimal.animalDetails?.tagId || selectedAnimal.tagId}</h4>
@@ -394,10 +475,10 @@ const TelemetryMap = ({ selectedAreaId }) => {
       {/* Modern Legend Overlay */}
       <div className="absolute bottom-8 right-8 z-[100] bg-white/95 backdrop-blur-xl p-6 rounded-[32px] border border-border-light shadow-[0_16px_48px_rgba(0,0,0,0.12)] transition-all hover:scale-[1.03] duration-500">
         <div className="flex items-center gap-3 mb-5">
-           <div className="w-8 h-8 rounded-xl bg-primary-dark flex items-center justify-center text-primary-light">
-              <Info size={16} />
-           </div>
-           <h5 className="text-[14px] font-bold text-primary-dark">Tracking Protocols</h5>
+          <div className="w-8 h-8 rounded-xl bg-primary-dark flex items-center justify-center text-primary-light">
+            <Info size={16} />
+          </div>
+          <h5 className="text-[14px] font-bold text-primary-dark">Tracking Protocols</h5>
         </div>
         <div className="space-y-3.5">
           {Object.entries(riskLevelStyles).map(([level, style]) => (
@@ -407,14 +488,14 @@ const TelemetryMap = ({ selectedAreaId }) => {
             </div>
           ))}
           <div className="pt-4 border-t border-border-light mt-2 flex justify-between gap-4">
-             <div className="flex items-center gap-2">
-               <div className="w-4 h-4 rounded-md border border-primary-medium bg-emerald-50 opacity-40"></div>
-               <span className="text-[10px] font-bold text-text-gray uppercase tracking-widest">Sectors</span>
-             </div>
-             <div className="flex items-center gap-2">
-               <span className="text-lg">🦍</span>
-               <span className="text-[10px] font-bold text-text-gray uppercase tracking-widest">Flora</span>
-             </div>
+            <div className="flex items-center gap-2">
+              <div className="w-4 h-4 rounded-md border border-primary-medium bg-emerald-50 opacity-40"></div>
+              <span className="text-[10px] font-bold text-text-gray uppercase tracking-widest">Sectors</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <img src={getSpeciesIcon()} alt="Animal icon" className="w-4 h-4" />
+              <span className="text-[10px] font-bold text-text-gray uppercase tracking-widest">Flora</span>
+            </div>
           </div>
         </div>
       </div>

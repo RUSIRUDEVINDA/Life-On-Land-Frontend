@@ -17,7 +17,7 @@ import { getUserRole, getStoredUser } from '../../utils/auth';
 
 const adminMenuItems = [
     { name: 'Dashboard', path: '/dashboard/admin', icon: <LayoutDashboard size={18} /> },
-    { name: 'Map Tracking', path: '/dashboard/map-tracking', icon: <Map size={18} />, badge: 'Live' },
+    { name: 'Animal Tracking', path: '/dashboard/map-tracking', icon: <Map size={18} />, badge: 'Live' },
     { name: 'Risk Map', path: '/dashboard/risk-map', icon: <Map size={18} /> },
     { name: 'Protected Areas', path: '/dashboard/protected-areas', icon: <MapPin size={18} /> },
     { name: 'Zones', path: '/dashboard/protected-areas/zones', icon: <MapPin size={18} /> },
@@ -31,7 +31,7 @@ const adminMenuItems = [
 
 const rangerMenuItems = [
     { name: 'Dashboard', path: '/dashboard/ranger', icon: <LayoutDashboard size={18} /> },
-    { name: 'Map Tracking', path: '/dashboard/map-tracking', icon: <Map size={18} />, badge: 'Live' },
+    { name: 'Animal Tracking', path: '/dashboard/map-tracking', icon: <Map size={18} />, badge: 'Live' },
     { name: 'Risk map', path: '/dashboard/ranger-risk-map', icon: <Map size={18} /> },
     { name: 'My Incidents', path: '/dashboard/my-incidents', icon: <AlertTriangle size={18} /> },
     { name: 'Report Incident', path: '/dashboard/incidents/report', icon: <ClipboardList size={18} /> },

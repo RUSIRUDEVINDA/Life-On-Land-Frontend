@@ -1,4 +1,4 @@
-﻿import apiClient from './apiClient';
+import apiClient from './apiClient';
 
 const unwrap = (payload) => payload?.data ?? payload ?? null;
 
@@ -45,40 +45,6 @@ const normalizeZoneType = (value) => {
   if (normalized.includes('EDGE')) return 'EDGE';
 
   return 'EDGE';
-};
-
-const normalizeAreaTypeInput = (value) => {
-  const normalized = String(value || '').trim().toUpperCase().replace(/\s+/g, '_');
-  return normalized || '';
-};
-
-const normalizeStatusInput = (value) => {
-  const normalized = String(value || '').trim().toUpperCase();
-  if (normalized === 'INACTIVE') return 'DELETED';
-  if (normalized === 'ACTIVE' || normalized === 'DELETED') return normalized;
-  return '';
-};
-
-const toAreaPayload = (input) => {
-  if (!input || typeof input !== 'object') return input;
-
-  const payload = { ...input };
-  const normalizedType = normalizeAreaTypeInput(payload.type || payload.areaType);
-  if (normalizedType) payload.type = normalizedType;
-  delete payload.areaType;
-
-  const normalizedStatus = normalizeStatusInput(payload.status);
-  if (normalizedStatus) {
-    payload.status = normalizedStatus;
-  } else {
-    delete payload.status;
-  }
-
-  if (payload.geometry?.type === 'Feature') {
-    payload.geometry = payload.geometry.geometry || null;
-  }
-
-  return payload;
 };
 
 const toFeatureGeometry = (value) => {

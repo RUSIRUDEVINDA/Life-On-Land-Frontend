@@ -6,8 +6,6 @@ const AnimalFilters = ({
     onSearchChange,
     status,
     onStatusChange,
-    species,
-    onSpeciesChange,
     pageSize,
     onPageSizeChange,
 }) => {

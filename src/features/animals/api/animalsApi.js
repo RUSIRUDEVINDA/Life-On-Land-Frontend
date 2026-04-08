@@ -17,16 +17,18 @@ export const getAnimalById = async (tagId) => {
 export const createAnimal = async (animalData) => {
     return api('/animals', {
         method: 'POST',
-        body: JSON.stringify(animalData)
+        body: animalData instanceof FormData ? animalData : JSON.stringify(animalData)
     });
 };
+
 
 export const updateAnimal = async (tagId, animalData) => {
     return api(`/animals/${tagId}`, {
         method: 'PUT',
-        body: JSON.stringify(animalData)
+        body: animalData instanceof FormData ? animalData : JSON.stringify(animalData)
     });
 };
+
 
 export const deleteAnimal = async (tagId) => {
     return api(`/animals/${tagId}`, {

@@ -1,7 +1,9 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { Search, Filter, AlertCircle } from 'lucide-react';
+import React, { useMemo, useState } from 'react';
+import { Search, Filter, ShieldAlert, Activity, CheckCircle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import ListPaginationFooter from '../../../components/common/ListPaginationFooter';
+import AlertDescription from './AlertDescription';
+import { getUserRole } from '../../../utils/auth';
 
 const AlertsTable = ({
     alerts,
@@ -10,14 +12,13 @@ const AlertsTable = ({
     onSearchTermChange,
     severityFilter,
     onSeverityFilterChange,
+    onUpdateStatus,
 }) => {
+    const role = getUserRole();
+    const isAdmin = role === 'ADMIN';
     const navigate = useNavigate();
     const [pageSize, setPageSize] = useState(10);
     const [currentPage, setCurrentPage] = useState(1);
-
-    useEffect(() => {
-        setCurrentPage(1);
-    }, [searchTerm, severityFilter, pageSize]);
 
     const totalPages = Math.max(1, Math.ceil(filteredAlerts.length / pageSize));
     const safePage = Math.min(currentPage, totalPages);
@@ -38,7 +39,10 @@ const AlertsTable = ({
                         type="text"
                         placeholder="Search alerts by type or description..."
                         value={searchTerm}
-                        onChange={(e) => onSearchTermChange(e.target.value)}
+                        onChange={(e) => {
+                            setCurrentPage(1);
+                            onSearchTermChange(e.target.value);
+                        }}
                         className="w-full pl-10 pr-4 py-2.5 rounded-2xl border border-border-light bg-white text-[13px] text-primary-dark placeholder-text-gray focus:outline-none focus:border-primary-light focus:ring-2 focus:ring-primary-light/20 transition-all font-medium min-w-[280px]"
                     />
                 </div>
@@ -50,7 +54,10 @@ const AlertsTable = ({
                         </div>
                         <select
                             value={severityFilter}
-                            onChange={(e) => onSeverityFilterChange(e.target.value)}
+                            onChange={(e) => {
+                                setCurrentPage(1);
+                                onSeverityFilterChange(e.target.value);
+                            }}
                             className="w-full sm:w-auto appearance-none pl-9 pr-8 py-2.5 rounded-2xl border border-border-light bg-white text-[13px] font-semibold text-primary-dark focus:outline-none focus:border-primary-light focus:ring-2 focus:ring-primary-light/20 cursor-pointer transition-all min-w-[160px]"
                         >
                             <option value="ALL">All Severities</option>
@@ -69,7 +76,10 @@ const AlertsTable = ({
                         <span className="font-medium">Show</span>
                         <select
                             value={pageSize}
-                            onChange={(e) => setPageSize(Number(e.target.value))}
+                            onChange={(e) => {
+                                setCurrentPage(1);
+                                setPageSize(Number(e.target.value));
+                            }}
                             className="rounded-xl border border-border-light bg-white px-3 py-1.5 text-[12px] font-semibold text-primary-dark outline-none transition focus:border-primary-medium"
                         >
                             {[10, 20, 30].map((n) => (
@@ -121,10 +131,23 @@ const AlertsTable = ({
                                 >
                                     <td className="px-6 py-3.5">
                                         <div className="flex items-center gap-3">
-                                            <div className="w-8 h-8 rounded-lg bg-bg-soft text-primary flex items-center justify-center font-bold text-[11px] shadow-sm">
-                                                <AlertCircle size={14} className="text-primary-medium" />
+                                            <div className={`w-8 h-8 rounded-lg flex items-center justify-center shadow-sm ${alert.type === 'INCIDENT'
+                                                ? 'bg-rose-50'
+                                                : 'bg-primary-light/20'
+                                                }`}>
+                                                {alert.type === 'INCIDENT'
+                                                    ? <ShieldAlert size={14} className="text-rose-500" />
+                                                    : <Activity size={14} className="text-primary-medium" />
+                                                }
                                             </div>
-                                            <span className="text-[13px] font-bold text-primary-dark tracking-tight">{alert.type}</span>
+                                            <div className="flex flex-col">
+                                                <span className="text-[12px] font-bold text-primary-dark tracking-tight">
+                                                    {alert.type === 'INCIDENT' ? 'Incident' : 'Movement'}
+                                                </span>
+                                                {alert.zoneName && (
+                                                    <span className="text-[10px] text-text-gray font-medium truncate max-w-[100px]">{alert.zoneName}</span>
+                                                )}
+                                            </div>
                                         </div>
                                     </td>
                                     <td className="px-6 py-3.5">
@@ -144,24 +167,30 @@ const AlertsTable = ({
                                         </span>
                                     </td>
                                     <td className="px-6 py-3.5">
-                                        <div className="flex flex-col">
-                                            <span className="text-[13px] font-medium text-text-gray tracking-tight max-w-[280px] xl:max-w-[380px] truncate group-hover:text-primary-dark transition-colors">
-                                                {alert.description}
-                                            </span>
-                                        </div>
+                                        <AlertDescription alert={alert} compact={true} />
                                     </td>
                                     <td className="px-6 py-3.5">
                                         <span className="text-[12px] font-bold text-text-gray tracking-tight opacity-90">
                                             {new Date(alert.createdAt || alert.updatedAt).toLocaleDateString()}
                                         </span>
                                     </td>
-                                    <td className="px-6 py-3.5 text-right">
+                                    <td className="px-6 py-3.5 text-right flex items-center justify-end gap-2 h-full">
                                         <button
                                             onClick={() => navigate(`/dashboard/patrols/create?alertId=${alert._id || alert.id}`, { state: { alert } })}
-                                            className="inline-flex items-center gap-1.5 rounded-xl bg-primary-dark text-white border border-primary-dark shadow-sm px-4 py-2 text-[11px] font-bold transition-all hover:bg-primary hover:border-primary active:scale-95"
+                                            disabled={alert.status === 'RESOLVED' || alert.status === 'CLOSED'}
+                                            className="inline-flex items-center gap-1.5 rounded-xl bg-primary-dark text-white border border-primary-dark shadow-sm px-4 py-2 text-[11px] font-bold transition-all hover:bg-primary hover:border-primary active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100 whitespace-nowrap"
                                         >
                                             Deploy Patrol
                                         </button>
+                                        {isAdmin && (alert.status !== 'RESOLVED' && alert.status !== 'CLOSED') && (
+                                            <button
+                                                onClick={() => onUpdateStatus(alert._id || alert.id, 'RESOLVED')}
+                                                className="inline-flex items-center gap-1.5 rounded-xl bg-white text-emerald-600 border border-emerald-200 shadow-sm px-4 py-2 text-[11px] font-bold transition-all hover:bg-emerald-50 active:scale-95"
+                                            >
+                                                <CheckCircle size={14} />
+                                                Resolve
+                                            </button>
+                                        )}
                                     </td>
                                 </tr>
                             ))}
