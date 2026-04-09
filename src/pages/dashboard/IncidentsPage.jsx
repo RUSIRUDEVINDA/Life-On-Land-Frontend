@@ -12,6 +12,7 @@ import {
 import { deleteIncident, fetchIncidents } from '../../features/incidents/api/incidentsApi';
 import ConfirmDialog from '../../components/common/ConfirmDialog';
 import ListPaginationFooter from '../../components/common/ListPaginationFooter';
+import { useToast } from '../../hooks/useToast';
 
 const formatDate = (value) =>
     new Intl.DateTimeFormat('en-GB', {
@@ -20,6 +21,7 @@ const formatDate = (value) =>
     }).format(new Date(value));
 
 const IncidentsPage = () => {
+    const toast = useToast();
     const [searchParams] = useSearchParams();
     const [incidents, setIncidents] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -123,8 +125,16 @@ const IncidentsPage = () => {
             setIncidents((prev) => prev.filter((incident) => incident._id !== idToRemove));
             setSelectedIncidentId(remainingAfterDelete[0]?._id ?? null);
             setDeleteConfirmOpen(false);
+            toast.success({
+                title: 'Incident deleted',
+                message: 'The incident report was removed successfully.',
+            });
         } catch (requestError) {
             setError(requestError.message || 'Failed to delete incident.');
+            toast.error({
+                title: 'Delete failed',
+                message: requestError?.message || 'Failed to delete incident.',
+            });
         } finally {
             setDeletingId('');
         }
@@ -142,7 +152,15 @@ const IncidentsPage = () => {
                 searchTerm,
             });
             if (!result.ok) {
-                window.alert(result.message);
+                toast.info({
+                    title: 'Nothing to export',
+                    message: result.message,
+                });
+            } else {
+                toast.success({
+                    title: 'PDF ready',
+                    message: 'The incident queue export has been generated.',
+                });
             }
         } catch (err) {
             console.error('PDF export failed:', err);
@@ -150,7 +168,10 @@ const IncidentsPage = () => {
                 err?.message && /Failed to fetch dynamically imported module|Loading chunk/i.test(err.message)
                     ? ' If you just cloned the repo, run npm install and reload the page.'
                     : '';
-            window.alert(`Could not generate the PDF. Please try again.${hint}`);
+            toast.error({
+                title: 'Export failed',
+                message: `Could not generate the PDF. Please try again.${hint}`,
+            });
         }
     };
 

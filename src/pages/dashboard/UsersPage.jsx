@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { LoaderCircle, Search, ShieldCheck, Users, Trash2, Edit2, X, AlertTriangle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { useToast } from '../../hooks/useToast';
 import ListPaginationFooter from '../../components/common/ListPaginationFooter';
 import { fetchAllUsers, updateUser, deleteUser } from '../../features/users/api/usersApi';
 
@@ -59,6 +60,7 @@ const StatCard = ({ label, value, icon: Icon, accent }) => (
 );
 
 const UsersPage = () => {
+    const toast = useToast();
     const navigate = useNavigate();
     const [users, setUsers] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -113,8 +115,15 @@ const UsersPage = () => {
             const updated = await updateUser(editingUser.id, editFormData);
             setUsers(prev => prev.map(u => u.id === editingUser.id ? { ...u, ...updated } : u));
             setEditingUser(null);
+            toast.success({
+                title: 'User updated',
+                message: `${updated.name || editFormData.name} was updated successfully.`,
+            });
         } catch (err) {
-            alert(err.message || 'Failed to update user.');
+            toast.error({
+                title: 'Update failed',
+                message: err?.message || 'Failed to update user.',
+            });
         } finally {
             setIsSaving(false);
         }
@@ -130,9 +139,16 @@ const UsersPage = () => {
         try {
             await deleteUser(deletingUser.id);
             setUsers(prev => prev.filter(u => u.id !== deletingUser.id));
+            toast.success({
+                title: 'User deleted',
+                message: `${deletingUser.name} was removed from the system.`,
+            });
             setDeletingUser(null);
         } catch (err) {
-            alert(err.message || 'Failed to delete user.');
+            toast.error({
+                title: 'Delete failed',
+                message: err?.message || 'Failed to delete user.',
+            });
         } finally {
             setIsDeleting(false);
         }

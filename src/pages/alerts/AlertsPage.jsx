@@ -1,9 +1,11 @@
 import React, { useMemo, useState } from 'react';
 import { ArrowUpRight, LoaderCircle } from 'lucide-react';
+import { useToast } from '../../hooks/useToast';
 import { useAlerts, useUpdateAlertStatus } from '../../features/alerts/hooks/useAlerts';
 import AlertsTable from '../../features/alerts/components/AlertsTable';
 
 const AlertsPage = () => {
+    const toast = useToast();
     const { data: alerts = [], isLoading: loading, error: queryError } = useAlerts();
     const statusMutation = useUpdateAlertStatus();
 
@@ -27,19 +29,37 @@ const AlertsPage = () => {
                 searchTerm,
             });
             if (!result.ok) {
-                window.alert(result.message);
+                toast.info({
+                    title: 'Nothing to export',
+                    message: result.message,
+                });
+            } else {
+                toast.success({
+                    title: 'PDF ready',
+                    message: 'The alerts queue export has been generated.',
+                });
             }
         } catch (err) {
             console.error('PDF export failed:', err);
-            window.alert('Could not generate the PDF. Please try again.');
+            toast.error({
+                title: 'Export failed',
+                message: 'Could not generate the PDF. Please try again.',
+            });
         }
     };
 
     const handleUpdateStatus = async (id, newStatus) => {
         try {
             await statusMutation.mutateAsync({ id, status: newStatus });
+            toast.success({
+                title: 'Alert updated',
+                message: `The alert status was changed to ${newStatus.replaceAll('_', ' ').toLowerCase()}.`,
+            });
         } catch (err) {
-            window.alert('Failed to update alert status: ' + err.message);
+            toast.error({
+                title: 'Update failed',
+                message: err?.message || 'Failed to update alert status.',
+            });
         }
     };
 

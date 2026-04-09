@@ -5,6 +5,7 @@ import { ReactQueryDevtools } from '@tanstack/react-query-devtools'
 import './index.css'
 import 'leaflet/dist/leaflet.css'
 import App from './App.jsx'
+import { ToastProvider } from './components/common/ToastProvider.jsx'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -20,8 +21,10 @@ const queryClient = new QueryClient({
 createRoot(document.getElementById('root')).render(
   <StrictMode>
     <QueryClientProvider client={queryClient}>
-      <App />
-      <ReactQueryDevtools initialIsOpen={false} />
+      <ToastProvider>
+        <App />
+        <ReactQueryDevtools initialIsOpen={false} />
+      </ToastProvider>
     </QueryClientProvider>
   </StrictMode>,
 )
