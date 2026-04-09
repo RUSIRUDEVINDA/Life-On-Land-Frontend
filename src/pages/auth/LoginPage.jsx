@@ -1,19 +1,11 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
+import { getApiOrigin } from '../../utils/apiBaseUrl';
 import { getDefaultDashboardPathByRole, getStoredUser } from '../../utils/auth';
 import {
     mapBackendFieldErrors,
     validateLoginFields,
 } from '../../utils/authFormValidation';
-
-const DEFAULT_API_URL = 'http://localhost:5001';
-const getApiBaseUrl = () => {
-    if (import.meta.env.DEV) {
-        return '';
-    }
-
-    return (import.meta.env.VITE_API_URL || DEFAULT_API_URL).trim().replace(/\/$/, '');
-};
 
 const extractToken = (payload) => {
     return (
@@ -80,7 +72,7 @@ const LoginPage = () => {
 
         setSubmitting(true);
         try {
-            const response = await fetch(`${getApiBaseUrl()}/api/auth/login`, {
+            const response = await fetch(`${getApiOrigin()}/api/auth/login`, {
                 method: 'POST',
                 credentials: 'include',
                 headers: { 'Content-Type': 'application/json' },
