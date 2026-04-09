@@ -1,0 +1,34 @@
+name: CI
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Build
+        run: npm run build
+        env:
+          # Configure these in GitHub repo Settings → Secrets and variables → Actions
+          # - Variable: VITE_API_URL (e.g. https://life-on-land-aqau.onrender.com)
+          # - Secret:   VITE_MAPTILER_KEY (if you want CI to build with tiles enabled)
+          VITE_API_URL: ${{ vars.VITE_API_URL }}
+          VITE_MAPTILER_KEY: ${{ secrets.VITE_MAPTILER_KEY }}
