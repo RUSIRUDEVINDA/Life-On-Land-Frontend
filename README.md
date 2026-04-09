@@ -1,183 +1,282 @@
-# Life On Land Frontend
+# Life-On-Land Frontend
 
-Life On Land is a wildlife protection dashboard focused on anti-poaching response, patrol coordination, protected area management, incident reporting, alert handling, and animal movement tracking.
+[![Vite](https://img.shields.io/badge/Vite-8-646CFF?style=for-the-badge&logo=vite&logoColor=white)](https://vite.dev/)
+[![React](https://img.shields.io/badge/React-19-61DAFB?style=for-the-badge&logo=react&logoColor=0b0f14)](https://react.dev/)
+[![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-4-06B6D4?style=for-the-badge&logo=tailwindcss&logoColor=white)](https://tailwindcss.com/)
+[![React Query](https://img.shields.io/badge/React_Query-5-FF4154?style=for-the-badge&logo=reactquery&logoColor=white)](https://tanstack.com/query/latest)
+[![Leaflet](https://img.shields.io/badge/Leaflet-1.9-199900?style=for-the-badge&logo=leaflet&logoColor=white)](https://leafletjs.com/)
+[![Status](https://img.shields.io/badge/Status-Active-brightgreen?style=for-the-badge)](#)
+[![License](https://img.shields.io/badge/License-Academic-blue?style=for-the-badge)](#license)
 
-This repository contains the React + Vite frontend application.
+Life-On-Land Frontend is the operational web client for the **Poaching Alert and Wildlife Movement Tracking** platform. It delivers real-time telemetry views, conservation mapping, incident workflows, patrol coordination, and role-based dashboards for `ADMIN` and `RANGER` users.
 
-## Overview
+---
 
-The frontend provides:
+## Deployment
 
-- Role-based access for ADMIN and RANGER users
-- Incident reporting and incident queue management
-- Protected area and zone management with map drawing/editing
-- Risk map and movement tracking views
-- Patrol creation, assignment, check-ins, and monitoring
-- Alert monitoring and status updates
-- User management and profile management
+This frontend is ready for static deployment on **Vercel**. Local development uses the Vite `/api` proxy, while production targets the backend through `VITE_API_URL`. SPA refresh routing is already configured in `vercel.json`.
 
-## Tech Stack
+---
 
-- React 19
-- Vite 8
-- React Router 7
-- Axios
-- Leaflet + React Leaflet + Leaflet Geoman
-- Tailwind CSS
-- jsPDF + jspdf-autotable (PDF export)
+## Key Features
 
-## Project Structure
+- **Role-Based Dashboards**: Separate operational experiences for `ADMIN` and `RANGER` users with protected routes and role-aware navigation.
+- **Live Wildlife Telemetry**: Real-time animal movement visualization with auto-refreshing map views and movement summaries.
+- **Risk Intelligence UI**: Zone-level risk overlays, hotspot visibility, and patrol-focused risk monitoring.
+- **Protected Area Management**: Polygon and multipolygon editing for conservation boundaries and zone layouts using Leaflet Geoman.
+- **Incident and Alert Operations**: Reporting, queue review, severity tracking, and workflow updates for field threats.
+- **Patrol Coordination**: Patrol assignment, mission detail views, ranger check-ins, and status-aware patrol boards.
+- **Export Workflows**: PDF queue exports for incidents, alerts, and movement logs via `jsPDF` and `jspdf-autotable`.
+- **Resilient API Access**: Production API base URL switching, Vite dev proxying, token forwarding, and cookie-aware requests.
 
-Core folders:
+---
 
-- src/pages: route-level pages
-- src/features: domain modules (alerts, incidents, movements, patrols, protected-areas, users)
-- src/components: shared UI and dashboard components
-- src/services: API service modules
-- src/utils: shared utility functions
+## Frontend Architecture
 
-## Prerequisites
+The application follows a **route-driven feature architecture** with **domain modules**, **shared dashboard components**, and a mixed **React Query + service-layer** data access model.
 
-- Node.js 18+
-- npm 9+
-- Backend API running on port 5001 (or set a custom API URL)
+### Request-Render Flow
+
+```mermaid
+graph TD
+    A[Browser User] -->|Route Navigation| B[React Router]
+    B -->|Auth Gate| C[ProtectedRoute / RoleRoute]
+    C -->|Page Mount| D[Route Page]
+    D -->|UI Composition| E[Feature Components]
+    E -->|Data Fetch| F[React Query Hooks / Fetch Helpers / Axios Services]
+    F -->|Dev Proxy or Prod Base URL| G[Vite Proxy or VITE_API_URL]
+    G -->|REST API| H[Life-On-Land Backend]
+    H -.->|JSON Payloads| F
+    F -.->|Normalized State| E
+    E -.->|Interactive UI| A
+```
+
+### Component Hierarchy
+
+- `src/pages/`: Route-level screens for dashboards, patrols, auth, movements, and protected areas.
+- `src/features/`: Domain logic for incidents, alerts, animals, patrols, movements, protected areas, users, and risk maps.
+- `src/components/`: Shared layout, dashboard widgets, auth wrappers, and reusable UI primitives.
+- `src/hooks/`: App-level hooks such as protected area loading, dashboard aggregation, and toast helpers.
+- `src/services/`: Service abstractions such as the Axios protected-area service.
+- `src/utils/`: Auth helpers, API utilities, upstream error messaging, and validation helpers.
+- `public/`: Static assets such as the project favicon.
+
+---
+
+## Operational Surface
+
+### Public Routes
+
+- `/login`
+- `/register`
+
+### Admin Routes
+
+- `/dashboard/admin`
+- `/dashboard/incidents`
+- `/dashboard/risk-map`
+- `/dashboard/animals`
+- `/dashboard/users`
+- `/dashboard/alerts`
+- `/dashboard/protected-areas`
+- `/dashboard/protected-areas/manage`
+- `/dashboard/protected-areas/zones`
+- `/dashboard/protected-areas/map`
+- `/dashboard/patrols/create`
+
+### Ranger Routes
+
+- `/dashboard/ranger`
+- `/dashboard/ranger-risk-map`
+- `/dashboard/my-incidents`
+
+### Shared Authenticated Routes
+
+- `/dashboard/incidents/report`
+- `/dashboard/map-tracking`
+- `/dashboard/movements`
+- `/dashboard/patrols`
+- `/dashboard/patrols/:id`
+- `/dashboard/profile`
+
+---
+
+## Feature Modules
+
+- **Overview Dashboard**: Aggregates protected areas, zones, animals, incidents, patrols, alerts, and movement summaries into an admin command view.
+- **Ranger Dashboard**: Focuses on assigned patrols, quick incident actions, and field-facing wildlife risk context.
+- **Map Tracking**: Uses MapLibre to visualize live movement telemetry, zone risk, and critical movement hotspots.
+- **Risk Map**: Displays area-specific risk zones, incident distribution, severity breakdowns, and patrol planning context.
+- **Protected Areas**: Supports area CRUD, zone management, and geometry-aware mapping workflows.
+- **Animals**: Handles tracked wildlife records, animal details, filters, and registry workflows.
+- **Movements**: Provides paginated telemetry tables, density summaries, range filters, and PDF exports.
+- **Incidents**: Supports reporting, filtering, list review, and queue management for wildlife threats.
+- **Alerts**: Exposes alert queues and resolution flows for administrative review.
+- **Patrols**: Supports mission planning, assignments, patrol detail inspection, and ranger check-ins.
+- **Users and Profile**: Covers ranger discovery, user administration, and authenticated profile updates.
+
+---
+
+## Getting Started
+
+### 1. Prerequisites
+
+- **Node.js**: `18.x+`
+- **npm**: `9.x+`
+- **MapTiler Key**: Required for MapLibre-powered views
+
+### 2. Installation
+
+```bash
+git clone <your-frontend-repository-url>
+cd Life-On-Land-Frontend
+npm install
+```
+
+### 3. Setup Environment
+
+Create `.env` from `.env.example` and configure the frontend runtime values:
+
+```env
+VITE_API_URL=http://localhost:5001
+VITE_API_PROXY_TARGET=http://localhost:5001
+VITE_MAPTILER_KEY=your_maptiler_key
+```
+
+### 4. Launch
+
+```bash
+# Development
+npm run dev
+
+# Preview production build
+npm run build
+npm run preview
+```
+
+Default local URL:
+
+```text
+http://localhost:5173
+```
+
+---
 
 ## Environment Variables
 
-Copy .env.example to .env and adjust values for your local or deployed environment.
+| Variable | Required | Default | Description |
+| :-- | :-- | :-- | :-- |
+| `VITE_API_URL` | Yes in production | `http://localhost:5001` | Backend origin used for production API calls. The app appends `/api` when needed. |
+| `VITE_API_PROXY_TARGET` | Yes in local dev | `http://localhost:5001` | Vite proxy target for `/api` requests during development. |
+| `VITE_MAPTILER_KEY` | Yes for maps | _empty_ | API key for MapTiler-backed map styles used by telemetry and risk map screens. |
 
-| Variable | Required | Default | Purpose |
-| --- | --- | --- | --- |
-| VITE_API_URL | No | http://localhost:5001 | Base backend origin used by API clients and auth pages |
-| VITE_API_PROXY_TARGET | No | http://localhost:5001 | Vite dev proxy target for /api requests |
-| VITE_MAPTILER_KEY | Yes for map tiles | (empty) | API key for MapTiler-based map views |
+---
 
-Notes:
+## Scripts
 
-- In development, Vite proxy is configured for /api requests in vite.config.js.
-- If VITE_API_URL is omitted, frontend modules fall back to localhost backend defaults.
+- `npm run dev` - start the Vite development server
+- `npm run start` - alias for `npm run dev`
+- `npm run build` - generate a production build in `dist/`
+- `npm run preview` - preview the production bundle locally
+- `npm run lint` - run ESLint checks
 
-## Local Setup
+---
 
-1. Install dependencies:
+## Backend Integration
 
-	npm install
+The frontend communicates with the backend REST API under `/api` and currently integrates with these resource groups:
 
-2. Create env file:
+- `/api/auth/*`
+- `/api/users/*`
+- `/api/incidents/*`
+- `/api/alerts/*`
+- `/api/patrols/*`
+- `/api/movements/*`
+- `/api/animals/*`
+- `/api/protected-areas/*`
+- `/api/zones/*`
+- `/api/risk-map*`
 
-	copy .env.example .env
+### Data Access Strategy
 
-3. Start development server:
+- **React Query** is used for cached, query-driven screens such as dashboards, protected areas, and telemetry summaries.
+- **Fetch-based API modules** normalize paginated backend payloads and handle auth fallback behavior.
+- **Axios service access** is used for protected area and geometry workflows where a dedicated service abstraction is helpful.
+- **Credentials + Bearer tokens** are both supported so the UI can work with cookie-backed auth and token-based requests.
 
-	npm run dev
+---
 
-4. Open the app:
+## Maps and Geospatial Tooling
 
-	http://localhost:5173
+- **MapLibre + MapTiler** power the live telemetry and risk map interfaces.
+- **Leaflet + React Leaflet** support editable geometry workflows for protected areas and zones.
+- **Leaflet Geoman** enables polygon drawing, cutting, reshaping, and deletion.
+- **Turf** is used for area calculation and geometry overlap checks.
 
-## Available Scripts
+---
 
-- npm run dev: start Vite development server
-- npm run build: create production build in dist
-- npm run preview: preview production build locally
-- npm run lint: run ESLint checks
+## Build and Deployment
 
-## Routing and Access Control
+### Vercel Deployment
 
-High-level route behavior is defined in src/App.jsx:
+```text
+Build Command: npm run build
+Output Directory: dist
+```
 
-- Public routes: /login, /register
-- Protected dashboard wrapper: /dashboard/*
-- ADMIN-only routes for management screens
-- RANGER-only routes for ranger dashboard screens
-- Shared ADMIN/RANGER routes for common workflows
+Required production variables:
 
-Authentication and role checks are handled by:
+```env
+VITE_API_URL=https://your-backend-origin
+VITE_MAPTILER_KEY=your_maptiler_key
+```
 
-- src/components/auth/ProtectedRoute.jsx
-- src/components/auth/RoleRoute.jsx
-- src/utils/auth.js
+`vercel.json` already rewrites all routes to `index.html`, which allows deep-link refreshes for React Router pages.
 
-## API Integration Summary
+### CI Pipeline
 
-The frontend communicates with backend REST endpoints under /api.
+GitHub Actions workflow: `.github/workflows/ci.yml`
 
-Main endpoint groups used by the frontend:
+Pipeline stages:
 
-- /api/auth/* (login/register)
-- /api/users/*
-- /api/incidents/*
-- /api/alerts/*
-- /api/patrols/*
-- /api/movements/*
-- /api/protected-areas/*
-- /api/zones/*
-- /api/risk-map*
+1. Checkout repository
+2. Setup Node.js `18`
+3. Install dependencies with `npm ci`
+4. Run `npm run lint`
+5. Run `npm run build`
 
-Key integration files:
+CI build variables expected by the workflow:
 
-- src/services/apiClient.js
-- src/services/protectedAreaService.js
-- src/features/incidents/api/incidentsApi.js
-- src/features/alerts/api/alertsApi.js
-- src/features/patrols/api/patrolsApi.js
-- src/features/movements/api/movementsApi.js
-- src/features/risk-map/api/riskMapApi.js
-- src/features/users/api/usersApi.js
+- Repository variable: `VITE_API_URL`
+- Repository secret: `VITE_MAPTILER_KEY`
 
-## Build and Quality Status
+---
 
-Current checks:
+## Troubleshooting
 
-- Production build: passing
-- Lint: has existing errors that should be resolved before final submission
+- **Blank maps or missing tiles**: Verify `VITE_MAPTILER_KEY`.
+- **Frontend cannot reach backend in development**: Verify `VITE_API_PROXY_TARGET` and make sure the backend is running.
+- **Production API failures**: Verify `VITE_API_URL` and backend CORS / credential settings.
+- **Refresh returns 404 on hosted routes**: Confirm SPA rewrites are enabled. This repo already includes the Vercel rewrite configuration.
+- **Unexpected logout behavior**: Check token persistence in `localStorage` and backend `401` responses.
 
-Recommended pre-submission command sequence:
+---
 
-1. npm run lint
-2. npm run build
-3. npm run preview
+## Tech Stack
 
-## Deployment Guide
+- **Core UI**: React 19, React Router 7, Vite 8
+- **Styling**: Tailwind CSS 4
+- **State and Data**: TanStack React Query, local component state
+- **Maps and GIS**: Leaflet, React Leaflet, Leaflet Geoman, MapLibre GL, Mapbox GL, Turf
+- **Networking**: Fetch API, Axios
+- **Reporting**: jsPDF, jspdf-autotable
+- **Code Quality**: ESLint
+- **Deployment**: Vercel, GitHub Actions
 
-### Frontend Deployment (Vercel or Netlify)
-
-1. Connect repository to hosting platform.
-2. Configure build settings:
-	- Build command: npm run build
-	- Output directory: dist
-3. Add environment variables in hosting dashboard:
-	- VITE_API_URL=<your deployed backend base URL>
-	- VITE_MAPTILER_KEY=<your key>
-4. Deploy and verify critical routes:
-	- /login
-	- /dashboard/admin (ADMIN)
-	- /dashboard/ranger (RANGER)
-
-### Backend Connectivity Checklist
-
-- Backend CORS allows frontend domain
-- Auth cookies or auth headers work cross-origin in production
-- API base URL is HTTPS in production
-
-## Demonstration Checklist (For Evaluation)
-
-Capture and include evidence for:
-
-1. Successful local build output (npm run build)
-2. Lint status output (npm run lint)
-3. Login flow for ADMIN and RANGER
-4. Incident create/update flow
-5. Protected area + zone create/edit flow
-6. Patrol creation and check-in flow
-7. Movement/risk map visualization
-8. Deployed frontend URL and screenshots
-
-## Known Notes
-
-- Vite may report large chunk-size warnings in production build; this is a performance optimization task, not a build blocker.
-- Map and geometry workflows rely on valid GeoJSON Polygon/MultiPolygon structures.
+---
 
 ## License
 
 Academic project repository.
+
+**Life-On-Land Frontend** - _Operational intelligence for wildlife protection teams._
