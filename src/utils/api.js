@@ -4,7 +4,12 @@ const getBaseUrl = () => {
     if (import.meta.env.DEV) {
         return '/api';
     }
-    return (import.meta.env.VITE_API_URL || 'http://localhost:5001/api').trim().replace(/\/$/, '');
+
+    const rawBase = String(import.meta.env.VITE_API_URL || 'http://localhost:5001')
+        .trim()
+        .replace(/\/$/, '');
+
+    return rawBase.endsWith('/api') ? rawBase : `${rawBase}/api`;
 };
 
 const api = async (endpoint, options = {}) => {
@@ -49,4 +54,3 @@ const api = async (endpoint, options = {}) => {
 };
 
 export default api;
-
