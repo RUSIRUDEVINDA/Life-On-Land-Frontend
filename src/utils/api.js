@@ -1,16 +1,5 @@
+import { getApiBaseUrl } from './apiBaseUrl';
 import { throwIfUpstreamError } from './upstreamUnavailableMessage';
-
-const getBaseUrl = () => {
-    if (import.meta.env.DEV) {
-        return '/api';
-    }
-
-    const rawBase = String(import.meta.env.VITE_API_URL || 'http://localhost:5001')
-        .trim()
-        .replace(/\/$/, '');
-
-    return rawBase.endsWith('/api') ? rawBase : `${rawBase}/api`;
-};
 
 const api = async (endpoint, options = {}) => {
     const token = localStorage.getItem('token');
@@ -22,7 +11,7 @@ const api = async (endpoint, options = {}) => {
     };
 
     try {
-        const response = await fetch(`${getBaseUrl()}${endpoint}`, {
+        const response = await fetch(`${getApiBaseUrl()}${endpoint}`, {
             ...options,
             headers,
             credentials: 'include', // Ensure cookies are sent if needed
