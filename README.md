@@ -1,182 +1,226 @@
 # Life On Land Frontend
 
-Life On Land is a wildlife protection dashboard focused on anti-poaching response, patrol coordination, protected area management, incident reporting, alert handling, and animal movement tracking.
+[![Vite](https://img.shields.io/badge/Vite-8.x-646CFF?logo=vite&logoColor=white)](https://vite.dev/)
+[![React](https://img.shields.io/badge/React-19.x-61DAFB?logo=react&logoColor=222)](https://react.dev/)
+[![License](https://img.shields.io/badge/License-Academic-informational)](#license)
 
-This repository contains the React + Vite frontend application.
+Frontend application for the **Life On Land** platform.  
+It provides a role-based wildlife protection dashboard for incident response, patrol coordination, protected area management, alerts, and movement intelligence.
+
+## Table of Contents
+
+- [Overview](#overview)
+- [Key Features](#key-features)
+- [Tech Stack](#tech-stack)
+- [Project Structure](#project-structure)
+- [Getting Started](#getting-started)
+- [Environment Variables](#environment-variables)
+- [Available Scripts](#available-scripts)
+- [Role-Based Routes](#role-based-routes)
+- [API Integration](#api-integration)
+- [Deployment](#deployment)
+- [CI Pipeline](#ci-pipeline)
+- [Troubleshooting](#troubleshooting)
+- [License](#license)
 
 ## Overview
 
-The frontend provides:
+This frontend is built with React + Vite and is designed for fast operational workflows in conservation contexts.
 
-- Role-based access for ADMIN and RANGER users
-- Incident reporting and incident queue management
-- Protected area and zone management with map drawing/editing
-- Risk map and movement tracking views
-- Patrol creation, assignment, check-ins, and monitoring
+It supports:
+
+- Authentication for `ADMIN` and `RANGER`
+- Incident monitoring and reporting
+- Protected area and zone workflows
+- Patrol assignment and field tracking
 - Alert monitoring and status updates
-- User management and profile management
+- Movement analytics and map-assisted monitoring
+
+## Key Features
+
+- Role-based route protection and dashboard experiences
+- Domain-based feature modules under `src/features`
+- Shared API client strategy with environment-driven backend URL
+- SPA routing support for static hosting via rewrite rules (`vercel.json`)
+- CI checks on push and pull request (lint + build)
 
 ## Tech Stack
 
-- React 19
-- Vite 8
-- React Router 7
-- Axios
-- Leaflet + React Leaflet + Leaflet Geoman
-- Tailwind CSS
-- jsPDF + jspdf-autotable (PDF export)
+- **Frontend:** React 19, React Router 7
+- **Build Tool:** Vite 8
+- **Styling:** Tailwind CSS
+- **Maps & Geo:** Leaflet, React Leaflet, Leaflet Geoman, MapLibre/Mapbox, Turf
+- **Networking:** Fetch + Axios
+- **Reporting:** jsPDF, jspdf-autotable
+- **Quality:** ESLint
+- **CI/CD:** GitHub Actions + Vercel
 
 ## Project Structure
 
-Core folders:
+```text
+src/
+  components/        Shared UI and layout components
+  features/          Domain modules (alerts, incidents, patrols, movements, etc.)
+  pages/             Route-level pages
+  services/          API service layer
+  utils/             Shared utilities
+.github/workflows/   CI pipeline definitions
+public/              Static assets (favicon, etc.)
+```
 
-- src/pages: route-level pages
-- src/features: domain modules (alerts, incidents, movements, patrols, protected-areas, users)
-- src/components: shared UI and dashboard components
-- src/services: API service modules
-- src/utils: shared utility functions
+## Getting Started
 
-## Prerequisites
+### 1. Prerequisites
 
-- Node.js 18+
-- npm 9+
-- Backend API running on port 5001 (or set a custom API URL)
+- Node.js `18+`
+- npm `9+`
+
+### 2. Install Dependencies
+
+```bash
+npm install
+```
+
+### 3. Configure Environment
+
+```bash
+cp .env.example .env
+```
+
+Set required values in `.env` (see [Environment Variables](#environment-variables)).
+
+### 4. Run Development Server
+
+```bash
+npm run dev
+```
+
+Local app URL:
+
+```text
+http://localhost:5173
+```
 
 ## Environment Variables
 
-Copy .env.example to .env and adjust values for your local or deployed environment.
+Copy `.env.example` to `.env` and configure:
 
-| Variable | Required | Default | Purpose |
+| Variable | Required | Default | Description |
 | --- | --- | --- | --- |
-| VITE_API_URL | No | http://localhost:5001 | Base backend origin used by API clients and auth pages |
-| VITE_API_PROXY_TARGET | No | http://localhost:5001 | Vite dev proxy target for /api requests |
-| VITE_MAPTILER_KEY | Yes for map tiles | (empty) | API key for MapTiler-based map views |
+| `VITE_API_URL` | No | `http://localhost:5001` | Backend origin for production API calls. Use origin only (without `/api`). |
+| `VITE_API_PROXY_TARGET` | No | `http://localhost:5001` | Dev proxy target for Vite (`/api` requests during local development). |
+| `VITE_MAPTILER_KEY` | Yes (maps) | empty | Map tile key for map-enabled views. |
 
-Notes:
+Example production value:
 
-- In development, Vite proxy is configured for /api requests in vite.config.js.
-- If VITE_API_URL is omitted, frontend modules fall back to localhost backend defaults.
-
-## Local Setup
-
-1. Install dependencies:
-
-	npm install
-
-2. Create env file:
-
-	copy .env.example .env
-
-3. Start development server:
-
-	npm run dev
-
-4. Open the app:
-
-	http://localhost:5173
+```env
+VITE_API_URL=https://life-on-land-aqau.onrender.com
+```
 
 ## Available Scripts
 
-- npm run dev: start Vite development server
-- npm run build: create production build in dist
-- npm run preview: preview production build locally
-- npm run lint: run ESLint checks
+- `npm run dev` - start local dev server
+- `npm run start` - alias for `dev`
+- `npm run build` - create production build in `dist/`
+- `npm run preview` - preview production build locally
+- `npm run lint` - run ESLint checks
 
-## Routing and Access Control
+## Role-Based Routes
 
-High-level route behavior is defined in src/App.jsx:
+### Public
 
-- Public routes: /login, /register
-- Protected dashboard wrapper: /dashboard/*
-- ADMIN-only routes for management screens
-- RANGER-only routes for ranger dashboard screens
-- Shared ADMIN/RANGER routes for common workflows
+- `/login`
+- `/register`
 
-Authentication and role checks are handled by:
+### Admin
 
-- src/components/auth/ProtectedRoute.jsx
-- src/components/auth/RoleRoute.jsx
-- src/utils/auth.js
+- `/dashboard/admin`
+- `/dashboard/incidents`
+- `/dashboard/risk-map`
+- `/dashboard/animals`
+- `/dashboard/users`
+- `/dashboard/alerts`
+- `/dashboard/protected-areas/*`
+- `/dashboard/patrols/create`
 
-## API Integration Summary
+### Ranger
 
-The frontend communicates with backend REST endpoints under /api.
+- `/dashboard/ranger`
+- `/dashboard/ranger-risk-map`
+- `/dashboard/my-incidents`
 
-Main endpoint groups used by the frontend:
+### Shared (Admin + Ranger)
 
-- /api/auth/* (login/register)
-- /api/users/*
-- /api/incidents/*
-- /api/alerts/*
-- /api/patrols/*
-- /api/movements/*
-- /api/protected-areas/*
-- /api/zones/*
-- /api/risk-map*
+- `/dashboard/incidents/report`
+- `/dashboard/map-tracking`
+- `/dashboard/movements`
+- `/dashboard/patrols`
+- `/dashboard/patrols/:id`
+- `/dashboard/profile`
 
-Key integration files:
+## API Integration
 
-- src/services/apiClient.js
-- src/services/protectedAreaService.js
-- src/features/incidents/api/incidentsApi.js
-- src/features/alerts/api/alertsApi.js
-- src/features/patrols/api/patrolsApi.js
-- src/features/movements/api/movementsApi.js
-- src/features/risk-map/api/riskMapApi.js
-- src/features/users/api/usersApi.js
+Frontend communicates with backend endpoints under `/api`, including:
 
-## Build and Quality Status
+- `/api/auth/*`
+- `/api/users/*`
+- `/api/incidents/*`
+- `/api/alerts/*`
+- `/api/patrols/*`
+- `/api/movements/*`
+- `/api/protected-areas/*`
+- `/api/zones/*`
+- `/api/risk-map*`
 
-Current checks:
+Backend base URL is environment-driven via `VITE_API_URL`.
 
-- Production build: passing
-- Lint: has existing errors that should be resolved before final submission
+## Deployment
 
-Recommended pre-submission command sequence:
+### Backend (already deployed)
 
-1. npm run lint
-2. npm run build
-3. npm run preview
+Current backend URL:
 
-## Deployment Guide
+```text
+https://life-on-land-aqau.onrender.com
+```
 
-### Frontend Deployment (Vercel or Netlify)
+### Frontend on Vercel
 
-1. Connect repository to hosting platform.
-2. Configure build settings:
-	- Build command: npm run build
-	- Output directory: dist
-3. Add environment variables in hosting dashboard:
-	- VITE_API_URL=<your deployed backend base URL>
-	- VITE_MAPTILER_KEY=<your key>
-4. Deploy and verify critical routes:
-	- /login
-	- /dashboard/admin (ADMIN)
-	- /dashboard/ranger (RANGER)
+1. Push this repository to GitHub.
+2. In Vercel, import the repository.
+3. Build settings:
+   - Build command: `npm run build`
+   - Output directory: `dist`
+4. Add environment variables in Vercel:
+   - `VITE_API_URL=https://life-on-land-aqau.onrender.com`
+   - `VITE_MAPTILER_KEY=<your_key>`
+5. Deploy.
 
-### Backend Connectivity Checklist
+SPA routing support is preconfigured with `vercel.json` rewrite rules.
 
-- Backend CORS allows frontend domain
-- Auth cookies or auth headers work cross-origin in production
-- API base URL is HTTPS in production
+## CI Pipeline
 
-## Demonstration Checklist (For Evaluation)
+GitHub Actions workflow: `.github/workflows/ci.yml`
 
-Capture and include evidence for:
+Pipeline steps:
 
-1. Successful local build output (npm run build)
-2. Lint status output (npm run lint)
-3. Login flow for ADMIN and RANGER
-4. Incident create/update flow
-5. Protected area + zone create/edit flow
-6. Patrol creation and check-in flow
-7. Movement/risk map visualization
-8. Deployed frontend URL and screenshots
+1. Checkout repository
+2. Setup Node.js 18 with npm cache
+3. Install dependencies (`npm ci`)
+4. Lint (`npm run lint`)
+5. Build (`npm run build`)
 
-## Known Notes
+Required GitHub Actions values:
 
-- Vite may report large chunk-size warnings in production build; this is a performance optimization task, not a build blocker.
-- Map and geometry workflows rely on valid GeoJSON Polygon/MultiPolygon structures.
+- Repository Variable: `VITE_API_URL`
+- Repository Secret: `VITE_MAPTILER_KEY`
+
+## Troubleshooting
+
+- **Blank map tiles:** verify `VITE_MAPTILER_KEY`.
+- **API requests failing in production:** verify `VITE_API_URL` and backend CORS settings.
+- **Route refresh gives 404 on hosting:** ensure SPA rewrite is configured (already done for Vercel).
+- **Auth-related cross-origin issues:** ensure backend cookie/CORS settings match frontend origin.
 
 ## License
 
