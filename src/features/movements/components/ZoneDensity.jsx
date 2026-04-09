@@ -60,7 +60,7 @@ const ZoneDensity = ({ summary, zoneLookup = {}, areaLookup = {} }) => {
                         </div>
                     )}
                 </div>
-
+                
             </div>
         </div>
     );
