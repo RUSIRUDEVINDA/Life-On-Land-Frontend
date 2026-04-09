@@ -109,7 +109,7 @@ const AnimalForm = ({ tagId, onClose, onSuccess }) => {
                 });
             } else {
                 // Use plain object for JSON requests
-                const { photo, ...rest } = formData;
+                const { photo: _photo, ...rest } = formData;
                 payload = rest;
             }
 
