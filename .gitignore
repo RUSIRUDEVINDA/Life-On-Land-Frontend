@@ -26,4 +26,8 @@ dist-ssr
 *.sln
 *.sw?
 
+<<<<<<< Updated upstream
 .vite
+=======
+backend
+>>>>>>> Stashed changes
