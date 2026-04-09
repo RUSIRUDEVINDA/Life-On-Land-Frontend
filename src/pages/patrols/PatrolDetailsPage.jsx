@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
     MapPin,
@@ -18,6 +18,8 @@ import {
     ChevronLeft,
     Target
 } from 'lucide-react';
+import ConfirmDialog from '../../components/common/ConfirmDialog';
+import { useToast } from '../../hooks/useToast';
 import { usePatrol, useAddCheckIn, useUpdatePatrolStatus, useDeleteCheckIn } from '../../features/patrols/hooks/usePatrols';
 import { getUserRole } from '../../utils/auth';
 import PatrolTitle from '../../features/patrols/components/PatrolTitle';
@@ -30,6 +32,7 @@ const STATUS_OPTIONS = [
 ];
 
 const PatrolDetailsPage = () => {
+    const toast = useToast();
     const { id } = useParams();
     const navigate = useNavigate();
     const userRole = getUserRole();
@@ -42,6 +45,7 @@ const PatrolDetailsPage = () => {
     const deleteCheckInMutation = useDeleteCheckIn(id);
 
     const [checkInNote, setCheckInNote] = useState('');
+    const [pendingDeleteCheckInId, setPendingDeleteCheckInId] = useState('');
 
     const findCurrentLocation = () => {
         return new Promise((resolve) => {
@@ -76,8 +80,15 @@ const PatrolDetailsPage = () => {
             });
 
             setCheckInNote('');
+            toast.success({
+                title: 'Check-in transmitted',
+                message: 'Your patrol log was recorded successfully.',
+            });
         } catch (err) {
-            alert('Failed to submit check-in: ' + err.message);
+            toast.error({
+                title: 'Check-in failed',
+                message: err?.message || 'The patrol log could not be submitted.',
+            });
         }
     };
 
@@ -85,19 +96,38 @@ const PatrolDetailsPage = () => {
         if (!isAdmin) return;
         try {
             await statusMutation.mutateAsync({ status: newStatus });
+            toast.success({
+                title: 'Status updated',
+                message: `The patrol status is now ${newStatus.replaceAll('_', ' ').toLowerCase()}.`,
+            });
         } catch (err) {
-            alert('Failed to update status: ' + err.message);
+            toast.error({
+                title: 'Status update failed',
+                message: err?.message || 'The patrol status could not be updated.',
+            });
         }
     };
 
-    const handleDeleteCheckIn = async (checkInId) => {
+    const handleDeleteCheckIn = (checkInId) => {
         if (!isAdmin) return;
-        if (!window.confirm('Are you certain you want to redact this permanent log?')) return;
+        setPendingDeleteCheckInId(checkInId);
+    };
 
+    const confirmDeleteCheckIn = async () => {
+        if (!pendingDeleteCheckInId) return;
         try {
-            await deleteCheckInMutation.mutateAsync(checkInId);
+            await deleteCheckInMutation.mutateAsync(pendingDeleteCheckInId);
+            toast.success({
+                title: 'Log removed',
+                message: 'The patrol check-in was redacted successfully.',
+            });
+            setPendingDeleteCheckInId('');
         } catch (err) {
-            alert('Failed to delete check-in: ' + err.message);
+            toast.error({
+                title: 'Redaction failed',
+                message: err?.message || 'The patrol log could not be removed.',
+            });
+            setPendingDeleteCheckInId('');
         }
     };
 
@@ -386,6 +416,19 @@ const PatrolDetailsPage = () => {
                     </div>
                 </div>
             </div>
+            <ConfirmDialog
+                open={Boolean(pendingDeleteCheckInId)}
+                title="Redact patrol log?"
+                message="Are you certain you want to redact this permanent log entry? This action cannot be undone."
+                confirmText="Redact"
+                cancelText="Cancel"
+                tone="danger"
+                loading={deleteCheckInMutation.isPending}
+                onConfirm={confirmDeleteCheckIn}
+                onCancel={() => {
+                    if (!deleteCheckInMutation.isPending) setPendingDeleteCheckInId('');
+                }}
+            />
         </div>
     );
 };

@@ -15,7 +15,7 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: 18
+          node-version: '>=20'
           cache: npm
 
       - name: Install
@@ -27,8 +27,5 @@ jobs:
       - name: Build
         run: npm run build
         env:
-          # Configure these in GitHub repo Settings → Secrets and variables → Actions
-          # - Variable: VITE_API_URL (e.g. https://life-on-land-aqau.onrender.com)
-          # - Secret:   VITE_MAPTILER_KEY (if you want CI to build with tiles enabled)
           VITE_API_URL: ${{ vars.VITE_API_URL }}
-          VITE_MAPTILER_KEY: ${{ secrets.VITE_MAPTILER_KEY }}
+          VITE_MAPTILER_KEY: ${{ secrets.VITE_MAPTILER_KEY }} 

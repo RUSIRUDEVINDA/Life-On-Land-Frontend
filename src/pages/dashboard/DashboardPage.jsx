@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { Plus, TreePine, ShieldAlert, Compass, Cat, LoaderCircle } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import StatsCard from '../../components/dashboard/StatsCard';
@@ -8,13 +8,6 @@ import RecentMovements from '../../components/dashboard/RecentMovements';
 import PatrolList from '../../components/dashboard/PatrolList';
 import RiskOverview from '../../components/dashboard/RiskOverview';
 import IncidentCard from '../../components/dashboard/IncidentCard';
-import { protectedAreaService } from '../../services/protectedAreaService';
-import { getAnimals } from '../../features/animals/api/animalsApi';
-import { fetchPatrols } from '../../features/patrols/api/patrolsApi';
-import { fetchAlerts } from '../../features/alerts/api/alertsApi';
-import { fetchRiskMapByProtectedArea } from '../../features/risk-map/api/riskMapApi';
-import { getMovements } from '../../features/movements/api/movementsApi';
-import { fetchRecentIncidents } from '../../features/incidents/api/incidentsApi';
 import { useDashboardOverview } from '../../hooks/useDashboardData';
 
 const CLOSED_ALERT_STATUSES = new Set(['RESOLVED', 'CLOSED', 'DISMISSED']);
