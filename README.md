@@ -14,7 +14,7 @@ Life-On-Land Frontend is the operational web client for the **Poaching Alert and
 
 ## Deployment
 
-This frontend is ready for static deployment on **Vercel**. Local development uses the Vite `/api` proxy, while production targets the backend through `VITE_API_URL`. SPA refresh routing is already configured in `vercel.json`.
+This frontend is ready for static deployment on **Vercel**. Local development uses the Vite `/api` proxy, while production targets the backend through `VITE_API_URL` and falls back to `https://life-on-land-aqau.onrender.com` if that variable is not provided. SPA refresh routing is already configured in `vercel.json`.
 
 ---
 
@@ -138,8 +138,8 @@ npm install
 Create `.env` from `.env.example` and configure the frontend runtime values:
 
 ```env
-VITE_API_URL=http://localhost:5001
 VITE_API_PROXY_TARGET=http://localhost:5001
+VITE_API_URL=https://life-on-land-aqau.onrender.com
 VITE_MAPTILER_KEY=your_maptiler_key
 ```
 
@@ -166,7 +166,7 @@ http://localhost:5173
 
 | Variable | Required | Default | Description |
 | :-- | :-- | :-- | :-- |
-| `VITE_API_URL` | Yes in production | `http://localhost:5001` | Backend origin used for production API calls. The app appends `/api` when needed. |
+| `VITE_API_URL` | Recommended in production | `https://life-on-land-aqau.onrender.com` | Backend origin used for production API calls. The app appends `/api` when needed and falls back to the deployed Render backend if this is blank. |
 | `VITE_API_PROXY_TARGET` | Yes in local dev | `http://localhost:5001` | Vite proxy target for `/api` requests during development. |
 | `VITE_MAPTILER_KEY` | Yes for maps | _empty_ | API key for MapTiler-backed map styles used by telemetry and risk map screens. |
 
@@ -227,7 +227,7 @@ Output Directory: dist
 Required production variables:
 
 ```env
-VITE_API_URL=https://your-backend-origin
+VITE_API_URL=https://life-on-land-aqau.onrender.com
 VITE_MAPTILER_KEY=your_maptiler_key
 ```
 
@@ -256,7 +256,7 @@ CI build variables expected by the workflow:
 
 - **Blank maps or missing tiles**: Verify `VITE_MAPTILER_KEY`.
 - **Frontend cannot reach backend in development**: Verify `VITE_API_PROXY_TARGET` and make sure the backend is running.
-- **Production API failures**: Verify `VITE_API_URL` and backend CORS / credential settings.
+- **Production API failures**: Verify `VITE_API_URL` in Vercel, confirm it points to `https://life-on-land-aqau.onrender.com`, and check backend CORS / credential settings.
 - **Refresh returns 404 on hosted routes**: Confirm SPA rewrites are enabled. This repo already includes the Vercel rewrite configuration.
 - **Unexpected logout behavior**: Check token persistence in `localStorage` and backend `401` responses.
 
