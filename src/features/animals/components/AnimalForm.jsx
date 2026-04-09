@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { X, Save, AlertCircle, Loader2, Check } from 'lucide-react';
 import api from '../../../utils/api';
 import { getAnimalById, createAnimal, updateAnimal } from '../api/animalsApi';
 
 const AnimalForm = ({ tagId, onClose, onSuccess }) => {
+    const queryClient = useQueryClient();
     const [formData, setFormData] = useState({
         tagId: '',
         species: '',
@@ -109,7 +111,8 @@ const AnimalForm = ({ tagId, onClose, onSuccess }) => {
                 });
             } else {
                 // Use plain object for JSON requests
-                const { photo: _photo, ...rest } = formData;
+                const rest = { ...formData };
+                delete rest.photo;
                 payload = rest;
             }
 
@@ -118,6 +121,7 @@ const AnimalForm = ({ tagId, onClose, onSuccess }) => {
             } else {
                 await createAnimal(payload);
             }
+            await queryClient.invalidateQueries({ queryKey: ['animals'] });
             onSuccess();
         } catch (err) {
             setError(err.message);

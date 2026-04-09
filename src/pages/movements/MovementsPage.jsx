@@ -7,6 +7,7 @@ import MovementFilters from '../../features/movements/components/MovementFilters
 import MovementTable from '../../features/movements/components/MovementTable';
 import ZoneDensity from '../../features/movements/components/ZoneDensity';
 import { useQueries } from '@tanstack/react-query';
+import { useToast } from '../../hooks/useToast';
 import { useProtectedAreas } from '../../hooks/useProtectedAreas';
 import { useMovements, useMovementSummary } from '../../features/movements/hooks/useMovements';
 import { getMovements } from '../../features/movements/api/movementsApi';
@@ -22,6 +23,7 @@ const movementToIdString = (value) => {
 const MOVEMENTS_EXPORT_PAGE_SIZE = 50;
 
 const MovementsPage = () => {
+    const toast = useToast();
     const [search, setSearch] = useState('');
     const [timeRangeHours, setTimeRangeHours] = useState(24);
     const [pagination, setPagination] = useState({ page: 1, limit: 10 });
@@ -96,12 +98,11 @@ const MovementsPage = () => {
         () => enrichMovementRows(movData?.data || []),
         [movData, enrichMovementRows]
     );
-    const totalLogs = useMemo(
-        () => Math.max(Number(pagination.total) || 0, movements.length),
-        [pagination.total, movements.length]
-    );
-
     const totalCount = movData?.pagination?.total || 0;
+    const totalLogs = useMemo(
+        () => Math.max(totalCount, displayMovements.length),
+        [totalCount, displayMovements.length]
+    );
 
     const handleExportQueue = async () => {
         if (!movData || totalCount <= 0) return;
@@ -131,11 +132,22 @@ const MovementsPage = () => {
             );
             const result = exportMovementsQueueToPdf(rows, { searchTerm: tagId });
             if (!result.ok) {
-                window.alert(result.message);
+                toast.info({
+                    title: 'Nothing to export',
+                    message: result.message,
+                });
+            } else {
+                toast.success({
+                    title: 'PDF ready',
+                    message: 'The movement queue export has been generated.',
+                });
             }
         } catch (err) {
             console.error('Movements PDF export failed:', err);
-            window.alert('Could not generate the PDF. Please try again.');
+            toast.error({
+                title: 'Export failed',
+                message: 'Could not generate the PDF. Please try again.',
+            });
         } finally {
             setExporting(false);
         }
