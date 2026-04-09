@@ -30,7 +30,7 @@ const MovementTable = ({ movements, loading }) => {
                         <th className="px-6 py-4 text-[10px] font-bold text-[#adb5bd] uppercase tracking-[0.1em] border-b border-border-light">Geo Coordinates</th>
                         <th className="px-6 py-4 text-[10px] font-bold text-[#adb5bd] uppercase tracking-[0.1em] border-b border-border-light">Protected Area</th>
                         <th className="px-6 py-4 text-[10px] font-bold text-[#adb5bd] uppercase tracking-[0.1em] border-b border-border-light">Zone</th>
-                        <th className="px-6 py-4 text-[10px] font-bold text-[#adb5bd] uppercase tracking-[0.1em] border-b border-border-light">Timestamp</th>
+                        <th className="px-6 py-4 text-[10px] font-bold text-[#adb5bd] uppercase tracking-[0.1em] border-b border-border-light">Date &amp; Time</th>
                     </tr>
                 </thead>
                 <tbody className="divide-y divide-border-light">
@@ -45,6 +45,12 @@ const MovementTable = ({ movements, loading }) => {
                         const latLabel = Number.isFinite(lat) ? lat.toFixed(4) : '--';
                         const lngLabel = Number.isFinite(lng) ? lng.toFixed(4) : '--';
                         const timestamp = move?.timestamp ? new Date(move.timestamp) : null;
+                        const dateLabel = timestamp
+                            ? timestamp.toLocaleDateString([], { year: 'numeric', month: 'short', day: '2-digit' })
+                            : 'Unknown';
+                        const timeLabel = timestamp
+                            ? timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+                            : 'Unknown';
                         const protectedAreaLabel =
                             move?.protectedAreaName ||
                             move?.protectedArea?.name ||
@@ -80,11 +86,10 @@ const MovementTable = ({ movements, loading }) => {
                                 <td className="px-6 py-4">
                                     <div className="flex gap-2 items-center">
                                         <Clock size={12} className="text-[#adb5bd]" />
-                                        <span className="text-[12px] font-bold text-primary-dark opacity-90">
-                                            {timestamp
-                                                ? timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })
-                                                : 'Unknown'}
-                                        </span>
+                                        <div className="flex flex-col">
+                                            <span className="text-[11px] font-semibold text-primary-dark">{dateLabel}</span>
+                                            <span className="text-[12px] font-bold text-primary-dark opacity-90">{timeLabel}</span>
+                                        </div>
                                     </div>
                                 </td>
                         </tr>

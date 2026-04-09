@@ -1,8 +1,17 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import GeometryDrawEditor from './GeometryDrawEditor';
 import { geometriesOverlap, geometryAreaHa, parseGeometryInput, toFeature } from '../utils/geometryMetrics';
 
 const zoneTypes = ['CORE', 'BUFFER', 'EDGE', 'CORRIDOR'];
+
+const getInitialZoneFormState = (initialData) => ({
+  name: initialData?.name || '',
+  zoneType: initialData?.zoneType || 'CORE',
+  areaSize: initialData?.areaSize ? String(initialData.areaSize) : '',
+  geometryText: initialData?.geometry ? JSON.stringify(initialData.geometry, null, 2) : '',
+  geometryMode: 'draw',
+  error: '',
+});
 
 const ZoneForm = ({
   initialData,
@@ -12,12 +21,13 @@ const ZoneForm = ({
   parentArea = null,
   existingZones = [],
 }) => {
-  const [name, setName] = useState('');
-  const [zoneType, setZoneType] = useState('CORE');
-  const [areaSize, setAreaSize] = useState('');
-  const [geometryText, setGeometryText] = useState('');
-  const [geometryMode, setGeometryMode] = useState('draw');
-  const [error, setError] = useState('');
+  const initialFormState = getInitialZoneFormState(initialData);
+  const [name, setName] = useState(initialFormState.name);
+  const [zoneType, setZoneType] = useState(initialFormState.zoneType);
+  const [areaSize, setAreaSize] = useState(initialFormState.areaSize);
+  const [geometryText, setGeometryText] = useState(initialFormState.geometryText);
+  const [geometryMode, setGeometryMode] = useState(initialFormState.geometryMode);
+  const [error, setError] = useState(initialFormState.error);
 
   const overlapWarning = useMemo(() => {
     const currentGeometry = parseGeometryInput(geometryText);
@@ -46,25 +56,6 @@ const ZoneForm = ({
       setAreaSize(computedHa);
     }
   };
-
-  useEffect(() => {
-    if (!initialData) {
-      setName('');
-      setZoneType('CORE');
-      setAreaSize('');
-      setGeometryText('');
-      setGeometryMode('draw');
-      setError('');
-      return;
-    }
-
-    setName(initialData.name || '');
-    setZoneType(initialData.zoneType || 'CORE');
-    setAreaSize(initialData.areaSize ? String(initialData.areaSize) : '');
-    setGeometryText(initialData.geometry ? JSON.stringify(initialData.geometry, null, 2) : '');
-    setGeometryMode('draw');
-    setError('');
-  }, [initialData]);
 
   const handleSubmit = (event) => {
     event.preventDefault();

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import ZoneForm from './ZoneForm';
 import Loading from '../../../components/common/Loading';
 import ConfirmDialog from '../../../components/common/ConfirmDialog';
@@ -53,7 +53,7 @@ const ZoneManagerModal = ({ area, open, onClose }) => {
   const [confirmDelete, setConfirmDelete] = useState(null);
   const [deleting, setDeleting] = useState(false);
 
-  const loadZones = async () => {
+  const loadZones = useCallback(async () => {
     if (!area?.id) return;
     setLoading(true);
     setError('');
@@ -66,12 +66,12 @@ const ZoneManagerModal = ({ area, open, onClose }) => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [area?.id]);
 
   useEffect(() => {
     if (!open || !area?.id) return;
     loadZones();
-  }, [open, area?.id]);
+  }, [open, area?.id, loadZones]);
 
   useEffect(() => {
     if (open) return;
@@ -170,6 +170,7 @@ const ZoneManagerModal = ({ area, open, onClose }) => {
 
           {showForm && (
             <ZoneForm
+                key={editingZone?.id || editingZone?._id || 'new-zone'}
               initialData={editingZone}
               onSubmit={handleSaveZone}
               parentArea={area}

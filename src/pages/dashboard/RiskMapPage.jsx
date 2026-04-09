@@ -88,8 +88,11 @@ const riskLevelStyles = {
     },
 };
 
+const riskPaletteForLevel = (level) =>
+    riskLevelStyles[String(level ?? 'LOW').toUpperCase()] || riskLevelStyles.LOW;
+
 const RANGER_MAP_WRAPPER_CLASS =
-    'min-h-[420px] h-[min(78vh,calc(100dvh-200px))] w-full rounded-[28px] overflow-hidden border border-border-light shadow-premium relative bg-bg-soft group';
+    'min-h-[420px] h-[min(78vh,calc(100dvh-200px))] w-full rounded-[28px] border border-border-light shadow-premium relative bg-bg-soft group';
 
 const RiskMapPage = ({ rangerView = false }) => {
     const navigate = useNavigate();
@@ -224,7 +227,7 @@ const RiskMapPage = ({ rangerView = false }) => {
             label: 'Total Zones',
             value: riskSummary?.totalZones ?? riskZones.length,
             helper: 'Mapped now',
-            tone: 'accent',
+            tone: 'subtle',
         },
         {
             label: 'Critical Zones',
@@ -236,7 +239,7 @@ const RiskMapPage = ({ rangerView = false }) => {
             label: 'High Risk Zones',
             value: riskSummary?.highRiskZones ?? riskZones.filter((zone) => zone.riskLevel === 'HIGH').length,
             helper: 'Priority patrol',
-            tone: 'default',
+            tone: 'subtle',
         },
         {
             label: 'Total Incidents',
@@ -244,7 +247,7 @@ const RiskMapPage = ({ rangerView = false }) => {
                 riskSummary?.totalIncidents ??
                 riskZones.reduce((total, zone) => total + (zone?.incidentCount || 0), 0),
             helper: 'Risk window',
-            tone: 'subtle',
+            tone: 'default',
         },
     ];
 
@@ -371,63 +374,133 @@ const RiskMapPage = ({ rangerView = false }) => {
                                 wrapperClassName={rangerView ? RANGER_MAP_WRAPPER_CLASS : undefined}
                             />
                             {!rangerView && (
-                                <div className="rounded-[28px] border border-border-light bg-bg-soft p-4 shadow-premium">
+                                <div className="overflow-hidden rounded-[24px] border border-border-light bg-white shadow-premium">
                                     {activePoint ? (
-                                        <div className="space-y-3">
-                                            <div className="flex flex-wrap items-center justify-between gap-2">
-                                                <h3 className="text-[14px] font-semibold text-primary-dark">
-                                                    {activePoint.name}
-                                                </h3>
-                                                <span
-                                                    className={`rounded-full px-2.5 py-1 text-[10px] font-semibold ${
-                                                        (riskLevelStyles[String(activePoint.riskLevel).toUpperCase()] ||
-                                                            riskLevelStyles.LOW
-                                                        ).badge
-                                                    }`}
-                                                >
-                                                    {activePoint.riskLevel}
-                                                </span>
+                                        <>
+                                            <div
+                                                className="h-1 w-full"
+                                                style={{
+                                                    background: `linear-gradient(90deg, ${riskPaletteForLevel(activePoint.riskLevel).marker}, ${riskPaletteForLevel(activePoint.riskLevel).marker}99)`,
+                                                }}
+                                            />
+                                            <div className="p-4 sm:p-5">
+                                                <div className="flex flex-wrap items-start justify-between gap-3">
+                                                    <h3 className="min-w-0 flex-1 text-[15px] font-bold leading-snug tracking-tight text-primary-dark">
+                                                        {activePoint.name}
+                                                    </h3>
+                                                    <span
+                                                        className={`shrink-0 rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-[0.08em] ${riskPaletteForLevel(activePoint.riskLevel).badge}`}
+                                                    >
+                                                        {String(activePoint.riskLevel || 'LOW').toUpperCase()}
+                                                    </span>
+                                                </div>
+
+                                                <dl className="mt-4 overflow-hidden rounded-xl border border-border-light/80 bg-gradient-to-b from-bg-soft/90 to-white">
+                                                    <div className="grid divide-y divide-border-light/70 sm:grid-cols-2 sm:divide-x sm:divide-y-0">
+                                                        <div className="flex items-baseline justify-between gap-3 px-3.5 py-2.5">
+                                                            <dt className="text-[10px] font-semibold uppercase tracking-[0.12em] text-text-black">
+                                                                Incidents
+                                                            </dt>
+                                                            <dd className="text-[15px] font-bold tabular-nums text-primary-dark">
+                                                                {activePoint.incidentCount}
+                                                            </dd>
+                                                        </div>
+                                                        <div className="flex items-baseline justify-between gap-3 px-3.5 py-2.5">
+                                                            <dt className="text-[10px] font-semibold uppercase tracking-[0.12em] text-text-black">
+                                                                Avg severity
+                                                            </dt>
+                                                            <dd className="text-right text-[13px] font-semibold text-primary-dark">
+                                                                {activePoint.averageSeverity}
+                                                            </dd>
+                                                        </div>
+                                                    </div>
+                                                    <div className="flex items-baseline justify-between gap-3 border-t border-border-light/70 px-3.5 py-2.5">
+                                                        <dt className="text-[10px] font-semibold uppercase tracking-[0.12em] text-text-black">
+                                                            Weather
+                                                        </dt>
+                                                        <dd className="text-right text-[13px] font-semibold text-primary-dark">
+                                                            {activePoint.weatherCondition}
+                                                        </dd>
+                                                    </div>
+                                                </dl>
+
+                                                <p className="mt-3 flex items-center gap-1.5 text-[11px] font-medium tabular-nums text-text-black">
+                                                    <MapPinned
+                                                        size={13}
+                                                        className="shrink-0 text-primary-medium/70"
+                                                        strokeWidth={2}
+                                                    />
+                                                    {Number(activePoint.lat).toFixed(4)},{' '}
+                                                    {Number(activePoint.lng).toFixed(4)}
+                                                </p>
+
+                                                <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
+                                                    {[
+                                                        {
+                                                            key: 'critical',
+                                                            label: 'Critical',
+                                                            value: activePoint.severityBreakdown?.critical ?? 0,
+                                                            box: 'border-[#fecaca] bg-[#fff5f5]',
+                                                            text: 'text-[#b91c1c]',
+                                                        },
+                                                        {
+                                                            key: 'high',
+                                                            label: 'High',
+                                                            value: activePoint.severityBreakdown?.high ?? 0,
+                                                            box: 'border-[#fed7aa] bg-[#fff7ed]',
+                                                            text: 'text-[#c2410c]',
+                                                        },
+                                                        {
+                                                            key: 'medium',
+                                                            label: 'Medium',
+                                                            value: activePoint.severityBreakdown?.medium ?? 0,
+                                                            box: 'border-[#fde68a] bg-[#fffbeb]',
+                                                            text: 'text-[#b45309]',
+                                                        },
+                                                        {
+                                                            key: 'low',
+                                                            label: 'Low',
+                                                            value: activePoint.severityBreakdown?.low ?? 0,
+                                                            box: 'border-[#bbf7d0] bg-[#f0fdf4]',
+                                                            text: 'text-[#166534]',
+                                                        },
+                                                    ].map((row) => (
+                                                        <div
+                                                            key={row.key}
+                                                            className={`flex flex-col items-center justify-center rounded-xl border px-2 py-2.5 transition ${
+                                                                row.box
+                                                            } ${row.value === 0 ? 'opacity-[0.72]' : ''}`}
+                                                        >
+                                                            <span
+                                                                className={`text-[9px] font-bold uppercase tracking-[0.12em] ${row.text}`}
+                                                            >
+                                                                {row.label}
+                                                            </span>
+                                                            <span
+                                                                className={`mt-1 text-[16px] font-bold tabular-nums leading-none ${row.text}`}
+                                                            >
+                                                                {row.value}
+                                                            </span>
+                                                        </div>
+                                                    ))}
+                                                </div>
                                             </div>
-                                            <div className="grid gap-2 text-[12px] text-text-gray md:grid-cols-2">
-                                                <p>
-                                                    Incidents:{' '}
-                                                    <span className="font-semibold text-primary-dark">
-                                                        {activePoint.incidentCount}
-                                                    </span>
-                                                </p>
-                                                <p>
-                                                    Avg Severity:{' '}
-                                                    <span className="font-semibold text-primary-dark">
-                                                        {activePoint.averageSeverity}
-                                                    </span>
-                                                </p>
-                                                <p>
-                                                    Weather:{' '}
-                                                    <span className="font-semibold text-primary-dark">
-                                                        {activePoint.weatherCondition}
-                                                    </span>
-                                                </p>
-                                              
+                                        </>
+                                    ) : (
+                                        <div className="flex flex-col items-center justify-center gap-3 px-6 py-10 text-center">
+                                            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary-light/25 text-primary-medium">
+                                                <Layers size={22} strokeWidth={2} />
                                             </div>
-                                            <div className="grid grid-cols-4 gap-2 text-[11px]">
-                                                <div className="rounded-xl bg-white px-2 py-1.5 text-center text-[#c92a2a]">
-                                                    CRITICAL: {activePoint.severityBreakdown.critical || 0}
-                                                </div>
-                                                <div className="rounded-xl bg-white px-2 py-1.5 text-center text-[#d9480f]">
-                                                    HIGH: {activePoint.severityBreakdown.high || 0}
-                                                </div>
-                                                <div className="rounded-xl bg-white px-2 py-1.5 text-center text-[#a07900]">
-                                                    MEDIUM: {activePoint.severityBreakdown.medium || 0}
-                                                </div>
-                                                <div className="rounded-xl bg-white px-2 py-1.5 text-center text-[#2b8a3e]">
-                                                    LOW: {activePoint.severityBreakdown.low || 0}
-                                                </div>
+                                            <div>
+                                                <p className="text-[13px] font-semibold text-primary-dark">
+                                                    No zone selected
+                                                </p>
+                                                <p className="mt-1 max-w-sm text-[12px] leading-relaxed text-text-gray">
+                                                    Click a marker or polygon on the map, or choose a zone in the sidebar,
+                                                    to see incidents, weather, and severity breakdown.
+                                                </p>
                                             </div>
                                         </div>
-                                    ) : (
-                                        <p className="text-[12px] text-text-gray">
-                                            Select a zone on the map or from the list to view risk details.
-                                        </p>
                                     )}
                                 </div>
                             )}

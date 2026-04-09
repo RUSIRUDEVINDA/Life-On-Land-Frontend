@@ -119,6 +119,7 @@ const ProtectedAreasPage = () => {
 
       {showForm && (
         <ProtectedAreaForm
+          key={editingArea?.id || editingArea?._id || 'new-area'}
           initialData={editingArea}
           onSubmit={handleSaveArea}
           onCancel={() => {
