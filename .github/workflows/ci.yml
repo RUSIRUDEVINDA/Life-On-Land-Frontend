@@ -31,4 +31,4 @@ jobs:
           # - Variable: VITE_API_URL (e.g. https://life-on-land-aqau.onrender.com)
           # - Secret:   VITE_MAPTILER_KEY (if you want CI to build with tiles enabled)
           VITE_API_URL: ${{ vars.VITE_API_URL }}
-          VITE_MAPTILER_KEY: ${{ secrets.VITE_MAPTILER_KEY }}
+          VITE_MAPTILER_KEY: ${{ secrets.VITE_MAPTILER_KEY }}  
