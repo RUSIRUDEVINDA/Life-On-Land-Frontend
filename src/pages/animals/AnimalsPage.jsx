@@ -1,25 +1,25 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Plus } from 'lucide-react';
 import Modal from '../../components/common/Modal';
+import ConfirmDialog from '../../components/common/ConfirmDialog';
 import ListPaginationFooter from '../../components/common/ListPaginationFooter';
-import { getAnimals, deleteAnimal } from '../../features/animals/api/animalsApi';
+import { useToast } from '../../hooks/useToast';
+import { useAnimals, useDeleteAnimal } from '../../features/animals/hooks/useAnimals';
 import AnimalFilters from '../../features/animals/components/AnimalFilters';
 import AnimalTable from '../../features/animals/components/AnimalTable';
 import AnimalForm from '../../features/animals/components/AnimalForm';
 import AnimalDetailsPanel from '../../features/animals/components/AnimalDetailsPanel';
 
 const AnimalsPage = () => {
-    const [animals, setAnimals] = useState([]);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState(null);
+    const toast = useToast();
     const [search, setSearch] = useState('');
     const [debouncedSearch, setDebouncedSearch] = useState('');
     const [filters, setFilters] = useState({ status: '', species: '' });
-    const [pagination, setPagination] = useState({ page: 1, limit: 10, total: 0, pages: 1 });
-    const [selectedAnimal, setSelectedAnimal] = useState(null);
-
+    const [pagination, setPagination] = useState({ page: 1, limit: 10 });
+    const [selectedAnimalTagId, setSelectedAnimalTagId] = useState(null);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [selectedTagId, setSelectedTagId] = useState(null);
+    const [pendingDeleteTagId, setPendingDeleteTagId] = useState('');
 
     // Debounce search input by 400ms
     useEffect(() => {
@@ -27,53 +27,26 @@ const AnimalsPage = () => {
         return () => clearTimeout(timer);
     }, [search]);
 
-    // Reset to page 1 when search or filters change
-    useEffect(() => {
-        setPagination(prev => ({ ...prev, page: 1 }));
-    }, [debouncedSearch, filters]);
+    const { data: aniData, isLoading: loading, error: queryError } = useAnimals({
+        page: pagination.page,
+        limit: pagination.limit,
+        search: debouncedSearch,
+        status: filters.status,
+        species: filters.species
+    });
 
-    const fetchAnimals = useCallback(async () => {
-        setLoading(true);
-        try {
-            const data = await getAnimals({
-                page: pagination.page,
-                limit: pagination.limit,
-                search: debouncedSearch,
-                status: filters.status,
-                species: filters.species
-            });
-            setAnimals(data.data || []);
-            setPagination(prev => ({ ...prev, ...data.pagination }));
-        } catch (err) {
-            setError(err.message);
-        } finally {
-            setLoading(false);
-        }
-    }, [pagination.page, pagination.limit, filters, debouncedSearch]);
+    const deleteMutation = useDeleteAnimal();
 
-    useEffect(() => {
-        fetchAnimals();
-    }, [fetchAnimals]);
+    const animals = useMemo(() => aniData?.data || [], [aniData]);
+    const totalCount = aniData?.pagination?.total || 0;
+    const error = queryError?.message;
+    const selectedAnimal = useMemo(
+        () => animals.find((animal) => animal.tagId === selectedAnimalTagId) || null,
+        [animals, selectedAnimalTagId]
+    );
 
-    useEffect(() => {
-        if (!selectedAnimal) return;
-        const match = animals.find((animal) => animal.tagId === selectedAnimal.tagId);
-        if (match) {
-            setSelectedAnimal(match);
-        } else {
-            setSelectedAnimal(null);
-        }
-    }, [animals, selectedAnimal]);
-
-    const handleDelete = async (tagId) => {
-        if (window.confirm(`Are you sure you want to delete animal ${tagId}?`)) {
-            try {
-                await deleteAnimal(tagId);
-                fetchAnimals();
-            } catch (err) {
-                alert(err.message);
-            }
-        }
+    const handleDelete = (tagId) => {
+        setPendingDeleteTagId(tagId);
     };
 
     const handleAddClick = () => {
@@ -88,7 +61,54 @@ const AnimalsPage = () => {
 
     const handleFormSuccess = () => {
         setIsModalOpen(false);
-        fetchAnimals();
+        toast.success({
+            title: selectedTagId ? 'Animal record updated' : 'Animal registered',
+            message: selectedTagId
+                ? 'The animal details were updated successfully.'
+                : 'The new animal was added to the wildlife registry.',
+        });
+        // React Query will handle the refetch via invalidation if the form also uses the mutation
+        // or we can manually invalidate here if needed.
+    };
+
+    const confirmDeleteAnimal = async () => {
+        if (!pendingDeleteTagId) return;
+        try {
+            await deleteMutation.mutateAsync(pendingDeleteTagId);
+            toast.success({
+                title: 'Animal removed',
+                message: `Animal ${pendingDeleteTagId} was removed from the registry.`,
+            });
+            if (selectedAnimalTagId === pendingDeleteTagId) {
+                setSelectedAnimalTagId(null);
+            }
+            setPendingDeleteTagId('');
+        } catch (err) {
+            toast.error({
+                title: 'Delete failed',
+                message: err?.message || 'The animal could not be deleted. Please try again.',
+            });
+            setPendingDeleteTagId('');
+        }
+    };
+
+    const handleSearchChange = (value) => {
+        setSearch(value);
+        setPagination((prev) => ({ ...prev, page: 1 }));
+    };
+
+    const handleStatusChange = (value) => {
+        setFilters((prev) => ({ ...prev, status: value }));
+        setPagination((prev) => ({ ...prev, page: 1 }));
+    };
+
+    const handleSpeciesChange = (value) => {
+        setFilters((prev) => ({ ...prev, species: value }));
+        setPagination((prev) => ({ ...prev, page: 1 }));
+    };
+
+    const handleSelectAnimal = (animal) => {
+        setSelectedAnimalTagId(animal?.tagId || null);
     };
 
     return (
@@ -110,11 +130,11 @@ const AnimalsPage = () => {
                 <div className="bg-white rounded-3xl border border-border-light shadow-premium overflow-hidden transition-all duration-500">
                     <AnimalFilters
                         search={search}
-                        onSearchChange={setSearch}
+                        onSearchChange={handleSearchChange}
                         status={filters.status}
-                        onStatusChange={(val) => setFilters((prev) => ({ ...prev, status: val }))}
+                        onStatusChange={handleStatusChange}
                         species={filters.species}
-                        onSpeciesChange={(val) => setFilters((prev) => ({ ...prev, species: val }))}
+                        onSpeciesChange={handleSpeciesChange}
                         pageSize={pagination.limit}
                         onPageSizeChange={(limit) => setPagination((prev) => ({ ...prev, limit, page: 1 }))}
                     />
@@ -125,14 +145,14 @@ const AnimalsPage = () => {
                         error={error}
                         onDelete={handleDelete}
                         onEdit={handleEditClick}
-                        onSelect={setSelectedAnimal}
+                        onSelect={handleSelectAnimal}
                         selectedTagId={selectedAnimal?.tagId}
                     />
 
-                    {!loading && !error && pagination.total > 0 && (
+                    {!loading && !error && totalCount > 0 && (
                         <div className="border-t border-border-light bg-bg-soft/10 px-5 py-3">
                             <ListPaginationFooter
-                                totalItems={pagination.total}
+                                totalItems={totalCount}
                                 pageSize={pagination.limit}
                                 currentPage={pagination.page}
                                 onPageChange={(page) => setPagination((prev) => ({ ...prev, page }))}
@@ -152,6 +172,19 @@ const AnimalsPage = () => {
                     onSuccess={handleFormSuccess}
                 />
             </Modal>
+            <ConfirmDialog
+                open={Boolean(pendingDeleteTagId)}
+                title="Delete animal record?"
+                message={pendingDeleteTagId ? `Remove animal ${pendingDeleteTagId} from the wildlife registry? This action cannot be undone.` : ''}
+                confirmText="Delete"
+                cancelText="Cancel"
+                tone="danger"
+                loading={deleteMutation.isPending}
+                onConfirm={confirmDeleteAnimal}
+                onCancel={() => {
+                    if (!deleteMutation.isPending) setPendingDeleteTagId('');
+                }}
+            />
         </div>
     );
 };
