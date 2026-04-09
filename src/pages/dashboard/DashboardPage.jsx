@@ -15,6 +15,7 @@ import { fetchAlerts } from '../../features/alerts/api/alertsApi';
 import { fetchRiskMapByProtectedArea } from '../../features/risk-map/api/riskMapApi';
 import { getMovements } from '../../features/movements/api/movementsApi';
 import { fetchRecentIncidents } from '../../features/incidents/api/incidentsApi';
+import { useDashboardOverview } from '../../hooks/useDashboardData';
 
 const CLOSED_ALERT_STATUSES = new Set(['RESOLVED', 'CLOSED', 'DISMISSED']);
 
@@ -45,12 +46,12 @@ const mapPatrolForDashboardList = (patrol, index, zoneLookup = {}, areaLookup = 
         status === 'IN_PROGRESS'
             ? 'Patrolling'
             : status === 'PLANNED'
-              ? 'Standby'
-              : status === 'COMPLETED'
-                ? 'Completed'
-                : status === 'CANCELLED'
-                  ? 'Cancelled'
-                  : status.replace(/_/g, ' ') || 'Unknown';
+                ? 'Standby'
+                : status === 'COMPLETED'
+                    ? 'Completed'
+                    : status === 'CANCELLED'
+                        ? 'Cancelled'
+                        : status.replace(/_/g, ' ') || 'Unknown';
 
     let displayName = patrol?.title || 'Patrol';
     const ids = patrol?.assignedRangerIds;
@@ -109,12 +110,6 @@ const formatRelativeTimeShort = (value) => {
     return d.toLocaleDateString();
 };
 
-const formatIncidentDateTime = (value) => {
-    const d = value ? new Date(value) : null;
-    if (!d || Number.isNaN(d.getTime())) return '';
-    return new Intl.DateTimeFormat('en-GB', { dateStyle: 'medium', timeStyle: 'short' }).format(d);
-};
-
 const RECENT_MOVEMENT_SWATCHES = ['bg-[#fab005]', 'bg-primary-medium', 'bg-primary-light'];
 
 const mapMovementForRecentList = (move, index, zoneLookup = {}, areaLookup = {}, zoneAreaLookup = {}) => {
@@ -151,347 +146,224 @@ const formatIncidentTypeTitle = (type) => {
 };
 
 const DashboardPage = () => {
-    const [statsLoading, setStatsLoading] = useState(true);
-    const [statsError, setStatsError] = useState('');
-    const [overview, setOverview] = useState({
-        totalHectares: 0,
-        areaCount: 0,
-        zoneCount: 0,
-        animalTotal: 0,
-        activePatrols: 0,
-        patrolTotal: 0,
-        pendingAlerts: 0,
-    });
-    const [patrolListItems, setPatrolListItems] = useState([]);
-    const [riskBuckets, setRiskBuckets] = useState({ safe: 0, elevated: 0, unassigned: 0 });
-    const [recentMovements, setRecentMovements] = useState([]);
-    const [recentIncident, setRecentIncident] = useState(null);
-    const [latestAlert, setLatestAlert] = useState(null);
-    const [incidentBars, setIncidentBars] = useState([]);
-    const [movementBars, setMovementBars] = useState([]);
-    const [patrolBars, setPatrolBars] = useState([]);
+    const dashboard = useDashboardOverview();
+    const {
+        areas: areasQuery,
+        animals: animalsQuery,
+        patrols: patrolsQuery,
+        alerts: alertsQuery,
+        movements: movementsQuery,
+        incidents: incidentsQuery,
+        zones: zonesQueries,
+        riskMaps: riskMapQueries,
+        isLoading: statsLoading,
+        error: dashboardError
+    } = dashboard;
 
-    useEffect(() => {
-        let cancelled = false;
-        let intervalId;
+    const statsError = dashboardError?.message || '';
 
-        const loadOverview = async () => {
-            setStatsLoading(true);
-            setStatsError('');
+    // Data Processing derived from queries
+    const processedData = React.useMemo(() => {
+        let totalHectares = 0;
+        let areaCount = 0;
+        let zoneCount = 0;
+        let areaLookup = {};
+        let zoneLookup = {};
+        let zoneAreaLookup = {};
+        let riskByZoneId = {};
 
-            const [areasResult, animalsResult, patrolsResult, alertsResult, movementsResult, incidentsResult] =
-                await Promise.allSettled([
-                    protectedAreaService.getProtectedAreas(),
-                    getAnimals({ page: 1, limit: OVERVIEW_LIST_LIMIT }),
-                    fetchPatrols({ limit: OVERVIEW_LIST_LIMIT }),
-                    fetchAlerts({ limit: OVERVIEW_LIST_LIMIT }),
-                    getMovements({ page: 1, limit: OVERVIEW_LIST_LIMIT }),
-                    fetchRecentIncidents(OVERVIEW_LIST_LIMIT),
-                ]);
+        // Process Areas
+        if (areasQuery.data) {
+            const areas = areasQuery.data;
+            areaLookup = areas.reduce((acc, area) => {
+                if (area?.id) acc[area.id] = area.name || 'Unknown Area';
+                return acc;
+            }, {});
+            areaCount = areas.length;
+            totalHectares = areas.reduce((sum, a) => {
+                const km2 = Number(a.areaSize) || 0;
+                return sum + km2 * 100;
+            }, 0);
+        }
 
-            if (cancelled) return;
-
-            let totalHectares = 0;
-            let areaCount = 0;
-            let zoneCount = 0;
-            let areaLookup = {};
-            let zoneLookup = {};
-            let zoneAreaLookup = {};
-            let riskByZoneId = {};
-
-            if (areasResult.status === 'fulfilled') {
-                const areas = areasResult.value;
-                areaLookup = areas.reduce((acc, area) => {
-                    if (area?.id) acc[area.id] = area.name || 'Unknown Area';
-                    return acc;
-                }, {});
-                areaCount = areas.length;
-                totalHectares = areas.reduce((sum, a) => {
-                    const km2 = Number(a.areaSize) || 0;
-                    return sum + km2 * 100;
-                }, 0);
-
-                const zoneLists = await Promise.allSettled(
-                    areas.map((a) => protectedAreaService.getZonesByProtectedAreaId(a.id))
-                );
-                zoneCount = zoneLists.reduce((sum, zr) => {
-                    if (zr.status === 'fulfilled' && Array.isArray(zr.value)) return sum + zr.value.length;
-                    return sum;
-                }, 0);
-
-                zoneLists.forEach((zr) => {
-                    if (zr.status !== 'fulfilled' || !Array.isArray(zr.value)) return;
-                    zr.value.forEach((zone) => {
-                        if (!zone?.id) return;
-                        zoneLookup[zone.id] = zone.name || 'Unknown Zone';
-                        zoneAreaLookup[zone.id] = zone.protectedAreaId || '';
-                    });
+        // Process Zones (from parallel queries)
+        zonesQueries.forEach((zr) => {
+            if (zr.data && Array.isArray(zr.data)) {
+                zoneCount += zr.data.length;
+                zr.data.forEach((zone) => {
+                    if (!zone?.id) return;
+                    zoneLookup[zone.id] = zone.name || 'Unknown Zone';
+                    zoneAreaLookup[zone.id] = zone.protectedAreaId || '';
                 });
             }
+        });
 
-            let animalTotal = 0;
-            let animalsList = [];
-            if (animalsResult.status === 'fulfilled') {
-                const body = animalsResult.value;
-                animalsList =
-                    (Array.isArray(body?.data) && body.data) ||
-                    (Array.isArray(body?.animals) && body.animals) ||
-                    (Array.isArray(body) && body) ||
-                    [];
-                animalTotal =
-                    body?.pagination?.total ??
-                    body?.total ??
-                    animalsList.length;
-            }
+        // Process Animals
+        let animalTotal = 0;
+        if (animalsQuery.data) {
+            const body = animalsQuery.data;
+            const animalsList = Array.isArray(body?.data) ? body.data : (Array.isArray(body?.animals) ? body.animals : (Array.isArray(body) ? body : []));
+            animalTotal = body?.pagination?.total ?? body?.total ?? animalsList.length;
+        }
 
+        // Process Patrols
+        let activePatrols = 0;
+        let patrolTotal = 0;
+        let patrolBars = [];
+        let patrolListItems = [];
+        if (patrolsQuery.data && Array.isArray(patrolsQuery.data)) {
+            const list = patrolsQuery.data;
+            patrolTotal = list.length;
+            activePatrols = list.filter((p) => String(p?.status || '').toUpperCase() === 'IN_PROGRESS').length;
 
-            let activePatrols = 0;
-            let patrolTotal = 0;
-            if (patrolsResult.status === 'fulfilled' && Array.isArray(patrolsResult.value)) {
-                const list = patrolsResult.value;
-                patrolTotal = list.length;
-                activePatrols = list.filter((p) => String(p?.status || '').toUpperCase() === 'IN_PROGRESS').length;
-
-                if (!cancelled) {
-                    const counts = {
-                        IN_PROGRESS: 0,
-                        PLANNED: 0,
-                        COMPLETED: 0,
-                        CANCELLED: 0,
-                    };
-                    list.forEach((patrol) => {
-                        const status = String(patrol?.status || 'PLANNED').toUpperCase();
-                        if (counts[status] !== undefined) counts[status] += 1;
-                    });
-                    setPatrolBars([
-                        { label: 'In Progress', value: counts.IN_PROGRESS, color: '#2a5a45' },
-                        { label: 'Planned', value: counts.PLANNED, color: '#91c4a5' },
-                        { label: 'Completed', value: counts.COMPLETED, color: '#adb5bd' },
-                        { label: 'Cancelled', value: counts.CANCELLED, color: '#E63946' },
-                    ]);
-                }
-            }
-
-            let pendingAlerts = 0;
-            if (alertsResult.status === 'fulfilled' && Array.isArray(alertsResult.value)) {
-                pendingAlerts = alertsResult.value.filter((a) => {
-                    const s = String(a?.status || 'NEW').toUpperCase();
-                    return !CLOSED_ALERT_STATUSES.has(s);
-                }).length;
-            }
-
-            if (!cancelled) {
-                if (alertsResult.status === 'fulfilled' && Array.isArray(alertsResult.value)) {
-                    const list = alertsResult.value;
-                    const sorted = [...list].sort((a, b) => {
-                        const ta = new Date(b?.createdAt || b?.updatedAt || 0).getTime();
-                        const tb = new Date(a?.createdAt || a?.updatedAt || 0).getTime();
-                        return ta - tb;
-                    });
-                    const top = sorted[0];
-                    if (top) {
-                        const zoneId = normalizeLookupId(top?.zoneId || top?.zone);
-                        const areaId =
-                            normalizeLookupId(top?.protectedAreaId || top?.protectedArea) ||
-                            zoneAreaLookup[zoneId] ||
-                            '';
-                        const zoneName =
-                            top?.zoneName ||
-                            zoneLookup[zoneId] ||
-                            'Unknown zone';
-                        const areaName =
-                            top?.protectedAreaName ||
-                            areaLookup[areaId] ||
-                            'Unknown area';
-                        setLatestAlert({
-                            ...top,
-                            zoneName,
-                            protectedAreaName: areaName,
-                        });
-                    } else {
-                        setLatestAlert(null);
-                    }
-                } else {
-                    setLatestAlert(null);
-                }
-            }
-
-            let patrolRows = [];
-            if (patrolsResult.status === 'fulfilled' && Array.isArray(patrolsResult.value)) {
-                patrolRows = [...patrolsResult.value]
-                    .filter((p) => {
-                        const s = String(p?.status || '').toUpperCase();
-                        return s === 'IN_PROGRESS' || s === 'PLANNED';
-                    })
-                    .sort((a, b) => patrolSortPriority(a) - patrolSortPriority(b))
-                    .slice(0, 6)
-                    .map((patrol, index) => mapPatrolForDashboardList(patrol, index, zoneLookup, areaLookup));
-            }
-            if (!cancelled) {
-                setPatrolListItems(patrolRows);
-            }
-
-            let safe = 0;
-            let elevated = 0;
-            let unassigned = 0;
-            let sawAnyRiskRow = false;
-            if (areasResult.status === 'fulfilled' && areasResult.value.length > 0) {
-                const riskOutcomes = await Promise.allSettled(
-                    areasResult.value.map((a) => fetchRiskMapByProtectedArea(a.id))
-                );
-                if (!cancelled) {
-                    riskOutcomes.forEach((ro) => {
-                        if (ro.status !== 'fulfilled') return;
-                        const zones = ro.value?.zones || [];
-                        zones.forEach((z) => {
-                            sawAnyRiskRow = true;
-                            const L = String(z?.riskLevel || '').toUpperCase();
-                            const zoneId = normalizeLookupId(z?.zoneId || z?.zone || z?._id || z?.id);
-                            if (zoneId) {
-                                riskByZoneId[zoneId] = L || 'UNASSIGNED';
-                            }
-                            if (L === 'LOW') safe += 1;
-                            else if (L === 'CRITICAL' || L === 'HIGH' || L === 'MEDIUM') elevated += 1;
-                            else unassigned += 1;
-                        });
-                    });
-                    if (!sawAnyRiskRow && zoneCount > 0) {
-                        unassigned = zoneCount;
-                    }
-                    setRiskBuckets({ safe, elevated, unassigned });
-                }
-            } else if (!cancelled) {
-                setRiskBuckets({ safe: 0, elevated: 0, unassigned: 0 });
-            }
-
-            let sortedMovementsRaw = [];
-            if (!cancelled) {
-                if (movementsResult.status === 'fulfilled') {
-                    const raw = Array.isArray(movementsResult.value?.data)
-                        ? movementsResult.value.data
-                        : Array.isArray(movementsResult.value)
-                          ? movementsResult.value
-                          : [];
-                    sortedMovementsRaw = [...raw].sort((a, b) => {
-                        const ta = new Date(b?.timestamp || b?.createdAt || 0).getTime();
-                        const tb = new Date(a?.timestamp || a?.createdAt || 0).getTime();
-                        return ta - tb;
-                    });
-                    setRecentMovements(
-                        sortedMovementsRaw
-                            .slice(0, 3)
-                            .map((move, index) => mapMovementForRecentList(move, index, zoneLookup, areaLookup, zoneAreaLookup))
-                    );
-
-                    const riskCounts = {
-                        CRITICAL: 0,
-                        HIGH: 0,
-                        MEDIUM: 0,
-                        LOW: 0,
-                    };
-                    sortedMovementsRaw.forEach((move) => {
-                        const zoneId = normalizeLookupId(move?.zoneId || move?.zone);
-                        const riskLevel = String(riskByZoneId[zoneId] || '').toUpperCase();
-                        if (riskCounts[riskLevel] !== undefined) {
-                            riskCounts[riskLevel] += 1;
-                        }
-                    });
-                    const totalRisk = Object.values(riskCounts).reduce((sum, v) => sum + v, 0);
-                    if (totalRisk === 0) {
-                        setMovementBars([]);
-                    } else {
-                        setMovementBars([
-                            { label: 'Critical', value: riskCounts.CRITICAL, color: '#E63946' },
-                            { label: 'High', value: riskCounts.HIGH, color: '#f76707' },
-                            { label: 'Medium', value: riskCounts.MEDIUM, color: '#fab005' },
-                            { label: 'Low', value: riskCounts.LOW, color: '#2a5a45' },
-                        ]);
-                    }
-                } else {
-                    setRecentMovements([]);
-                    setMovementBars([]);
-                }
-
-                if (incidentsResult.status === 'fulfilled') {
-                    const list = Array.isArray(incidentsResult.value) ? incidentsResult.value : [];
-                    const enriched = list.map((incident) => {
-                        const zoneId = normalizeLookupId(incident?.zone?.id || incident?.zoneId);
-                        const areaId =
-                            normalizeLookupId(incident?.protectedArea?.id || incident?.protectedAreaId) ||
-                            zoneAreaLookup[zoneId] ||
-                            '';
-                        const zoneName =
-                            incident?.zone?.name && !/unknown/i.test(incident.zone.name)
-                                ? incident.zone.name
-                                : zoneLookup[zoneId] || 'Unknown zone';
-                        const areaName =
-                            incident?.protectedArea?.name && !/unknown/i.test(incident.protectedArea.name)
-                                ? incident.protectedArea.name
-                                : areaLookup[areaId] || 'Unknown area';
-                        return {
-                            ...incident,
-                            zone: { ...(incident.zone || {}), name: zoneName },
-                            protectedArea: { ...(incident.protectedArea || {}), name: areaName },
-                        };
-                    });
-                    setRecentIncident(enriched.length > 0 ? enriched[0] : null);
-
-                    const severityCounts = { LOW: 0, MEDIUM: 0, HIGH: 0, CRITICAL: 0 };
-                    enriched.forEach((incident) => {
-                        const sev = String(incident?.severity || 'LOW').toUpperCase();
-                        if (severityCounts[sev] !== undefined) severityCounts[sev] += 1;
-                    });
-                    setIncidentBars([
-                        { label: 'Low', value: severityCounts.LOW, color: '#2a5a45' },
-                        { label: 'Medium', value: severityCounts.MEDIUM, color: '#fab005' },
-                        { label: 'High', value: severityCounts.HIGH, color: '#f76707' },
-                        { label: 'Critical', value: severityCounts.CRITICAL, color: '#E63946' },
-                    ]);
-                } else {
-                    setRecentIncident(null);
-                    setIncidentBars([]);
-                }
-            }
-
-            const overviewRequests = [
-                { label: 'protected areas', result: areasResult },
-                { label: 'animals', result: animalsResult },
-                { label: 'patrols', result: patrolsResult },
-                { label: 'alerts', result: alertsResult },
-            ];
-            const failed = overviewRequests.filter(({ result }) => result.status === 'rejected');
-            if (failed.length === 4) {
-                setStatsError('Could not load overview metrics. Check your connection and try again.');
-            } else if (failed.length > 0) {
-                const names = failed.map(({ label }) => label).join(', ');
-                const firstReason =
-                    failed[0].result.status === 'rejected' ? failed[0].result.reason?.message || '' : '';
-                setStatsError(
-                    firstReason
-                        ? `Could not load ${names} (${firstReason}). Other numbers are still shown.`
-                        : `Could not load ${names}. Other numbers are still shown.`
-                );
-            }
-
-            setOverview({
-                totalHectares,
-                areaCount,
-                zoneCount,
-                animalTotal,
-                activePatrols,
-                patrolTotal,
-                pendingAlerts,
+            const counts = { IN_PROGRESS: 0, PLANNED: 0, COMPLETED: 0, CANCELLED: 0 };
+            list.forEach((patrol) => {
+                const status = String(patrol?.status || 'PLANNED').toUpperCase();
+                if (counts[status] !== undefined) counts[status] += 1;
             });
-            setStatsLoading(false);
-        };
+            patrolBars = [
+                { label: 'In Progress', value: counts.IN_PROGRESS, color: '#2a5a45' },
+                { label: 'Planned', value: counts.PLANNED, color: '#91c4a5' },
+                { label: 'Completed', value: counts.COMPLETED, color: '#adb5bd' },
+                { label: 'Cancelled', value: counts.CANCELLED, color: '#E63946' },
+            ];
 
-        loadOverview();
-        intervalId = setInterval(loadOverview, 30000);
-        return () => {
-            cancelled = true;
-            if (intervalId) clearInterval(intervalId);
+            patrolListItems = [...list]
+                .filter((p) => {
+                    const s = String(p?.status || '').toUpperCase();
+                    return s === 'IN_PROGRESS' || s === 'PLANNED';
+                })
+                .sort((a, b) => patrolSortPriority(a) - patrolSortPriority(b))
+                .slice(0, 6)
+                .map((patrol, index) => mapPatrolForDashboardList(patrol, index, zoneLookup, areaLookup));
+        }
+
+        // Process Alerts
+        let pendingAlerts = 0;
+        let latestAlert = null;
+        if (alertsQuery.data && Array.isArray(alertsQuery.data)) {
+            const list = alertsQuery.data;
+            pendingAlerts = list.filter((a) => {
+                const s = String(a?.status || 'NEW').toUpperCase();
+                return !CLOSED_ALERT_STATUSES.has(s);
+            }).length;
+
+            const sorted = [...list].sort((a, b) => {
+                const ta = new Date(b?.createdAt || b?.updatedAt || 0).getTime();
+                const tb = new Date(a?.createdAt || a?.updatedAt || 0).getTime();
+                return ta - tb;
+            });
+            const top = sorted[0];
+            if (top) {
+                const zoneId = normalizeLookupId(top?.zoneId || top?.zone);
+                const areaId = normalizeLookupId(top?.protectedAreaId || top?.protectedArea) || zoneAreaLookup[zoneId] || '';
+                latestAlert = {
+                    ...top,
+                    zoneName: top?.zoneName || zoneLookup[zoneId] || 'Unknown zone',
+                    protectedAreaName: top?.protectedAreaName || areaLookup[areaId] || 'Unknown area',
+                };
+            }
+        }
+
+        // Process Risk Maps
+        let safe = 0, elevated = 0, unassigned = 0;
+        let sawAnyRiskRow = false;
+        riskMapQueries.forEach((ro) => {
+            if (ro.data) {
+                const zones = ro.data?.zones || [];
+                zones.forEach((z) => {
+                    sawAnyRiskRow = true;
+                    const L = String(z?.riskLevel || '').toUpperCase();
+                    const zoneId = normalizeLookupId(z?.zoneId || z?.zone || z?._id || z?.id);
+                    if (zoneId) riskByZoneId[zoneId] = L || 'UNASSIGNED';
+                    if (L === 'LOW') safe += 1;
+                    else if (['CRITICAL', 'HIGH', 'MEDIUM'].includes(L)) elevated += 1;
+                    else unassigned += 1;
+                });
+            }
+        });
+        if (!sawAnyRiskRow && zoneCount > 0) unassigned = zoneCount;
+
+        // Process Movements
+        let recentMovements = [];
+        let movementBars = [];
+        if (movementsQuery.data) {
+            const raw = Array.isArray(movementsQuery.data?.data) ? movementsQuery.data.data : (Array.isArray(movementsQuery.data) ? movementsQuery.data : []);
+            const sortedMovementsRaw = [...raw].sort((a, b) => {
+                const ta = new Date(b?.timestamp || b?.createdAt || 0).getTime();
+                const tb = new Date(a?.timestamp || a?.createdAt || 0).getTime();
+                return ta - tb;
+            });
+            recentMovements = sortedMovementsRaw.slice(0, 3).map((move, index) => mapMovementForRecentList(move, index, zoneLookup, areaLookup, zoneAreaLookup));
+
+            const riskCounts = { CRITICAL: 0, HIGH: 0, MEDIUM: 0, LOW: 0 };
+            sortedMovementsRaw.forEach((move) => {
+                const zoneId = normalizeLookupId(move?.zoneId || move?.zone);
+                const riskLevel = String(riskByZoneId[zoneId] || '').toUpperCase();
+                if (riskCounts[riskLevel] !== undefined) riskCounts[riskLevel] += 1;
+            });
+            const totalRisk = Object.values(riskCounts).reduce((sum, v) => sum + v, 0);
+            movementBars = totalRisk === 0 ? [] : [
+                { label: 'Critical', value: riskCounts.CRITICAL, color: '#E63946' },
+                { label: 'High', value: riskCounts.HIGH, color: '#f76707' },
+                { label: 'Medium', value: riskCounts.MEDIUM, color: '#fab005' },
+                { label: 'Low', value: riskCounts.LOW, color: '#2a5a45' },
+            ];
+        }
+
+        // Process Incidents
+        let recentIncident = null;
+        let incidentBars = [];
+        if (incidentsQuery.data) {
+            const list = Array.isArray(incidentsQuery.data) ? incidentsQuery.data : [];
+            const enriched = list.map((incident) => {
+                const zoneId = normalizeLookupId(incident?.zone?.id || incident?.zoneId);
+                const areaId = normalizeLookupId(incident?.protectedArea?.id || incident?.protectedAreaId) || zoneAreaLookup[zoneId] || '';
+                return {
+                    ...incident,
+                    zone: { ...(incident.zone || {}), name: incident?.zone?.name && !/unknown/i.test(incident.zone.name) ? incident.zone.name : zoneLookup[zoneId] || 'Unknown zone' },
+                    protectedArea: { ...(incident.protectedArea || {}), name: incident?.protectedArea?.name && !/unknown/i.test(incident.protectedArea.name) ? incident.protectedArea.name : areaLookup[areaId] || 'Unknown area' },
+                };
+            });
+            recentIncident = enriched.length > 0 ? enriched[0] : null;
+
+            const severityCounts = { LOW: 0, MEDIUM: 0, HIGH: 0, CRITICAL: 0 };
+            enriched.forEach((incident) => {
+                const sev = String(incident?.severity || 'LOW').toUpperCase();
+                if (severityCounts[sev] !== undefined) severityCounts[sev] += 1;
+            });
+            incidentBars = [
+                { label: 'Low', value: severityCounts.LOW, color: '#2a5a45' },
+                { label: 'Medium', value: severityCounts.MEDIUM, color: '#fab005' },
+                { label: 'High', value: severityCounts.HIGH, color: '#f76707' },
+                { label: 'Critical', value: severityCounts.CRITICAL, color: '#E63946' },
+            ];
+        }
+
+        return {
+            overview: { totalHectares, areaCount, zoneCount, animalTotal, activePatrols, patrolTotal, pendingAlerts },
+            patrolListItems,
+            riskBuckets: { safe, elevated, unassigned },
+            recentMovements,
+            recentIncident,
+            latestAlert,
+            incidentBars,
+            movementBars,
+            patrolBars
         };
-    }, []);
+    }, [areasQuery.data, animalsQuery.data, patrolsQuery.data, alertsQuery.data, movementsQuery.data, incidentsQuery.data, zonesQueries, riskMapQueries]);
+
+    const {
+        overview,
+        patrolListItems,
+        riskBuckets,
+        recentMovements,
+        recentIncident,
+        latestAlert,
+        incidentBars,
+        movementBars,
+        patrolBars
+    } = processedData;
 
     const protectedTrend =
         overview.areaCount === 0
@@ -581,8 +453,8 @@ const DashboardPage = () => {
                         statsLoading
                             ? 'text-[#868e96]'
                             : overview.pendingAlerts > 0
-                              ? 'text-[#E63946] font-semibold'
-                              : 'text-[#868e96]'
+                                ? 'text-[#E63946] font-semibold'
+                                : 'text-[#868e96]'
                     }
                 />
             </div>
@@ -647,21 +519,16 @@ const DashboardPage = () => {
                             ? formatIncidentTypeTitle(recentIncident.type)
                             : ''
                     }
-                    description={recentIncident?.description?.trim() || ''}
-                    location={
+                    description={
                         recentIncident
-                            ? `${recentIncident.zone?.name || 'Unknown zone'} · ${recentIncident.protectedArea?.name || 'Unknown area'}`
+                            ? recentIncident.description?.trim() ||
+                            `${recentIncident.zone?.name || 'Unknown zone'} - ${recentIncident.protectedArea?.name || 'Unknown area'}`
                             : ''
                     }
-                    severity={recentIncident?.severity}
-                    status={recentIncident?.status}
                     time={
                         recentIncident
                             ? `Reported ${formatRelativeTimeShort(recentIncident.createdAt)}`
                             : ''
-                    }
-                    timeDetail={
-                        recentIncident ? formatIncidentDateTime(recentIncident.createdAt) : ''
                     }
                     incidentId={recentIncident?._id || ''}
                 />

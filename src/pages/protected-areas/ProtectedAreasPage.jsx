@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import Alert from '../../components/common/Alert';
 import ConfirmDialog from '../../components/common/ConfirmDialog';
@@ -6,80 +6,56 @@ import Loading from '../../components/common/Loading';
 import ProtectedAreaForm from '../../features/protected-areas/components/ProtectedAreaForm';
 import ProtectedAreaList from '../../features/protected-areas/components/ProtectedAreaList';
 import ZoneManagerModal from '../../features/protected-areas/components/ZoneManagerModal';
-import { protectedAreaService } from '../../services/protectedAreaService';
+import {
+  useProtectedAreas,
+  useCreateProtectedArea,
+  useUpdateProtectedArea,
+  useDeleteProtectedArea
+} from '../../hooks/useProtectedAreas';
 
 const ProtectedAreasPage = () => {
-  const [areas, setAreas] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
+  const { data: areas = [], isLoading: loading, error: queryError } = useProtectedAreas();
+  const createMutation = useCreateProtectedArea();
+  const updateMutation = useUpdateProtectedArea();
+  const deleteMutation = useDeleteProtectedArea();
 
+  const [error, setError] = useState('');
   const [showForm, setShowForm] = useState(false);
   const [editingArea, setEditingArea] = useState(null);
-  const [saving, setSaving] = useState(false);
-
   const [selectedArea, setSelectedArea] = useState(null);
   const [showZonesModal, setShowZonesModal] = useState(false);
-
   const [confirmDelete, setConfirmDelete] = useState(null);
-  const [deleting, setDeleting] = useState(false);
-
-  const loadAreas = async () => {
-    setLoading(true);
-    setError('');
-
-    try {
-      const data = await protectedAreaService.getProtectedAreas();
-      setAreas(data);
-    } catch (requestError) {
-      setError(requestError.message || 'Failed to load protected areas.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    loadAreas();
-  }, []);
 
   const handleSaveArea = async (payload) => {
-    setSaving(true);
     setError('');
-
     try {
       if (editingArea?.id) {
-        await protectedAreaService.updateProtectedArea(editingArea.id, payload);
+        await updateMutation.mutateAsync({ id: editingArea.id, data: payload });
       } else {
-        await protectedAreaService.createProtectedArea(payload);
+        await createMutation.mutateAsync(payload);
       }
-
       setShowForm(false);
       setEditingArea(null);
-      await loadAreas();
     } catch (requestError) {
       setError(requestError.message || 'Failed to save protected area.');
-    } finally {
-      setSaving(false);
     }
   };
 
   const handleDeleteArea = async () => {
     if (!confirmDelete?.id) return;
-
-    setDeleting(true);
     setError('');
-
     try {
-      await protectedAreaService.deleteProtectedArea(confirmDelete.id);
+      await deleteMutation.mutateAsync(confirmDelete.id);
       setConfirmDelete(null);
-      await loadAreas();
     } catch (requestError) {
       setError(requestError.message || 'Failed to delete protected area.');
-    } finally {
-      setDeleting(false);
     }
   };
 
+  const saving = createMutation.isPending || updateMutation.isPending;
+  const deleting = deleteMutation.isPending;
   const selectedAreaId = useMemo(() => selectedArea?.id || '', [selectedArea]);
+  const displayError = error || queryError?.message;
 
   return (
     <div className="space-y-4">
@@ -120,7 +96,7 @@ const ProtectedAreasPage = () => {
       </section>
 
       <div className="space-y-4">
-        <Alert type="danger" message={error} />
+        {displayError && <Alert type="danger" message={displayError} />}
 
         {loading ? (
           <Loading label="Loading protected areas..." />
