@@ -37,6 +37,13 @@ const getMovementAreaId = (movement) =>
 const getMovementZoneId = (movement) =>
     normalizeId(movement?.zoneId || movement?.zone?._id || movement?.zone?.id || movement?.zone);
 
+const hasLinkedAnimal = (movement) =>
+    Boolean(
+        movement?.animalDetails?.tagId ||
+        movement?.animalDetails?._id ||
+        movement?.animalDetails?.id
+    );
+
 const MapTrackingPage = () => {
     const [areas, setAreas] = useState([]);
     const [selectedAreaId, setSelectedAreaId] = useState('');
@@ -49,9 +56,6 @@ const MapTrackingPage = () => {
             try {
                 const data = await fetchProtectedAreas();
                 setAreas(data || []);
-                if (data && data.length > 0) {
-                    setSelectedAreaId(data[0].id);
-                }
             } catch (err) {
                 console.error('Failed to load areas for mapping:', err);
             }
@@ -68,6 +72,7 @@ const MapTrackingPage = () => {
             const normalizedAreaId = normalizeId(areaId);
             const filteredMovements = Array.isArray(movs)
                 ? movs.filter((mv) => {
+                    if (!hasLinkedAnimal(mv)) return false;
                     if (isDeceasedMovement(mv)) return false;
                     if (!normalizedAreaId) return true;
                     const movementAreaId = getMovementAreaId(mv);
