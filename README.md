@@ -233,6 +233,34 @@ VITE_MAPTILER_KEY=your_maptiler_key
 
 `vercel.json` already rewrites all routes to `index.html`, which allows deep-link refreshes for React Router pages.
 
+### Render Backend + Simulator
+
+This repo now includes `render.yaml` so Render can provision:
+
+- `life-on-land-backend` as the Node API service
+- `life-on-land-simulator` as a separate worker running `npm run simulate`
+
+The simulator command is defined in `backend/package.json` and starts `backend/scripts/simulate_movement.js`.
+
+Required Render environment variables for the backend:
+
+```env
+MONGO_URI=your_mongodb_connection_string
+JWT_SECRET=your_jwt_secret_key
+JWT_EXPIRES_IN=7d
+NODE_ENV=production
+```
+
+Required Render environment variables for the simulator worker:
+
+```env
+MONGO_URI=your_mongodb_connection_string
+API_URL=https://your-backend-service.onrender.com/api
+NODE_ENV=production
+```
+
+If your current Render plan does not support a dedicated worker, keep the backend as-is and run the same simulator command from a scheduled external job or another always-on host.
+
 ### CI Pipeline
 
 GitHub Actions workflow: `.github/workflows/ci.yml`
@@ -240,15 +268,28 @@ GitHub Actions workflow: `.github/workflows/ci.yml`
 Pipeline stages:
 
 1. Checkout repository
-2. Setup Node.js `18`
+2. Setup Node.js `20+`
 3. Install dependencies with `npm ci`
 4. Run `npm run lint`
 5. Run `npm run build`
+6. On pushes to `main`, deploy the frontend to Vercel
 
 CI build variables expected by the workflow:
 
 - Repository variable: `VITE_API_URL`
 - Repository secret: `VITE_MAPTILER_KEY`
+- Repository secret: `VERCEL_TOKEN`
+
+For automatic production redeploys from GitHub Actions, also add these repository variables so `vercel pull` can target the correct project:
+
+- Repository variable: `VERCEL_ORG_ID`
+- Repository variable: `VERCEL_PROJECT_ID`
+
+Behavior:
+
+- Every push runs CI
+- Every pull request runs CI
+- Every push to `main` runs CI and then deploys to Vercel production
 
 ---
 
