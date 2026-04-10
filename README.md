@@ -316,7 +316,7 @@ Behavior:
 
 ---
 
-## License
+
 
 Academic project repository.
 
