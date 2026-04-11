@@ -6,6 +6,7 @@ import Loading from '../../components/common/Loading';
 import ProtectedAreaForm from '../../features/protected-areas/components/ProtectedAreaForm';
 import ProtectedAreaList from '../../features/protected-areas/components/ProtectedAreaList';
 import ZoneManagerModal from '../../features/protected-areas/components/ZoneManagerModal';
+
 import {
   useProtectedAreas,
   useCreateProtectedArea,
@@ -34,6 +35,7 @@ const ProtectedAreasPage = () => {
       } else {
         await createMutation.mutateAsync(payload);
       }
+
       setShowForm(false);
       setEditingArea(null);
     } catch (requestError) {
@@ -54,7 +56,12 @@ const ProtectedAreasPage = () => {
 
   const saving = createMutation.isPending || updateMutation.isPending;
   const deleting = deleteMutation.isPending;
-  const selectedAreaId = useMemo(() => selectedArea?.id || '', [selectedArea]);
+
+  const selectedAreaId = useMemo(
+    () => selectedArea?.id || '',
+    [selectedArea]
+  );
+
   const displayError = error || queryError?.message;
 
   return (
@@ -62,7 +69,9 @@ const ProtectedAreasPage = () => {
       <section className="rounded-[28px] border border-border-light bg-white shadow-premium">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border-light px-6 py-5">
           <div>
-            <h2 className="text-[24px] font-semibold tracking-tight text-primary-dark">Protected Areas</h2>
+            <h2 className="text-[24px] font-semibold tracking-tight text-primary-dark">
+              Protected Areas
+            </h2>
             <p className="mt-1 text-[13px] text-text-gray">
               Manage conservation areas and biodiversity zones
             </p>
@@ -75,12 +84,14 @@ const ProtectedAreasPage = () => {
             >
               View Map
             </Link>
+
             <Link
               to="/dashboard/protected-areas/zones"
               className="rounded-xl border border-border-light bg-white px-4 py-2 text-[12px] font-semibold text-primary-dark transition hover:bg-bg-soft"
             >
               Manage Zones
             </Link>
+
             <button
               type="button"
               onClick={() => {
