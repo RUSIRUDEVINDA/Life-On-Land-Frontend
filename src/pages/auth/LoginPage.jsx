@@ -89,9 +89,14 @@ const LoginPage = () => {
 
             if (!response.ok) {
                 const mapped = mapBackendFieldErrors(payload);
-                if (Object.keys(mapped).length > 0) {
-                    setFieldErrors(mapped);
-                    setFormError('');
+                const { _form, ...rest } = mapped;
+                if (_form) {
+                    setFormError(_form);
+                }
+                if (Object.keys(rest).length > 0) {
+                    setFieldErrors(rest);
+                }
+                if (_form || Object.keys(rest).length > 0) {
                     return;
                 }
                 setFormError(
@@ -180,6 +185,14 @@ const LoginPage = () => {
                             aria-describedby={fieldErrors.password ? 'login-password-error' : undefined}
                         />
                         <FieldError id="login-password-error" message={fieldErrors.password} />
+                        <div className="flex justify-end">
+                            <Link
+                                to="/forgot-password"
+                                className="text-[13px] font-semibold text-primary transition-colors duration-200 hover:text-primary-medium"
+                            >
+                                Forgot password?
+                            </Link>
+                        </div>
                     </div>
 
                     <button
