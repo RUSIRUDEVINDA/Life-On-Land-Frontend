@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import ProtectedAreaMap from '../../features/protected-areas/components/ProtectedAreaMap';
 import Loading from '../../components/common/Loading';
 import Alert from '../../components/common/Alert';
-import { protectedAreaService } from '../../services/protectedAreaService';
+import { protectedAreasApi } from '../../features/protected-areas/api/protectedAreasApi';
 
 const zoneLegend = [
   { key: 'CORE', label: 'Core (Strict Protection)', swatch: '#f03e3e', border: '#c92a2a' },
@@ -32,12 +32,12 @@ const ProtectedAreasMapPage = () => {
     setError('');
 
     try {
-      const protectedAreas = await protectedAreaService.getProtectedAreas();
+      const protectedAreas = await protectedAreasApi.getProtectedAreas();
       setAreas(protectedAreas);
 
       const zoneEntries = await Promise.allSettled(
         protectedAreas.map(async (area) => {
-          const zones = await protectedAreaService.getZonesByProtectedAreaId(area.id);
+          const zones = await protectedAreasApi.getZonesByProtectedAreaId(area.id);
           return [area.id, zones];
         })
       );

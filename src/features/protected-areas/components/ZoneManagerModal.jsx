@@ -4,7 +4,7 @@ import Loading from '../../../components/common/Loading';
 import ConfirmDialog from '../../../components/common/ConfirmDialog';
 import Alert from '../../../components/common/Alert';
 import ProtectedAreaMap from './ProtectedAreaMap';
-import { protectedAreaService } from '../../../services/protectedAreaService';
+import { protectedAreasApi } from '../api/protectedAreasApi';
 import { geometriesOverlap } from '../utils/geometryMetrics';
 
 const zoneTypeStyles = {
@@ -59,7 +59,7 @@ const ZoneManagerModal = ({ area, open, onClose }) => {
     setError('');
 
     try {
-      const items = await protectedAreaService.getZonesByProtectedAreaId(area.id);
+      const items = await protectedAreasApi.getZonesByProtectedAreaId(area.id);
       setZones(items);
     } catch (requestError) {
       setError(requestError.message || 'Failed to load zones.');
@@ -100,9 +100,9 @@ const ZoneManagerModal = ({ area, open, onClose }) => {
       }
 
       if (editingZone?.id) {
-        await protectedAreaService.updateZone(area.id, editingZone.id, payload);
+        await protectedAreasApi.updateZone(area.id, editingZone.id, payload);
       } else {
-        await protectedAreaService.createZone(area.id, payload);
+        await protectedAreasApi.createZone(area.id, payload);
       }
 
       setShowForm(false);
@@ -122,7 +122,7 @@ const ZoneManagerModal = ({ area, open, onClose }) => {
     setError('');
 
     try {
-      await protectedAreaService.deleteZone(area.id, confirmDelete.id);
+      await protectedAreasApi.deleteZone(area.id, confirmDelete.id);
       setConfirmDelete(null);
       await loadZones();
     } catch (requestError) {
