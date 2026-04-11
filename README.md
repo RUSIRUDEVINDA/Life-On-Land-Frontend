@@ -176,7 +176,6 @@ This section documents the frontend deployment setup for production. Do not comm
 | Frontend (local dev) | `VITE_API_PROXY_TARGET` | Target for Vite's `/api` dev proxy. |
 | Frontend | `VITE_MAPTILER_KEY` | MapTiler key for MapLibre map styles. |
 
-Replace placeholder values in your host dashboards only; do not commit `.env` files with real credentials.
 
 ### Live URL
 
