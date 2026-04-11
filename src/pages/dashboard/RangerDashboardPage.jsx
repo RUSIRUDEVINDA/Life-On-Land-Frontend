@@ -65,51 +65,55 @@ const RangerDashboardPage = () => {
 
     useEffect(() => {
         let cancelled = false;
-        setError('');
-        setPatrolsLoading(true);
-        setSummaryLoading(true);
-        setIncidentsLoading(true);
 
-        const myUserId = getUserId();
+        queueMicrotask(() => {
+            if (cancelled) return;
+            setError('');
+            setPatrolsLoading(true);
+            setSummaryLoading(true);
+            setIncidentsLoading(true);
 
-        fetchAssignedPatrols()
-            .then((patrols) => {
-                if (!cancelled) {
-                    setAssignedPatrols(Array.isArray(patrols) ? patrols : []);
-                }
-            })
-            .catch((requestError) => {
-                if (!cancelled) {
-                    setError(requestError.message || 'Failed to load assigned patrols.');
-                }
-            })
-            .finally(() => {
-                if (!cancelled) setPatrolsLoading(false);
-            });
+            const myUserId = getUserId();
 
-        getMovementSummary()
-            .then((summary) => {
-                if (!cancelled) setMovementSummary(summary);
-            })
-            .catch(() => {
-                if (!cancelled) setMovementSummary(null);
-            })
-            .finally(() => {
-                if (!cancelled) setSummaryLoading(false);
-            });
+            fetchAssignedPatrols()
+                .then((patrols) => {
+                    if (!cancelled) {
+                        setAssignedPatrols(Array.isArray(patrols) ? patrols : []);
+                    }
+                })
+                .catch((requestError) => {
+                    if (!cancelled) {
+                        setError(requestError.message || 'Failed to load assigned patrols.');
+                    }
+                })
+                .finally(() => {
+                    if (!cancelled) setPatrolsLoading(false);
+                });
 
-        fetchIncidentsByReporter(myUserId)
-            .then((rows) => {
-                if (!cancelled) {
-                    setMyIncidentsCount(Array.isArray(rows) ? rows.length : 0);
-                }
-            })
-            .catch(() => {
-                if (!cancelled) setMyIncidentsCount(0);
-            })
-            .finally(() => {
-                if (!cancelled) setIncidentsLoading(false);
-            });
+            getMovementSummary()
+                .then((summary) => {
+                    if (!cancelled) setMovementSummary(summary);
+                })
+                .catch(() => {
+                    if (!cancelled) setMovementSummary(null);
+                })
+                .finally(() => {
+                    if (!cancelled) setSummaryLoading(false);
+                });
+
+            fetchIncidentsByReporter(myUserId)
+                .then((rows) => {
+                    if (!cancelled) {
+                        setMyIncidentsCount(Array.isArray(rows) ? rows.length : 0);
+                    }
+                })
+                .catch(() => {
+                    if (!cancelled) setMyIncidentsCount(0);
+                })
+                .finally(() => {
+                    if (!cancelled) setIncidentsLoading(false);
+                });
+        });
 
         return () => {
             cancelled = true;
