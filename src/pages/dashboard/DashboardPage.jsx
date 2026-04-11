@@ -149,9 +149,19 @@ const DashboardPage = () => {
         incidents: incidentsQuery,
         zones: zonesQueries,
         riskMaps: riskMapQueries,
-        isLoading: statsLoading,
+        statsCardsLoading,
+        riskBlocksLoading,
         error: dashboardError
     } = dashboard;
+
+    const statsLoading =
+        statsCardsLoading ||
+        movementsQuery.isLoading ||
+        incidentsQuery.isLoading ||
+        riskBlocksLoading;
+
+    const zonesStillLoading =
+        (areasQuery.data?.length || 0) > 0 && zonesQueries.some((q) => q.isLoading);
 
     const statsError = dashboardError?.message || '';
 
@@ -419,31 +429,43 @@ const DashboardPage = () => {
             <div className="grid grid-cols-4 gap-3">
                 <StatsCard
                     title="Protected Areas"
-                    value={statsLoading ? '--' : formatInt(overview.totalHectares)}
+                    value={areasQuery.isLoading ? '--' : formatInt(overview.totalHectares)}
                     unit="ha"
                     icon={TreePine}
-                    trend={statsLoading ? 'Loading...' : protectedTrend}
+                    trend={
+                        areasQuery.isLoading
+                            ? 'Loading...'
+                            : zonesStillLoading
+                                ? 'Loading zones…'
+                                : protectedTrend
+                    }
                     isDark={true}
                 />
                 <StatsCard
                     title="Tracked Animals"
-                    value={statsLoading ? '--' : formatInt(overview.animalTotal)}
+                    value={animalsQuery.isLoading ? '--' : formatInt(overview.animalTotal)}
                     icon={Cat}
-                    trend={statsLoading ? 'Loading...' : 'In wildlife registry'}
+                    trend={animalsQuery.isLoading ? 'Loading...' : 'In wildlife registry'}
                 />
                 <StatsCard
                     title="Active Patrols"
-                    value={statsLoading ? '--' : formatInt(overview.activePatrols)}
+                    value={patrolsQuery.isLoading ? '--' : formatInt(overview.activePatrols)}
                     icon={Compass}
-                    trend={statsLoading ? 'Loading...' : patrolTrend}
+                    trend={patrolsQuery.isLoading ? 'Loading...' : patrolTrend}
                 />
                 <StatsCard
                     title="Pending Alerts"
-                    value={statsLoading ? '--' : formatInt(overview.pendingAlerts)}
+                    value={alertsQuery.isLoading ? '--' : formatInt(overview.pendingAlerts)}
                     icon={ShieldAlert}
-                    trend={statsLoading ? 'Loading...' : overview.pendingAlerts > 0 ? 'Requires review' : 'All clear'}
+                    trend={
+                        alertsQuery.isLoading
+                            ? 'Loading...'
+                            : overview.pendingAlerts > 0
+                                ? 'Requires review'
+                                : 'All clear'
+                    }
                     trendColor={
-                        statsLoading
+                        alertsQuery.isLoading
                             ? 'text-[#868e96]'
                             : overview.pendingAlerts > 0
                                 ? 'text-[#E63946] font-semibold'
@@ -464,49 +486,49 @@ const DashboardPage = () => {
                     title="Movement Risk Overview"
                     subtitle="Latest movements by risk tier"
                     items={movementBars}
-                    loading={statsLoading}
+                    loading={movementsQuery.isLoading || riskBlocksLoading}
                     emptyLabel="No movement logs yet."
                 />
                 <BarChartCard
                     title="Incident Severity"
                     subtitle="Reported incidents by severity"
                     items={incidentBars}
-                    loading={statsLoading}
+                    loading={incidentsQuery.isLoading}
                     emptyLabel="No incidents reported yet."
                 />
                 <BarChartCard
                     title="Patrol Status"
                     subtitle="Current patrol activity"
                     items={patrolBars}
-                    loading={statsLoading}
+                    loading={patrolsQuery.isLoading}
                     emptyLabel="No patrols scheduled yet."
                 />
             </div>
 
             <div className="grid grid-cols-3 gap-3">
                 <div className="col-span-2">
-                    <RecentMovements movements={recentMovements} loading={statsLoading} />
+                    <RecentMovements movements={recentMovements} loading={movementsQuery.isLoading} />
                 </div>
                 <AlertCard
-                    title={statsLoading ? 'Loading Alerts' : alertTitle}
-                    type={statsLoading ? 'Fetching latest alerts' : alertType}
-                    location={statsLoading ? 'Please wait' : alertLocation}
-                    time={statsLoading ? '--' : alertTime}
+                    title={alertsQuery.isLoading ? 'Loading Alerts' : alertTitle}
+                    type={alertsQuery.isLoading ? 'Fetching latest alerts' : alertType}
+                    location={alertsQuery.isLoading ? 'Please wait' : alertLocation}
+                    time={alertsQuery.isLoading ? '--' : alertTime}
                     actionLabel={alertActionLabel}
                     actionTo="/dashboard/alerts"
                 />
             </div>
 
             <div className="grid grid-cols-3 gap-3">
-                <PatrolList patrols={patrolListItems} loading={statsLoading} />
+                <PatrolList patrols={patrolListItems} loading={patrolsQuery.isLoading} />
                 <RiskOverview
                     safe={riskBuckets.safe}
                     elevated={riskBuckets.elevated}
                     unassigned={riskBuckets.unassigned}
-                    loading={statsLoading}
+                    loading={riskBlocksLoading}
                 />
                 <IncidentCard
-                    loading={statsLoading}
+                    loading={incidentsQuery.isLoading}
                     title={
                         recentIncident
                             ? formatIncidentTypeTitle(recentIncident.type)

@@ -1,6 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
-    Activity,
     AlertTriangle,
     ArrowRight,
     Binoculars,
@@ -8,7 +7,6 @@ import {
     ClipboardList,
     Compass,
     Leaf,
-    LoaderCircle,
     MapPin,
     ShieldCheck,
 } from 'lucide-react';
@@ -57,34 +55,65 @@ const StatCard = ({ label, value, hint, icon: Icon, tone = 'default' }) => {
 };
 
 const RangerDashboardPage = () => {
-    const [loading, setLoading] = useState(true);
+    const [patrolsLoading, setPatrolsLoading] = useState(true);
+    const [summaryLoading, setSummaryLoading] = useState(true);
+    const [incidentsLoading, setIncidentsLoading] = useState(true);
     const [error, setError] = useState('');
     const [assignedPatrols, setAssignedPatrols] = useState([]);
     const [movementSummary, setMovementSummary] = useState(null);
     const [myIncidentsCount, setMyIncidentsCount] = useState(0);
 
     useEffect(() => {
-        const loadData = async () => {
-            setLoading(true);
-            setError('');
-            try {
-                const myUserId = getUserId();
-                const [patrols, summary, myIncidents] = await Promise.all([
-                    fetchAssignedPatrols(),
-                    getMovementSummary().catch(() => null),
-                    fetchIncidentsByReporter(myUserId).catch(() => []),
-                ]);
-                setAssignedPatrols(Array.isArray(patrols) ? patrols : []);
-                setMovementSummary(summary);
-                setMyIncidentsCount(Array.isArray(myIncidents) ? myIncidents.length : 0);
-            } catch (requestError) {
-                setError(requestError.message || 'Failed to load ranger dashboard data.');
-            } finally {
-                setLoading(false);
-            }
-        };
+        let cancelled = false;
+        setError('');
+        setPatrolsLoading(true);
+        setSummaryLoading(true);
+        setIncidentsLoading(true);
 
-        loadData();
+        const myUserId = getUserId();
+
+        fetchAssignedPatrols()
+            .then((patrols) => {
+                if (!cancelled) {
+                    setAssignedPatrols(Array.isArray(patrols) ? patrols : []);
+                }
+            })
+            .catch((requestError) => {
+                if (!cancelled) {
+                    setError(requestError.message || 'Failed to load assigned patrols.');
+                }
+            })
+            .finally(() => {
+                if (!cancelled) setPatrolsLoading(false);
+            });
+
+        getMovementSummary()
+            .then((summary) => {
+                if (!cancelled) setMovementSummary(summary);
+            })
+            .catch(() => {
+                if (!cancelled) setMovementSummary(null);
+            })
+            .finally(() => {
+                if (!cancelled) setSummaryLoading(false);
+            });
+
+        fetchIncidentsByReporter(myUserId)
+            .then((rows) => {
+                if (!cancelled) {
+                    setMyIncidentsCount(Array.isArray(rows) ? rows.length : 0);
+                }
+            })
+            .catch(() => {
+                if (!cancelled) setMyIncidentsCount(0);
+            })
+            .finally(() => {
+                if (!cancelled) setIncidentsLoading(false);
+            });
+
+        return () => {
+            cancelled = true;
+        };
     }, []);
 
     const inProgressPatrols = useMemo(
@@ -101,6 +130,8 @@ const RangerDashboardPage = () => {
         const first = Array.isArray(movementSummary?.data) ? movementSummary.data[0] : null;
         return first?.zoneDetails?.name || first?._id || 'Hotspot detected';
     }, [movementSummary]);
+
+    const hotspotLabel = summaryLoading ? 'Loading…' : hotspotZone;
 
     const patrolsByStatus = useMemo(
         () =>
@@ -146,30 +177,23 @@ const RangerDashboardPage = () => {
                 </div>
             </div>
 
-            {loading ? (
-                <div className="flex min-h-[220px] items-center justify-center rounded-[24px] border border-border-light bg-white shadow-premium">
-                    <div className="flex items-center gap-2 text-[13px] text-text-gray">
-                        <LoaderCircle size={15} className="animate-spin" />
-                        Loading ranger insights...
-                    </div>
-                </div>
-            ) : error ? (
-                <div className="rounded-xl border border-[#E63946]/30 bg-[#fff5f5] px-4 py-3 text-[13px] text-[#a4161a]">
+            {error ? (
+                <div className="mb-4 rounded-xl border border-[#E63946]/30 bg-[#fff5f5] px-4 py-3 text-[13px] text-[#a4161a]">
                     {error}
                 </div>
-            ) : (
-                <>
-                    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+            ) : null}
+
+            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
                         <StatCard
                             label="Assigned Patrols"
-                            value={assignedPatrols.length}
-                            hint={`${plannedPatrols} planned`}
+                            value={patrolsLoading ? '—' : assignedPatrols.length}
+                            hint={patrolsLoading ? 'Loading…' : `${plannedPatrols} planned`}
                             icon={ClipboardList}
                         />
                         <StatCard
                             label="In Progress"
-                            value={inProgressPatrols}
-                            hint="Active field operations"
+                            value={patrolsLoading ? '—' : inProgressPatrols}
+                            hint={patrolsLoading ? 'Loading…' : 'Active field operations'}
                             icon={Binoculars}
                             tone="active"
                         />
@@ -196,8 +220,12 @@ const RangerDashboardPage = () => {
                                     <AlertTriangle size={14} />
                                 </span>
                             </div>
-                            <p className="text-[24px] font-bold leading-none text-primary-dark">{myIncidentsCount}</p>
-                            <p className="mt-1 text-[11px] text-text-gray">Tap to view your reported incidents</p>
+                            <p className="text-[24px] font-bold leading-none text-primary-dark">
+                                {incidentsLoading ? '—' : myIncidentsCount}
+                            </p>
+                            <p className="mt-1 text-[11px] text-text-gray">
+                                {incidentsLoading ? 'Loading…' : 'Tap to view your reported incidents'}
+                            </p>
                         </Link>
                     </div>
 
@@ -281,7 +309,8 @@ const RangerDashboardPage = () => {
                                 </div>
                                 <p className="mt-3 inline-flex items-center gap-1.5 text-[12px] text-[#2b8a3e]">
                                     <Compass size={13} />
-                                    Focus patrol attention around <span className="font-semibold">{hotspotZone}</span>.
+                                    Focus patrol attention around{' '}
+                                    <span className="font-semibold">{hotspotLabel}</span>.
                                 </p>
                             </div>
 
@@ -314,8 +343,6 @@ const RangerDashboardPage = () => {
                             </div>
                         </div>
                     </div>
-                </>
-            )}
         </div>
     );
 };

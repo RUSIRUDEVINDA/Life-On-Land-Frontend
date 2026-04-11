@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import { getApiOrigin } from '../../utils/apiBaseUrl';
 import { getDefaultDashboardPathByRole, getStoredUser } from '../../utils/auth';
+import { prefetchAdminDashboardOverview } from '../../hooks/useDashboardData';
 import {
     mapBackendFieldErrors,
     validateLoginFields,
@@ -35,6 +37,7 @@ const FieldError = ({ id, message }) =>
     ) : null;
 
 const LoginPage = () => {
+    const queryClient = useQueryClient();
     const navigate = useNavigate();
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
@@ -110,6 +113,10 @@ const LoginPage = () => {
 
                 if (userData) {
                     localStorage.setItem('user', JSON.stringify(userData));
+                }
+
+                if (String(userData?.role || '').toUpperCase() === 'ADMIN') {
+                    void prefetchAdminDashboardOverview(queryClient);
                 }
 
                 navigate(getDefaultDashboardPathByRole(userData?.role));
