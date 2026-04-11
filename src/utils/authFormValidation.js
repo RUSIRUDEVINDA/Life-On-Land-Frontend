@@ -170,3 +170,55 @@ export function validateRegisterFields({ name, phone, email, password, confirmPa
 
     return errors;
 }
+
+/**
+ * Profile update: name, phone; email only when the user can edit it (admin).
+ * @returns {Record<string, string>}
+ */
+export function validateProfileFields({ name, phone, email, isAdmin }) {
+    const errors = {};
+    const n = String(name ?? '').trim();
+    const ph = String(phone ?? '').trim();
+
+    if (!n) {
+        errors.name = 'Full name is required.';
+    } else if (hasInvalidControlChars(name)) {
+        errors.name = 'Name contains invalid characters that cannot be used.';
+    } else if (n.length > MAX_NAME_LEN) {
+        errors.name = 'Full name can only contain 100 characters.';
+    } else if (n.length < MIN_NAME_LEN) {
+        errors.name = `Name must be at least ${MIN_NAME_LEN} characters.`;
+    } else if (!NAME_REGEX.test(n)) {
+        errors.name = 'Full name can only contain letters and spaces.';
+    }
+
+    if (!ph) {
+        errors.phone = 'Phone number is required.';
+    } else if (hasInvalidControlChars(phone)) {
+        errors.phone = 'Phone contains invalid characters that cannot be used.';
+    } else if (!PHONE_ALLOWED_CHARS_REGEX.test(ph)) {
+        errors.phone = 'Phone number can only include digits, spaces, hyphens, parentheses, or +.';
+    } else {
+        const digitsOnly = ph.replace(/\D/g, '');
+        if (digitsOnly.length > 10) {
+            errors.phone = 'Phone number can only contain 10 digits.';
+        } else if (digitsOnly.length < 10) {
+            errors.phone = 'Phone number must contain exactly 10 digits.';
+        }
+    }
+
+    if (isAdmin) {
+        const em = String(email ?? '').trim();
+        if (!em) {
+            errors.email = 'Email is required.';
+        } else if (hasInvalidControlChars(email)) {
+            errors.email = 'Email contains invalid characters that cannot be used.';
+        } else if (em.length > MAX_EMAIL_LEN) {
+            errors.email = 'Email can only contain 250 characters.';
+        } else if (!EMAIL_REGEX.test(em)) {
+            errors.email = 'Enter a valid email address.';
+        }
+    }
+
+    return errors;
+}

@@ -14,7 +14,58 @@ Life-On-Land Frontend is the operational web client for the **Poaching Alert and
 
 ## Deployment
 
-This frontend is ready for static deployment on **Vercel**. Local development uses the Vite `/api` proxy, while production targets the backend through `VITE_API_URL` and falls back to `https://life-on-land-aqau.onrender.com` if that variable is not provided. SPA refresh routing is already configured in `vercel.json`.
+This section documents how the **Life-On-Land** stack is deployed for production. Do not commit real secrets; use placeholders or your host’s secret manager.
+
+### Backend deployment platform and setup steps
+
+- **Platform:** [Render](https://render.com/) (Node API service; optional separate worker for the movement simulator per `render.yaml`).
+- **Setup steps (summary):**
+  1. Create a new **Web Service** on Render and connect this monorepo (or your backend repository root).
+  2. Set the **build** and **start** commands to match the backend `package.json` (e.g. install dependencies, `npm run build` if applicable, then start the API).
+  3. Configure **environment variables** in the Render dashboard (see **Environment variables** below). Use Render’s **Secret** type for sensitive values.
+  4. Deploy and wait for the service to pass health checks; note the public **service URL** (your deployed backend API base).
+  5. *(Optional)* If you use the simulator worker, provision a second Render service or run `npm run simulate` per project docs and point `API_URL` at your live `/api`.
+
+### Frontend deployment platform and setup steps
+
+- **Platform:** [Vercel](https://vercel.com/) (static SPA from the Vite `dist` output).
+- **Setup steps (summary):**
+  1. Import this Git repository into Vercel (or use the Vercel CLI).
+  2. Set **Framework Preset** to Vite (or custom): **Build Command** `npm run build`, **Output Directory** `dist`.
+  3. Add **environment variables** in Vercel for production (see below). Never paste secret keys into the README.
+  4. Deploy; confirm `vercel.json` SPA rewrites so client-side routes refresh correctly.
+  5. *(Optional)* Connect GitHub so pushes to `main` trigger production deploys (see CI section in this README).
+
+### Environment variables used (no secrets exposed)
+
+| Context | Variable | Purpose |
+| :-- | :-- | :-- |
+| Frontend (Vercel / local) | `VITE_API_URL` | Production backend origin for API calls. |
+| Frontend (local dev) | `VITE_API_PROXY_TARGET` | Target for Vite’s `/api` dev proxy. |
+| Frontend | `VITE_MAPTILER_KEY` | MapTiler key for MapLibre map styles (store as a secret in the host UI). |
+| Backend (Render) | `MONGO_URI` | MongoDB connection string (**secret**). |
+| Backend (Render) | `JWT_SECRET` | Signing secret for JWTs (**secret**). |
+| Backend (Render) | `JWT_EXPIRES_IN` | Token lifetime (e.g. `7d`). |
+| Backend (Render) | `NODE_ENV` | Typically `production`. |
+| Simulator worker (if used) | `MONGO_URI` | Same database as backend (**secret**). |
+| Simulator worker (if used) | `API_URL` | Base URL to your live API (e.g. `https://<your-backend>/api`). |
+
+Replace placeholder values in your host dashboards only; do not commit `.env` files with real credentials.
+
+### Live URLs
+
+| Resource | URL |
+| :-- | :-- |
+| **Deployed backend API** | `https://life-on-land-aqau.onrender.com` *(update if your team uses a different production API)* |
+| **Deployed frontend application** | *Add your Vercel (or other) production URL here, e.g. `https://<project>.vercel.app`* |
+
+### Screenshots or evidence of successful deployment
+
+Include evidence with your submission, for example:
+
+- Vercel: production deployment **Overview** showing a successful build and the production URL.
+- Render: **Logs** or dashboard view showing the web service **Live** and the external URL.
+- Optional: screenshot of the live app loading and a simple API health or login check against the deployed backend.
 
 ---
 

@@ -147,7 +147,7 @@ const RegisterPage = () => {
                             autoComplete="name"
                             maxLength={100}
                             className={inputClass(Boolean(fieldErrors.name))}
-                            placeholder="John Doe (letters and spaces, max 100)"
+                            placeholder="Rusiru Wijesiri"
                             value={name}
                             onChange={(e) => {
                                 setName(e.target.value);
