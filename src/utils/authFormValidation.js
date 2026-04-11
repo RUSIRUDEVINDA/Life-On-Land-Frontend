@@ -32,6 +32,7 @@ export function mapBackendFieldErrors(payload) {
     if (!payload || typeof payload !== 'object') return {};
 
     const out = {};
+    const formMessages = [];
 
     const nestedError = payload.error;
     if (nestedError && typeof nestedError === 'object' && !Array.isArray(nestedError)) {
@@ -44,6 +45,11 @@ export function mapBackendFieldErrors(payload) {
     const raw = payload.errors ?? payload.validationErrors ?? payload.details;
     if (Array.isArray(raw)) {
         for (const item of raw) {
+            if (typeof item === 'string') {
+                const msg = String(item).trim();
+                if (msg) formMessages.push(msg);
+                continue;
+            }
             if (!item || typeof item !== 'object') continue;
             let path = item.path ?? item.param ?? item.field ?? item.location;
             if (Array.isArray(path)) {
@@ -57,7 +63,12 @@ export function mapBackendFieldErrors(payload) {
                 .trim();
             if (key) {
                 out[key] = String(msg);
+            } else {
+                formMessages.push(String(msg));
             }
+        }
+        if (formMessages.length > 0 && !out._form) {
+            out._form = formMessages.join('\n');
         }
         return out;
     }
@@ -217,6 +228,65 @@ export function validateProfileFields({ name, phone, email, isAdmin }) {
             errors.email = 'Email can only contain 250 characters.';
         } else if (!EMAIL_REGEX.test(em)) {
             errors.email = 'Enter a valid email address.';
+        }
+    }
+
+    return errors;
+}
+
+/**
+ * @returns {Record<string, string>}
+ */
+export function validateForgotPasswordFields({ email }) {
+    const errors = {};
+    const em = String(email ?? '').trim();
+
+    if (!em) {
+        errors.email = 'Email is required.';
+    } else if (hasInvalidControlChars(email)) {
+        errors.email = 'Email contains invalid characters that cannot be used.';
+    } else if (em.length > MAX_EMAIL_LEN) {
+        errors.email = 'Email can only contain 250 characters.';
+    } else if (!EMAIL_REGEX.test(em)) {
+        errors.email = 'Enter a valid email address.';
+    }
+
+    return errors;
+}
+
+/**
+ * @returns {Record<string, string>}
+ */
+export function validateResetPasswordFields({ token, password, confirmPassword }) {
+    const errors = {};
+    const t = String(token ?? '').trim();
+    const pw = String(password ?? '');
+    const pw2 = String(confirmPassword ?? '');
+
+    if (!t) {
+        errors.token = 'Reset token is missing.';
+    } else if (hasInvalidControlChars(t)) {
+        errors.token = 'Reset token is invalid.';
+    } else if (t.length > 512) {
+        errors.token = 'Reset token is invalid.';
+    }
+
+    if (!pw) {
+        errors.password = 'Password is required.';
+    } else if (hasInvalidControlChars(pw)) {
+        errors.password = 'Password contains invalid characters that cannot be used.';
+    } else if (pw.length < MIN_PASSWORD_LEN) {
+        errors.password = `Password must be at least ${MIN_PASSWORD_LEN} characters.`;
+    } else if (pw.length > MAX_PASSWORD_LEN) {
+        errors.password = 'Password is too long.';
+    }
+
+    if (!pw2) {
+        errors.confirmPassword = 'Please confirm your password.';
+    } else if (pw !== pw2) {
+        errors.confirmPassword = 'Passwords do not match.';
+        if (!errors.password) {
+            errors.password = 'Passwords do not match.';
         }
     }
 
