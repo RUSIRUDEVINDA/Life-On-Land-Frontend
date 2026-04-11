@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import { getApiOrigin } from '../../utils/apiBaseUrl';
 import { getDefaultDashboardPathByRole } from '../../utils/auth';
+import { prefetchAdminDashboardOverview } from '../../hooks/useDashboardData';
 import {
     mapBackendFieldErrors,
     validateRegisterFields,
@@ -29,6 +31,7 @@ const FieldError = ({ id, message }) =>
     ) : null;
 
 const RegisterPage = () => {
+    const queryClient = useQueryClient();
     const navigate = useNavigate();
     const [name, setName] = useState('');
     const [phone, setPhone] = useState('');
@@ -119,6 +122,10 @@ const RegisterPage = () => {
                 );
             }
 
+            const registeredRole = String(payload?.role || payload?.data?.role || 'RANGER').toUpperCase();
+            if (registeredRole === 'ADMIN') {
+                void prefetchAdminDashboardOverview(queryClient);
+            }
 
             navigate(getDefaultDashboardPathByRole(payload?.role || payload?.data?.role || 'RANGER'));
         } catch (requestError) {

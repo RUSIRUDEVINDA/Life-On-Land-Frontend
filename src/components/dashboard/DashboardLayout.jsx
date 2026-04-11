@@ -1,5 +1,6 @@
 import React from 'react';
 import { Outlet, Link, useNavigate, useLocation } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import {
     LayoutDashboard,
     Map,
@@ -14,6 +15,7 @@ import {
     LogOut,
 } from 'lucide-react';
 import { getUserRole, getStoredUser } from '../../utils/auth';
+import { prefetchAdminDashboardOverview } from '../../hooks/useDashboardData';
 
 const adminMenuItems = [
     { name: 'Dashboard', path: '/dashboard/admin', icon: <LayoutDashboard size={18} /> },
@@ -44,10 +46,17 @@ const generalItems = [
 ];
 
 const DashboardLayout = () => {
+    const queryClient = useQueryClient();
     const navigate = useNavigate();
     const location = useLocation();
     const [user, setUser] = React.useState(getStoredUser());
     const role = String(user?.role || getUserRole()).trim().toUpperCase();
+
+    React.useEffect(() => {
+        if (role === 'ADMIN') {
+            void prefetchAdminDashboardOverview(queryClient);
+        }
+    }, [queryClient, role]);
 
     React.useEffect(() => {
         const syncUser = () => {
