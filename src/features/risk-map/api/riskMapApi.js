@@ -1,13 +1,5 @@
+import { getApiOrigin } from '../../../utils/apiBaseUrl';
 import { throwIfUpstreamError } from '../../../utils/upstreamUnavailableMessage';
-
-const DEFAULT_API_URL = 'http://localhost:5001';
-
-const getApiBaseUrl = () => {
-    if (import.meta.env.DEV) {
-        return '';
-    }
-    return (import.meta.env.VITE_API_URL || DEFAULT_API_URL).replace(/\/$/, '');
-};
 
 const getAuthHeaders = () => {
     const rawToken = localStorage.getItem('token');
@@ -33,7 +25,7 @@ const withDefaultHeaders = (headers = {}) => ({
 });
 
 const requestJson = async (path, options = {}) => {
-    const url = `${getApiBaseUrl()}${path}`;
+    const url = `${getApiOrigin()}${path}`;
     const token = localStorage.getItem('token');
 
     let response = await fetch(

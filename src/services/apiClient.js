@@ -1,17 +1,8 @@
 import axios from 'axios';
-
-const DEFAULT_API_URL = 'http://localhost:5001';
-
-const getApiBaseUrl = () => {
-  if (import.meta.env.DEV) {
-    return '';
-  }
-
-  return (import.meta.env.VITE_API_URL || DEFAULT_API_URL).trim().replace(/\/$/, '');
-};
+import { getApiOrigin } from '../utils/apiBaseUrl';
 
 const apiClient = axios.create({
-  baseURL: getApiBaseUrl(),
+  baseURL: getApiOrigin(),
   withCredentials: true,
   headers: {
     'Content-Type': 'application/json',

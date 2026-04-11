@@ -25,3 +25,9 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+<<<<<<< Updated upstream
+.vite
+=======
+backend
+>>>>>>> Stashed changes

@@ -10,11 +10,41 @@ import {
     UserRound,
 } from 'lucide-react';
 import { fetchMyProfile, updateMyProfile } from '../../features/users/api/usersApi';
+import { validateProfileFields } from '../../utils/authFormValidation';
+
+const ProfileFieldError = ({ id, message }) =>
+    message ? (
+        <p id={id} className="mt-1.5 text-[12px] font-medium text-[#a4161a]" role="alert">
+            {message}
+        </p>
+    ) : null;
+
+const fieldInputClass = (base, hasError) =>
+    `${base} ${hasError ? 'border-[#E63946]/55 ring-1 ring-[#E63946]/20 focus:border-[#E63946] focus:ring-[#E63946]/25' : ''}`.trim();
+
+/** Strip Sri Lanka country code for profile phone display (+94 / 94 / 0094). */
+const stripLkCountryCode = (phone) => {
+    let s = String(phone ?? '').trim().replace(/\s+/g, '');
+    if (!s) return '';
+    if (s.startsWith('+')) s = s.slice(1);
+    if (s.startsWith('0094')) s = s.slice(4);
+    else if (s.startsWith('94')) s = s.slice(2);
+    return s;
+};
+
+/** National 10-digit display: after +94 strip, prepend trunk 0 when only 9 digits remain (e.g. 7529… → 07529…). */
+const formatProfilePhoneDisplay = (phone) => {
+    const s = stripLkCountryCode(phone);
+    if (!s) return '';
+    if (/^0\d{9}$/.test(s)) return s;
+    if (/^\d{9}$/.test(s)) return `0${s}`;
+    return s;
+};
 
 const createFormState = (profile) => ({
     name: profile?.name || '',
     email: profile?.email || '',
-    phone: profile?.phone || '',
+    phone: formatProfilePhoneDisplay(profile?.phone),
     role: profile?.role || 'RANGER',
     profilePhoto: null,
 });
@@ -49,6 +79,7 @@ const ProfilePage = () => {
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState('');
     const [success, setSuccess] = useState('');
+    const [fieldErrors, setFieldErrors] = useState({});
 
     useEffect(() => {
         const loadProfile = async () => {
@@ -95,31 +126,56 @@ const ProfilePage = () => {
         }
     }, [profile?.createdAt]);
 
+    const clearFieldError = (field) => {
+        setFieldErrors((previous) => {
+            if (!previous[field]) return previous;
+            const next = { ...previous };
+            delete next[field];
+            return next;
+        });
+    };
+
     const handleChange = (field) => (event) => {
         const { value, type, files } = event.target;
         setForm((previous) => ({ ...previous, [field]: type === 'file' ? files[0] : value }));
         setSuccess('');
+        if (field !== 'profilePhoto') clearFieldError(field);
     };
 
     const handleReset = () => {
         setForm(initialForm);
         setError('');
         setSuccess('');
+        setFieldErrors({});
     };
 
     const handleSubmit = async (event) => {
         event.preventDefault();
-        setSaving(true);
         setError('');
         setSuccess('');
 
+        const clientErrors = validateProfileFields({
+            name: form.name,
+            phone: form.phone,
+            email: form.email,
+            isAdmin,
+        });
+        if (Object.keys(clientErrors).length > 0) {
+            setFieldErrors(clientErrors);
+            return;
+        }
+        setFieldErrors({});
+
+        setSaving(true);
+
+        const phoneDigits = form.phone.replace(/\D/g, '');
         const hasPhoto = Boolean(form.profilePhoto);
         let data;
 
         if (hasPhoto) {
             data = new FormData();
             data.append('name', form.name.trim());
-            data.append('phone', form.phone.trim());
+            data.append('phone', phoneDigits);
             data.append('profilePhoto', form.profilePhoto);
             if (isAdmin) {
                 data.append('email', form.email.trim());
@@ -128,7 +184,7 @@ const ProfilePage = () => {
         } else {
             data = {
                 name: form.name.trim(),
-                phone: form.phone.trim(),
+                phone: phoneDigits,
             };
             if (isAdmin) {
                 data.email = form.email.trim();
@@ -310,12 +366,19 @@ const ProfilePage = () => {
                                 </p>
                             </div>
                             <input
+                                id="profile-name"
                                 type="text"
                                 value={form.name}
                                 onChange={handleChange('name')}
-                                className="w-full rounded-xl border border-border-light bg-white px-3.5 py-2.5 text-[14px] font-medium text-primary-dark outline-none transition focus:border-emerald-500/50 focus:ring-2 focus:ring-emerald-500/15"
+                                className={fieldInputClass(
+                                    'w-full rounded-xl border border-border-light bg-white px-3.5 py-2.5 text-[14px] font-medium text-primary-dark outline-none transition focus:border-emerald-500/50 focus:ring-2 focus:ring-emerald-500/15',
+                                    Boolean(fieldErrors.name)
+                                )}
                                 placeholder="Enter your name"
+                                aria-invalid={Boolean(fieldErrors.name)}
+                                aria-describedby={fieldErrors.name ? 'profile-name-error' : undefined}
                             />
+                            <ProfileFieldError id="profile-name-error" message={fieldErrors.name} />
                         </label>
 
                         <label className="group rounded-2xl border border-border-light bg-gradient-to-br from-white to-violet-50/35 p-4 transition hover:border-violet-200/80 hover:shadow-sm">
@@ -354,13 +417,22 @@ const ProfilePage = () => {
                                 </p>
                             </div>
                             {isAdmin ? (
-                                <input
-                                    type="email"
-                                    value={form.email}
-                                    onChange={handleChange('email')}
-                                    className="w-full rounded-xl border border-border-light bg-white px-3.5 py-2.5 text-[14px] font-medium text-primary-dark outline-none transition focus:border-sky-400/60 focus:ring-2 focus:ring-sky-400/15"
-                                    placeholder="Enter your email"
-                                />
+                                <>
+                                    <input
+                                        id="profile-email"
+                                        type="email"
+                                        value={form.email}
+                                        onChange={handleChange('email')}
+                                        className={fieldInputClass(
+                                            'w-full rounded-xl border border-border-light bg-white px-3.5 py-2.5 text-[14px] font-medium text-primary-dark outline-none transition focus:border-sky-400/60 focus:ring-2 focus:ring-sky-400/15',
+                                            Boolean(fieldErrors.email)
+                                        )}
+                                        placeholder="Enter your email"
+                                        aria-invalid={Boolean(fieldErrors.email)}
+                                        aria-describedby={fieldErrors.email ? 'profile-email-error' : undefined}
+                                    />
+                                    <ProfileFieldError id="profile-email-error" message={fieldErrors.email} />
+                                </>
                             ) : (
                                 <div className="inline-flex w-full items-center gap-2 rounded-xl border border-border-light bg-white px-3.5 py-2.5 text-[14px] font-medium text-primary-dark">
                                     <Mail size={15} className="shrink-0 text-sky-600" />
@@ -378,16 +450,26 @@ const ProfilePage = () => {
                                     Phone
                                 </p>
                             </div>
-                            <div className="flex items-center rounded-xl border border-border-light bg-white px-3.5 py-2.5 transition focus-within:border-amber-400/50 focus-within:ring-2 focus-within:ring-amber-400/15">
-                                <Phone size={15} className="mr-2 shrink-0 text-amber-700" />
+                            <div
+                                className={`flex items-center rounded-xl border bg-white px-3.5 py-2.5 transition focus-within:ring-2 ${
+                                    fieldErrors.phone
+                                        ? 'border-[#E63946]/55 ring-1 ring-[#E63946]/20 focus-within:border-[#E63946] focus-within:ring-[#E63946]/25'
+                                        : 'border-border-light focus-within:border-amber-400/50 focus-within:ring-amber-400/15'
+                                }`}
+                            >
+                                <Phone size={9} className="mr-2 shrink-0 text-amber-700" />
                                 <input
+                                    id="profile-phone"
                                     type="tel"
                                     value={form.phone}
                                     onChange={handleChange('phone')}
                                     className="w-full bg-transparent text-[14px] font-medium text-primary-dark outline-none"
-                                    placeholder="+94771234567"
+                                    placeholder="0771234567"
+                                    aria-invalid={Boolean(fieldErrors.phone)}
+                                    aria-describedby={fieldErrors.phone ? 'profile-phone-error' : undefined}
                                 />
                             </div>
+                            <ProfileFieldError id="profile-phone-error" message={fieldErrors.phone} />
                         </label>
                     </div>
 

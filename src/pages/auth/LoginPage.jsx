@@ -1,19 +1,13 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
+import { getApiOrigin } from '../../utils/apiBaseUrl';
 import { getDefaultDashboardPathByRole, getStoredUser } from '../../utils/auth';
+import { prefetchAdminDashboardOverview } from '../../hooks/useDashboardData';
 import {
     mapBackendFieldErrors,
     validateLoginFields,
 } from '../../utils/authFormValidation';
-
-const DEFAULT_API_URL = 'http://localhost:5001';
-const getApiBaseUrl = () => {
-    if (import.meta.env.DEV) {
-        return '';
-    }
-
-    return (import.meta.env.VITE_API_URL || DEFAULT_API_URL).trim().replace(/\/$/, '');
-};
 
 const extractToken = (payload) => {
     return (
@@ -43,6 +37,7 @@ const FieldError = ({ id, message }) =>
     ) : null;
 
 const LoginPage = () => {
+    const queryClient = useQueryClient();
     const navigate = useNavigate();
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
@@ -80,7 +75,7 @@ const LoginPage = () => {
 
         setSubmitting(true);
         try {
-            const response = await fetch(`${getApiBaseUrl()}/api/auth/login`, {
+            const response = await fetch(`${getApiOrigin()}/api/auth/login`, {
                 method: 'POST',
                 credentials: 'include',
                 headers: { 'Content-Type': 'application/json' },
@@ -118,6 +113,10 @@ const LoginPage = () => {
 
                 if (userData) {
                     localStorage.setItem('user', JSON.stringify(userData));
+                }
+
+                if (String(userData?.role || '').toUpperCase() === 'ADMIN') {
+                    void prefetchAdminDashboardOverview(queryClient);
                 }
 
                 navigate(getDefaultDashboardPathByRole(userData?.role));

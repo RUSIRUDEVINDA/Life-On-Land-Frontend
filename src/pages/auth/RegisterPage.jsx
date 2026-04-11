@@ -1,19 +1,13 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
+import { getApiOrigin } from '../../utils/apiBaseUrl';
 import { getDefaultDashboardPathByRole } from '../../utils/auth';
+import { prefetchAdminDashboardOverview } from '../../hooks/useDashboardData';
 import {
     mapBackendFieldErrors,
     validateRegisterFields,
 } from '../../utils/authFormValidation';
-
-const DEFAULT_API_URL = 'http://localhost:5001';
-const getApiBaseUrl = () => {
-    if (import.meta.env.DEV) {
-        return '';
-    }
-
-    return (import.meta.env.VITE_API_URL || DEFAULT_API_URL).trim().replace(/\/$/, '');
-};
 
 const inputClass = (hasError) =>
     `px-5 py-4 bg-bg-soft border rounded-xl text-[15px] transition-all duration-300 focus:bg-white focus:ring-4 outline-none ${
@@ -37,6 +31,7 @@ const FieldError = ({ id, message }) =>
     ) : null;
 
 const RegisterPage = () => {
+    const queryClient = useQueryClient();
     const navigate = useNavigate();
     const [name, setName] = useState('');
     const [phone, setPhone] = useState('');
@@ -88,7 +83,7 @@ const RegisterPage = () => {
                 formData.append('profilePhoto', profilePhoto);
             }
 
-            const response = await fetch(`${getApiBaseUrl()}/api/auth/register`, {
+            const response = await fetch(`${getApiOrigin()}/api/auth/register`, {
                 method: 'POST',
                 credentials: 'include',
                 // Content-Type header is omitted so the browser sets it to multipart/form-data with boundary
@@ -127,6 +122,10 @@ const RegisterPage = () => {
                 );
             }
 
+            const registeredRole = String(payload?.role || payload?.data?.role || 'RANGER').toUpperCase();
+            if (registeredRole === 'ADMIN') {
+                void prefetchAdminDashboardOverview(queryClient);
+            }
 
             navigate(getDefaultDashboardPathByRole(payload?.role || payload?.data?.role || 'RANGER'));
         } catch (requestError) {
@@ -155,7 +154,7 @@ const RegisterPage = () => {
                             autoComplete="name"
                             maxLength={100}
                             className={inputClass(Boolean(fieldErrors.name))}
-                            placeholder="John Doe (letters and spaces, max 100)"
+                            placeholder="Rusiru Wijesiri"
                             value={name}
                             onChange={(e) => {
                                 setName(e.target.value);
