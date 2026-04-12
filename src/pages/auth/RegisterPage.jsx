@@ -73,22 +73,37 @@ const RegisterPage = () => {
 
         setSubmitting(true);
         try {
-            const formData = new FormData();
-            formData.append('name', name.trim());
-            formData.append('phone', phone.replace(/\D/g, ''));
-            formData.append('email', email.trim());
-            formData.append('password', password);
-            formData.append('role', role);
+            const url = `${getApiOrigin()}/api/auth/register`;
+            let registerFetchOptions;
             if (profilePhoto) {
+                const formData = new FormData();
+                formData.append('name', name.trim());
+                formData.append('phone', phone.replace(/\D/g, ''));
+                formData.append('email', email.trim());
+                formData.append('password', password);
+                formData.append('role', role);
                 formData.append('profilePhoto', profilePhoto);
+                registerFetchOptions = {
+                    method: 'POST',
+                    credentials: 'include',
+                    body: formData,
+                };
+            } else {
+                registerFetchOptions = {
+                    method: 'POST',
+                    credentials: 'include',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        name: name.trim(),
+                        phone: phone.replace(/\D/g, ''),
+                        email: email.trim(),
+                        password,
+                        role,
+                    }),
+                };
             }
 
-            const response = await fetch(`${getApiOrigin()}/api/auth/register`, {
-                method: 'POST',
-                credentials: 'include',
-                // Content-Type header is omitted so the browser sets it to multipart/form-data with boundary
-                body: formData,
-            });
+            const response = await fetch(url, registerFetchOptions);
 
 
             const payload = await response.json().catch(() => ({}));
