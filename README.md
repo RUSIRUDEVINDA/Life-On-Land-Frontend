@@ -19,7 +19,7 @@ Life-On-Land Frontend is the operational web client for the **Poaching Alert and
 - **Incident and Alert Operations**: Reporting, queue review, severity tracking, and workflow updates for field threats.
 - **Patrol Coordination**: Patrol assignment, mission detail views, ranger check-ins, and status-aware patrol boards.
 - **Export Workflows**: PDF queue exports for incidents, alerts, and movement logs via `jsPDF` and `jspdf-autotable`.
-- **Resilient API Access**: Production API base URL switching, Vite dev proxying, token forwarding, and cookie-aware requests.
+- **Resilient API Access**: Production API base URL switching, Vite dev proxying, token forwarding, and cookie-aware requests. 
 
 ---
 
